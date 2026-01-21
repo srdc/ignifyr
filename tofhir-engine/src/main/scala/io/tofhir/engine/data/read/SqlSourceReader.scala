@@ -36,10 +36,6 @@ class SqlSourceReader(spark: SparkSession) extends BaseDataSourceReader[SqlSourc
       throw FhirMappingException(s"Both table name and query cannot be empty at the same time. One of them must be provided.")
     }
 
-    if (schema.isDefined) {
-      logger.debug("There is a schema definition for the SqlSource, but I cannot enforce it while reading from the database. Hence, ignoring...")
-    }
-
     // As in spark jdbc read docs, instead of a full table you could also use a sub-query in parentheses.
     val dbTable: String = mappingSourceBinding.tableName.getOrElse({
       var query: String = mappingSourceBinding.query.get
@@ -50,13 +46,59 @@ class SqlSourceReader(spark: SparkSession) extends BaseDataSourceReader[SqlSourc
       s"( $query ) queryGeneratedTable"
     })
 
-    spark.read
+  val reader = spark.read
       .format("jdbc")
       .option("url", mappingJobSourceSettings.databaseUrl)
       .option("dbtable", dbTable)
       .option("user", mappingJobSourceSettings.username)
       .option("password", mappingJobSourceSettings.password)
       .options(mappingSourceBinding.options)
-      .load()
+
+    // Apply schema via customSchema if provided
+    val readerWithSchema = schema match {
+      case Some(s) =>
+        reader.option("customSchema", toCustomSchema(s))
+      case None =>
+        reader
+    }
+    readerWithSchema.load()
   }
+
+  /**
+   * Converts a Spark {@link StructType} schema into a JDBC-compatible
+   * {@code customSchema} definition string.
+   *
+   * <p>
+   * Spark's JDBC data source does not have {@code schema(...)}
+   * when reading from a database. Instead, it allows enforcing column types
+   * at read time via the {@code customSchema} option. This method translates
+   * a {@link StructType} into the format expected by that option.
+   * </p>
+   *
+   * <p>
+   * Example:
+   * <pre>
+   * StructType(
+   * StructField("id", IntegerType),
+   * StructField("value", StringType),
+   * StructField("event_time", TimestampType)
+   * )
+   * </pre>
+   *
+   * will be converted to:
+   *
+   * <pre>
+   * "id INT, value STRING, event_time TIMESTAMP"
+   * </pre>
+   * </p>
+   *
+   * @param schema the Spark {@link StructType} defining the expected column names
+   *               and data types
+   * @return a string suitable for Spark JDBC reads
+   */
+  private def toCustomSchema(schema: StructType): String =
+    schema.fields
+      .map(f => s"${f.name} ${f.dataType.sql}")
+      .mkString(", ")
+
 }
