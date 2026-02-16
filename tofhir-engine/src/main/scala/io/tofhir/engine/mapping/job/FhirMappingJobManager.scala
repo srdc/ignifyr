@@ -290,6 +290,36 @@ class FhirMappingJobManager(
   }
 
   /**
+   * Substitutes batch parameters in the preprocessSql of all source bindings in a mapping task.
+   * Parameters in preprocessSql are specified as $parameterName and will be replaced with the corresponding value.
+   *
+   * @param task       The original mapping task
+   * @param parameters Map of parameter names to their values (e.g., Map("year" -> "2014", "month" -> "1"))
+   * @return A new mapping task with substituted preprocessSql in all source bindings
+   */
+  private def substituteBatchParameters(task: FhirMappingTask, parameters: Map[String, String]): FhirMappingTask = {
+    val updatedSourceBinding = task.sourceBinding.map { case (alias, binding) =>
+      val updatedBinding = binding.preprocessSql match {
+        case Some(sql) =>
+          val substitutedSql = parameters.foldLeft(sql) { case (currentSql, (paramName, paramValue)) =>
+            currentSql.replace(s"$$$paramName", paramValue)
+          }
+          // Create a new binding with the substituted SQL based on the binding type
+          binding match {
+            case fs: FileSystemSource => fs.copy(preprocessSql = Some(substitutedSql))
+            case ss: SqlSource => ss.copy(preprocessSql = Some(substitutedSql))
+            case ks: KafkaSource => ks.copy(preprocessSql = Some(substitutedSql))
+            case fss: FhirServerSource => fss.copy(preprocessSql = Some(substitutedSql))
+            case other => other // For any other type, return as-is
+          }
+        case None => binding
+      }
+      alias -> updatedBinding
+    }
+    task.copy(sourceBinding = updatedSourceBinding)
+  }
+
+  /**
    * Read the source data, divide it into chunks and execute the mapping (first mapping task in the Fhir Mapping Job
    * Execution) and write each chunk sequentially
    *
@@ -308,7 +338,65 @@ class FhirMappingJobManager(
                                                 identityServiceSettings: Option[IdentityServiceSettings] = None,
                                                 timeRange: Option[(LocalDateTime, LocalDateTime)] = None): Future[Unit] = {
     val mappingTask = mappingJobExecution.mappingTasks.head
-    logger.debug(s"Reading source data for mapping ${mappingTask.name} within mapping job ${mappingJobExecution.jobId} ...")
+
+    // Check if this task has a batching strategy defined
+    mappingTask.batchingStrategy match {
+      case Some(strategy) if strategy.batchParameterSets.nonEmpty =>
+        // Execute the mapping task for each batch parameter set sequentially
+        val totalBatches = strategy.batchParameterSets.size
+        logger.debug(s"Batching strategy defined for mapping ${mappingTask.name} with $totalBatches batches")
+
+        strategy.batchParameterSets.zipWithIndex.foldLeft(Future.successful(())) { case (previousFuture, (batchParams, batchIndex)) =>
+          previousFuture.flatMap { _ =>
+            val batchNumber = batchIndex + 1
+            val isLastBatch = batchNumber == totalBatches
+            logger.debug(s"Processing batch $batchNumber/$totalBatches for mapping ${mappingTask.name} with parameters: $batchParams")
+
+            // Substitute the batch parameters in the task's preprocessSql
+            val batchTask = substituteBatchParameters(mappingTask, batchParams)
+
+            // Execute the batch, only log final result on last batch
+            executeSingleBatch(mappingJobExecution.copy(mappingTasks = Seq(batchTask)), sourceSettings, fhirWriter,
+              terminologyServiceSettings, identityServiceSettings, timeRange, Some(batchNumber), Some(totalBatches), Some(batchParams), isLastBatch)
+          }
+        }
+
+      case _ =>
+        // No batching strategy, execute normally (always the last/only batch)
+        executeSingleBatch(mappingJobExecution, sourceSettings, fhirWriter, terminologyServiceSettings,
+          identityServiceSettings, timeRange, None, None, None, isLastBatch = true)
+    }
+  }
+
+  /**
+   * Execute a single batch of the mapping task. This is called either once (when no batching strategy)
+   * or multiple times (once for each batch parameter set).
+   *
+   * @param mappingJobExecution        Fhir Mapping Job execution
+   * @param sourceSettings             The source settings of the mapping job
+   * @param fhirWriter                 FHIR writer
+   * @param terminologyServiceSettings Terminology service settings
+   * @param identityServiceSettings    Identity service settings
+   * @param timeRange                  Time range for the source data to load
+   * @param batchNumber                Current batch number (1-based), None if no batching
+   * @param totalBatches               Total number of batches, None if no batching
+   * @param batchParams                Parameters for this batch, None if no batching
+   * @param isLastBatch                Whether this is the last batch (used to determine when to log final execution result)
+   * @return
+   */
+  private def executeSingleBatch(mappingJobExecution: FhirMappingJobExecution,
+                                 sourceSettings: Map[String, MappingJobSourceSettings],
+                                 fhirWriter: BaseFhirWriter,
+                                 terminologyServiceSettings: Option[TerminologyServiceSettings],
+                                 identityServiceSettings: Option[IdentityServiceSettings],
+                                 timeRange: Option[(LocalDateTime, LocalDateTime)],
+                                 batchNumber: Option[Int],
+                                 totalBatches: Option[Int],
+                                 batchParams: Option[Map[String, String]],
+                                 isLastBatch: Boolean): Future[Unit] = {
+    val mappingTask = mappingJobExecution.mappingTasks.head
+    val batchInfo = batchNumber.map(n => s" [batch $n/${totalBatches.getOrElse("?")}]").getOrElse("")
+    logger.debug(s"Reading source data for mapping ${mappingTask.name}$batchInfo within mapping job ${mappingJobExecution.jobId} ...")
     val (fhirMapping, mds, df) = readJoinSourceData(mappingTask, sourceSettings, timeRange, jobId = Some(mappingJobExecution.jobId))
     // Cache the DataFrame to avoid re-reading the source data multiple times during processing.
     // This is particularly useful when using chunking (e.g., via ToFhirConfig.engineConfig.maxChunkSizeForMappingJobs),
@@ -316,16 +404,17 @@ class FhirMappingJobManager(
     // and reused across all chunks, improving performance.
     df.cache()
     val sizeOfDf: Long = df.count()
-    logger.debug(s"$sizeOfDf records read for mapping ${mappingTask.name} within mapping job ${mappingJobExecution.jobId} ...")
+    val batchParamsInfo = batchParams.map(p => s" with params: $p").getOrElse("")
+    logger.debug(s"$sizeOfDf records read for mapping ${mappingTask.name}$batchInfo$batchParamsInfo within mapping job ${mappingJobExecution.jobId} ...")
 
     val result = ToFhirConfig.engineConfig.maxChunkSizeForMappingJobs match {
       //If not specify run it as single chunk
       case None =>
-        logger.debug(s"Executing the mapping ${mappingTask.name} within job ${mappingJobExecution.jobId} ...")
+        logger.debug(s"Executing the mapping ${mappingTask.name}$batchInfo within job ${mappingJobExecution.jobId} ...")
         executeTask(mappingJobExecution.jobId, mappingTask.name, fhirMapping, df, mds, terminologyServiceSettings, identityServiceSettings, Some(mappingJobExecution.id), Some(mappingJobExecution.projectId))
           .map(dataset => SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, fhirWriter)) // Write the created FHIR Resources to the FhirWriter
       case Some(chunkSize) if sizeOfDf < chunkSize =>
-        logger.debug(s"Executing the mapping ${mappingTask.name} within job ${mappingJobExecution.jobId} ...")
+        logger.debug(s"Executing the mapping ${mappingTask.name}$batchInfo within job ${mappingJobExecution.jobId} ...")
         executeTask(mappingJobExecution.jobId, mappingTask.name, fhirMapping, df, mds, terminologyServiceSettings, identityServiceSettings, Some(mappingJobExecution.id), Some(mappingJobExecution.projectId))
           .map(dataset => SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, fhirWriter)) // Write the created FHIR Resources to the FhirWriter
       //Otherwise divide the data into chunks
@@ -339,15 +428,19 @@ class FhirMappingJobManager(
             case (fj, (df, i)) => fj.flatMap(_ =>
               executeTask(mappingJobExecution.jobId, mappingTask.name, fhirMapping, df, mds, terminologyServiceSettings, identityServiceSettings, Some(mappingJobExecution.id), projectId = Some(mappingJobExecution.projectId))
                 .map(dataset => SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, fhirWriter))
-                .map(_ => logger.debug(s"Chunk ${i + 1} / $numOfChunks is completed for mapping ${mappingTask.name} within MappingJob: ${mappingJobExecution.jobId}..."))
+                .map(_ => logger.debug(s"Chunk ${i + 1} / $numOfChunks$batchInfo is completed for mapping ${mappingTask.name} within MappingJob: ${mappingJobExecution.jobId}..."))
             )
           }
     }
     result.map(r => {
       // Remove the DataFrame from cache after processing to free up memory resources.
       df.unpersist()
-      // log the result of mapping task execution
-      ExecutionLogger.logExecutionResultForBatchMappingTask(mappingJobExecution.id)
+      // Only log the final result of mapping task execution when this is the last batch
+      // For batching strategy with multiple batches, this ensures the execution cache entry
+      // is only removed after all batches complete
+      if (isLastBatch) {
+        ExecutionLogger.logExecutionResultForBatchMappingTask(mappingJobExecution.id)
+      }
       r
     })
   }

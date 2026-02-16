@@ -1234,3 +1234,120 @@ Or both. This will delete the source files after processing/mapping and save the
 While `archiveMode` works on a file-based basis, `saveErroneousRecords` works for each record/row in the source data.
 
 Please also note that, the `archiveMode` config is only applicable for the file system source type.
+
+#### Batching Strategy
+
+When dealing with large data sources (e.g., 10 million+ rows), loading all data into memory at once is not practical.
+toFHIR supports a **batching strategy** that allows you to process data in smaller batches by defining parameter sets that filter the source data.
+
+Each batch is processed sequentially: data is loaded, mapped, written to the sink, and then memory is freed before moving to the next batch.
+
+##### Basic Usage
+
+Define a `batchingStrategy` in your `FhirMappingTask` along with a `preprocessSql` that uses parameter placeholders (prefixed with `$`):
+
+```json
+{
+  "name": "measurement-mapping",
+  "mappingRef": "https://example.com/measurement-mapping",
+  "sourceBinding": {
+    "source": {
+      "jsonClass": "SqlSource",
+      "query": "SELECT * FROM MEASUREMENT",
+      "preprocessSql": "SELECT * FROM MEASUREMENT WHERE EXTRACT(YEAR FROM MEASUREMENT_DATE) = $year"
+    }
+  },
+  "batchingStrategy": {
+    "batchParameterSets": [
+      {"year": "2018"},
+      {"year": "2019"},
+      {"year": "2020"}
+    ]
+  }
+}
+```
+
+In this example, toFHIR will execute 3 batches, one for each year. The `$year` placeholder in `preprocessSql` is replaced with values from `batchParameterSets`.
+
+##### Multiple Parameters
+
+You can use multiple parameters for finer-grained batching:
+
+```json
+{
+  "name": "encounter-mapping",
+  "mappingRef": "https://example.com/encounter-mapping",
+  "sourceBinding": {
+    "encounterMain": {
+      "jsonClass": "FileSystemSource",
+      "path": "encounters.csv",
+      "contentType": "csv",
+      "preprocessSql": "SELECT * FROM encounterMain WHERE EXTRACT(YEAR FROM ENCOUNTER_DATE) = $year AND EXTRACT(MONTH FROM ENCOUNTER_DATE) = $month"
+    }
+  },
+  "batchingStrategy": {
+    "batchParameterSets": [
+      {"year": "2020", "month": "01"},
+      {"year": "2020", "month": "02"},
+      {"year": "2020", "month": "03"}
+    ]
+  }
+}
+```
+
+ID Ranges with Custom Logic:
+
+```json
+{
+  "preprocessSql": "SELECT * FROM PATIENTS WHERE patient_id BETWEEN $id_start AND $id_end",
+  "batchingStrategy": {
+    "batchParameterSets": [
+      {"id_start": "1", "id_end": "100000"},
+      {"id_start": "100001", "id_end": "200000"},
+      {"id_start": "200001", "id_end": "300000"},
+      {"id_start": "300001", "id_end": "400000"}
+    ]
+  }
+}
+```
+
+**Key points:**
+- Parameter placeholders in `preprocessSql` use the `$parameterName` syntax
+- All parameters in the placeholder must exist in each object of `batchParameterSets`
+- Batches are processed sequentially, reducing memory footprint
+- Only sources with `preprocessSql` containing parameter placeholders are affected by the batching strategy
+
+##### Generating Parameter Sets
+
+For large ranges (e.g., 40 years × 12 months), you can generate `batchParameterSets` programmatically using the helper scripts:
+
+```python
+import json
+
+def generate_year_month_batches(start_year, end_year):
+    """Generate batch parameter sets for year-month combinations"""
+    batches = []
+    for year in range(start_year, end_year + 1):
+        for month in range(1, 13):
+            batches.append({
+                "year": str(year),
+                "month": str(month)
+            })
+    return batches
+
+# Generate batches for 1980-2020 (40 years)
+batches = generate_year_month_batches(1980, 2020)
+
+print(f"Total batches: {len(batches)}")  # Output: 492 batches
+
+# Create the batching strategy
+batching_strategy = {
+    "batchParameterSets": batches
+}
+
+# Save to file
+with open('batching_strategy.json', 'w') as f:
+    json.dump(batching_strategy, f, indent=2)
+
+print("Batching strategy saved to batching_strategy.json")
+```

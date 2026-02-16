@@ -10,8 +10,11 @@ package io.tofhir.engine.model
  * @param sourceBinding     A map that provides details on how to load each source data for the mapping.
  *                          It links the source settings of a mapping job to the sources of a mapping.
  * @param mapping           FhirMapping definition to execute
+ * @param batchingStrategy  Optional batching strategy to process data in multiple batches based on custom parameters
+ *                          (e.g., by year, ID range, or any custom grouping). If provided, the mapping will be executed
+ *                          once for each parameter value, with the parameter available in preprocessSql as $parameterName
  */
-case class FhirMappingTask(name: String, mappingRef: String, sourceBinding: Map[String, MappingSourceBinding], mapping: Option[FhirMapping] = None)
+case class FhirMappingTask(name: String, mappingRef: String, sourceBinding: Map[String, MappingSourceBinding], mapping: Option[FhirMapping] = None, batchingStrategy: Option[BatchingStrategy] = None)
 
 
 /**

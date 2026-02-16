@@ -201,7 +201,7 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
         logger.debug(s"Testing the mapping ${testResourceCreationRequest.fhirMappingTask.mappingRef} inside the job $jobId by selecting ${testResourceCreationRequest.resourceFilter.numberOfRows} ${testResourceCreationRequest.resourceFilter.order} records.")
 
         // If an unmanaged mapping is provided within the mapping task, normalize the context urls
-        val mappingTask: FhirMappingTask =
+        val mappingTaskWithNormalizedUrls: FhirMappingTask =
           testResourceCreationRequest.fhirMappingTask.mapping match {
             case None => testResourceCreationRequest.fhirMappingTask
             case _ =>
@@ -212,6 +212,16 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
               // Copy the mapping with the normalized urls
               testResourceCreationRequest.fhirMappingTask.copy(mapping = Some(mappingWithNormalizedContextUrls))
           }
+
+        // If the mapping task has a batching strategy, substitute the first batch parameter set
+        // This allows testing of parameterized preprocessSql queries with sample parameters
+        val mappingTask: FhirMappingTask = mappingTaskWithNormalizedUrls.batchingStrategy match {
+          case Some(strategy) if strategy.batchParameterSets.nonEmpty =>
+            val firstBatchParams = strategy.batchParameterSets.head
+            logger.debug(s"Testing with first batch parameters: $firstBatchParams")
+            substituteBatchParameters(mappingTaskWithNormalizedUrls, firstBatchParams)
+          case _ => mappingTaskWithNormalizedUrls
+        }
 
         val fhirMappingJobManager = new FhirMappingJobManager(
           toFhirEngine.mappingRepo,
@@ -393,6 +403,36 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
     Future {
       toFhirEngine.runningJobRegistry.isJobRunning(jobId)
     }
+  }
+
+  /**
+   * Substitutes batch parameters in the preprocessSql of all source bindings in a mapping task.
+   * Parameters in preprocessSql are specified as $parameterName and will be replaced with the corresponding value.
+   *
+   * @param task       The original mapping task
+   * @param parameters Map of parameter names to their values (e.g., Map("year" -> "2014", "month" -> "1"))
+   * @return A new mapping task with substituted preprocessSql in all source bindings
+   */
+  private def substituteBatchParameters(task: FhirMappingTask, parameters: Map[String, String]): FhirMappingTask = {
+    val updatedSourceBinding = task.sourceBinding.map { case (alias, binding) =>
+      val updatedBinding = binding.preprocessSql match {
+        case Some(sql) =>
+          val substitutedSql = parameters.foldLeft(sql) { case (currentSql, (paramName, paramValue)) =>
+            currentSql.replace(s"$$$paramName", paramValue)
+          }
+          // Create a new binding with the substituted SQL based on the binding type
+          binding match {
+            case fs: FileSystemSource => fs.copy(preprocessSql = Some(substitutedSql))
+            case ss: SqlSource => ss.copy(preprocessSql = Some(substitutedSql))
+            case ks: KafkaSource => ks.copy(preprocessSql = Some(substitutedSql))
+            case fss: FhirServerSource => fss.copy(preprocessSql = Some(substitutedSql))
+            case other => other // For any other type, return as-is
+          }
+        case None => binding
+      }
+      alias -> updatedBinding
+    }
+    task.copy(sourceBinding = updatedSourceBinding)
   }
 }
 
