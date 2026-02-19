@@ -2667,6 +2667,29 @@ components:
               - $ref: "#/components/schemas/SqlSource"
               - $ref: "#/components/schemas/KafkaSource"
               - $ref: "#/components/schemas/FhirServerSource"
+        batchingStrategy:
+          $ref: "#/components/schemas/BatchingStrategy"
+
+    BatchingStrategy:
+      description: "Batching strategy for processing source data in multiple batches based on custom parameters"
+      type: object
+      properties:
+        batchParameterSets:
+          type: array
+          description: "Sequence of parameter sets, where each set represents one batch. Each parameter set is a map of (parameterName -> parameterValue). All parameters in a set will be substituted in preprocessSql as $parameterName."
+          items:
+            type: object
+            additionalProperties:
+              type: string
+          example:
+            - year: "2020"
+              month: "1"
+            - year: "2020"
+              month: "2"
+            - year: "2021"
+              month: "1"
+      required:
+        - batchParameterSets
 
     SchedulingSettings:
       type: object
