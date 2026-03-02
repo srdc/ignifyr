@@ -15,6 +15,8 @@ import io.tofhir.engine.util.TimeUtil
  * @param chunkResult         Whether it represents the result of a chunk (applicable only for the batch mapping job) or the execution of a mapping task
  * @param totalNumOfChunks    Total number of chunks for the batch mapping job execution
  * @param completedNumOfChunks Number of chunks that have been completed so far in the batch mapping job execution
+ * @param totalNumOfBatches   The total number of batches for the mapping tasks is determined based on {@link FhirMappingTask.batchingStrategy}
+ * @param completedNumOfBatches Number of batches that have been completed so far in the batch mapping job execution
  */
 case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
                                 mappingTaskName: Option[String],
@@ -25,7 +27,9 @@ case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
                                 status: Option[String] = None,
                                 chunkResult: Boolean = true,
                                 totalNumOfChunks: Int = 1,
-                                completedNumOfChunks: Int = 0
+                                completedNumOfChunks: Int = 0,
+                                totalNumOfBatches: Int = 1,
+                                completedNumOfBatches: Int = 0
                                ) {
   final val eventId: String = "MAPPING_JOB_RESULT"
   /**
@@ -94,6 +98,7 @@ case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
     // log the chunk progress for batch jobs
     if(!mappingJobExecution.isStreamingJob){
       markerMap.put("chunkProgress",s"$completedNumOfChunks / $totalNumOfChunks")
+      markerMap.put("batchProgress",s"$completedNumOfBatches / $totalNumOfBatches")
     }
     // The current timestamp is automatically added to the log entry when it is sent to Elasticsearch or written to a file.
     // As a result, there is no need to manually add a "@timestamp" field.

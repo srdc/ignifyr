@@ -69,6 +69,14 @@
           }
         }
       },
+      "batchProgress": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
       "errorExpr": {
         "type": "text",
         "fields": {

@@ -350,7 +350,7 @@ class FhirMappingJobManager(
           previousFuture.flatMap { _ =>
             val batchNumber = batchIndex + 1
             val isLastBatch = batchNumber == totalBatches
-            logger.debug(s"Processing batch $batchNumber/$totalBatches for mapping ${mappingTask.name} with parameters: $batchParams")
+            ExecutionLogger.logBatchStartForBatchMappingTask(mappingJobExecution = mappingJobExecution, mappingTaskName = mappingTask.name, numOfBatches = totalBatches, batchIndex, batchParams)
 
             // Substitute the batch parameters in the task's preprocessSql
             val batchTask = substituteBatchParameters(mappingTask, batchParams)
