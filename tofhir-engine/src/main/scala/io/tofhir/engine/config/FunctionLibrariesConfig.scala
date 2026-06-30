@@ -18,7 +18,10 @@ class FunctionLibrariesConfig(librariesConfig: Config) {
    * and the values are instances of `IFhirPathFunctionLibraryFactory`.
    * - `libraryPackageNames`: A sequence of package names for the dynamically loaded function library classes.
    */
-  lazy val (functionLibrariesFactories: Map[String, IFhirPathFunctionLibraryFactory], libraryPackageNames: Seq[String]) = loadFunctionLibraryFactories()
+  lazy val (
+    functionLibrariesFactories: Map[String, IFhirPathFunctionLibraryFactory],
+    libraryPackageNames: Seq[String]
+  ) = loadFunctionLibraryFactories()
 
   /**
    * Loads function library factories and their corresponding package names based on the provided configuration.
@@ -49,8 +52,13 @@ class FunctionLibrariesConfig(librariesConfig: Config) {
         val constructors = clazz.getConstructors
 
         // Find a matching constructor and pass the arguments
-        val constructor = constructors.find(_.getParameterCount == args.length)
-          .getOrElse(throw new IllegalArgumentException(s"No matching constructor found for $className with args: ${args.mkString(",")}"))
+        val constructor = constructors
+          .find(_.getParameterCount == args.length)
+          .getOrElse(
+            throw new IllegalArgumentException(
+              s"No matching constructor found for $className with args: ${args.mkString(",")}"
+            )
+          )
 
         constructor.newInstance(args: _*).asInstanceOf[IFhirPathFunctionLibraryFactory]
       } else {

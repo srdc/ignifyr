@@ -37,7 +37,11 @@ trait ICodeSystemRepository {
    * @param codeSystem TerminologyCodeSystem to update
    * @return updated TerminologyCodeSystem
    */
-  def updateCodeSystem(terminologyId: String, codeSystemId: String, codeSystem: TerminologyCodeSystem): Future[TerminologyCodeSystem]
+  def updateCodeSystem(
+      terminologyId: String,
+      codeSystemId: String,
+      codeSystem: TerminologyCodeSystem
+  ): Future[TerminologyCodeSystem]
 
   /**
    * Remove a code system within a terminology
@@ -63,7 +67,13 @@ trait ICodeSystemRepository {
    * @param content Source of the csv file
    * @return
    */
-  def saveCodeSystemContent(terminologyId: String, codeSystemId: String, content: Source[ByteString, Any], pageNumber: Int, pageSize: Int): Future[Long]
+  def saveCodeSystemContent(
+      terminologyId: String,
+      codeSystemId: String,
+      content: Source[ByteString, Any],
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[Long]
 
   /**
    * Retrieve the content of a code system csv file within a terminology
@@ -71,7 +81,12 @@ trait ICodeSystemRepository {
    * @param codeSystemId id of the code system
    * @return Source of the csv file
    */
-  def getCodeSystemContent(terminologyId: String, codeSystemId: String, pageNumber: Int, pageSize: Int): Future[(Source[ByteString, Any], Long)]
+  def getCodeSystemContent(
+      terminologyId: String,
+      codeSystemId: String,
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[(Source[ByteString, Any], Long)]
 
   /**
    * Upload the code system to the repository

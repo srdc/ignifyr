@@ -23,22 +23,33 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
   val jobId = "mocked_job_id"
   val sourceFolderPath = "test-archiver-batch"
   val inputFilePath = "test-input-file"
-  val testSourceSettings: FileSystemSourceSettings = FileSystemSourceSettings(name = "test", sourceUri = "test", dataFolderPath = sourceFolderPath)
-  val testFileSystemSource: FileSystemSource = FileSystemSource(path = inputFilePath, contentType = SourceContentTypes.CSV)
-  val testMappingTask: FhirMappingTask = FhirMappingTask(name = "test", sourceBinding = Map("_" -> testFileSystemSource), mappingRef = "test")
+  val testSourceSettings: FileSystemSourceSettings =
+    FileSystemSourceSettings(name = "test", sourceUri = "test", dataFolderPath = sourceFolderPath)
+  val testFileSystemSource: FileSystemSource =
+    FileSystemSource(path = inputFilePath, contentType = SourceContentTypes.CSV)
+  val testMappingTask: FhirMappingTask =
+    FhirMappingTask(name = "test", sourceBinding = Map("_" -> testFileSystemSource), mappingRef = "test")
   val testSinkSettings: FhirRepositorySinkSettings = FhirRepositorySinkSettings(fhirRepoUrl = "test")
   val testDataProcessingSettings: DataProcessingSettings = DataProcessingSettings(archiveMode = ArchiveModes.ARCHIVE)
-  val testJob: FhirMappingJob = FhirMappingJob(id = jobId, dataProcessingSettings = testDataProcessingSettings,
-    sourceSettings = Map(("_") -> testSourceSettings), sinkSettings = testSinkSettings, mappings = Seq.empty)
-  val testExecution: FhirMappingJobExecution = FhirMappingJobExecution(id = jobId, job = testJob, mappingTasks = Seq(testMappingTask))
+  val testJob: FhirMappingJob = FhirMappingJob(
+    id = jobId,
+    dataProcessingSettings = testDataProcessingSettings,
+    sourceSettings = Map(("_") -> testSourceSettings),
+    sinkSettings = testSinkSettings,
+    mappings = Seq.empty
+  )
+  val testExecution: FhirMappingJobExecution =
+    FhirMappingJobExecution(id = jobId, job = testJob, mappingTasks = Seq(testMappingTask))
 
   // Create test objects for delete mode
   val jobId2 = "mocked_job_id_2"
-  val testExecutionWithDelete: FhirMappingJobExecution = testExecution.copy(id = jobId2, jobId = jobId2, archiveMode = ArchiveModes.DELETE)
+  val testExecutionWithDelete: FhirMappingJobExecution =
+    testExecution.copy(id = jobId2, jobId = jobId2, archiveMode = ArchiveModes.DELETE)
 
   // Create test objects for off mode
   val jobId3 = "mocked_job_id_3"
-  val testExecutionWithOff: FhirMappingJobExecution = testExecution.copy(id = jobId3, jobId = jobId3 , archiveMode = ArchiveModes.OFF)
+  val testExecutionWithOff: FhirMappingJobExecution =
+    testExecution.copy(id = jobId3, jobId = jobId3, archiveMode = ArchiveModes.OFF)
 
   "FileStreamInputArchiver" should "not apply archiving/deletion for a streaming job with archive mode is off" in {
     // Initialize spark files for this test
@@ -63,7 +74,10 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     val testCsvFile: File = initializeSparkFiles(jobId, mappingTaskName)
 
     // Find the relative path between the workspace folder and the file to be archived
-    val relPath = FileUtils.getPath("").toAbsolutePath.relativize(Paths.get(ToFhirConfig.sparkCheckpointDirectory, "test.csv").toAbsolutePath)
+    val relPath = FileUtils
+      .getPath("")
+      .toAbsolutePath
+      .relativize(Paths.get(ToFhirConfig.sparkCheckpointDirectory, "test.csv").toAbsolutePath)
     // The relative path is appended to the base archive folder so that the path of the original input file is preserved
     val finalArchivePath = Paths.get(ToFhirConfig.engineConfig.archiveFolder, relPath.toString)
 
@@ -107,23 +121,23 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
 
   "FileStreamInputArchiver" should "not apply archiving/deletion for a batch job with archive mode is off" in {
 
-      // Create a test input file
-      val inputFile = initializeInputFiles(sourceFolderPath, inputFilePath)
+    // Create a test input file
+    val inputFile = initializeInputFiles(sourceFolderPath, inputFilePath)
 
-      // Check whether input file exists
-      inputFile.exists() shouldBe true
+    // Check whether input file exists
+    inputFile.exists() shouldBe true
 
-      //Call archiving function
-      FileStreamInputArchiver.applyArchivingOnBatchJob(testExecutionWithOff)
+    // Call archiving function
+    FileStreamInputArchiver.applyArchivingOnBatchJob(testExecutionWithOff)
 
-      // Check whether input file remains
-      inputFile.exists() shouldBe true
+    // Check whether input file remains
+    inputFile.exists() shouldBe true
 
-      // Clean test directories
-      org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(sourceFolderPath).toFile)
+    // Clean test directories
+    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(sourceFolderPath).toFile)
   }
 
-  "FileStreamInputArchiver" should "apply archiving for a batch job" in{
+  "FileStreamInputArchiver" should "apply archiving for a batch job" in {
 
     // Create a test input file
     val inputFile = initializeInputFiles(sourceFolderPath, inputFilePath)
@@ -137,7 +151,7 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     finalArchivePath.toFile.exists() shouldBe false
     inputFile.exists() shouldBe true
 
-    //Call archiving function
+    // Call archiving function
     FileStreamInputArchiver.applyArchivingOnBatchJob(testExecution)
 
     // Check whether archiving file exists and input file is moved
@@ -149,7 +163,7 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     org.apache.commons.io.FileUtils.deleteDirectory(new File(ToFhirConfig.engineConfig.archiveFolder))
   }
 
-  "FileStreamInputArchiver" should "apply deletion for a batch job" in{
+  "FileStreamInputArchiver" should "apply deletion for a batch job" in {
 
     // Create a test input file
     val inputFile = initializeInputFiles(sourceFolderPath, inputFilePath)
@@ -157,7 +171,7 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     // Check whether input file exists
     inputFile.exists() shouldBe true
 
-    //Call archiving function
+    // Call archiving function
     FileStreamInputArchiver.applyArchivingOnBatchJob(testExecutionWithDelete)
 
     // Check whether input file is deleted
@@ -214,7 +228,9 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     // Create a source file to refer location of test.csv
     val commitFile = getCommitFileFromTestArchiver(jobId, mappingTaskName, "0")
     val commitFile2 = getCommitFileFromTestArchiver(jobId, mappingTaskName, "1")
-    val commitDirectory = new File(SparkUtil.getCommitDirectoryPath(FileUtils.getPath("test-archiver", jobId, mappingTaskName.hashCode.toString)))
+    val commitDirectory = new File(
+      SparkUtil.getCommitDirectoryPath(FileUtils.getPath("test-archiver", jobId, mappingTaskName.hashCode.toString))
+    )
     // Ensure the parent directories exist, if not, create them
     commitFile.getParentFile.mkdirs()
     commitFile2.getParentFile.mkdirs()
@@ -257,7 +273,8 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     val getOffsetKeyMethod = methodMirror.reflectMethod(methodSymbol)
 
     // Call reflected getOffsetKey function
-    val  lastProccessedOffset = processedOffsetMap.getOrElseUpdate(getOffsetKeyMethod(jobId, mappingTaskName).asInstanceOf[String], -1)
+    val lastProccessedOffset =
+      processedOffsetMap.getOrElseUpdate(getOffsetKeyMethod(jobId, mappingTaskName).asInstanceOf[String], -1)
     // Check whether lastProccessedOffset is as expected
     lastProccessedOffset shouldBe -1
 
@@ -265,7 +282,8 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     processedOffsetMap.put(getOffsetKeyMethod(jobId, mappingTaskName).asInstanceOf[String], 2)
 
     // Call reflected getOffsetKey function
-    val newLastProccessedOffset = processedOffsetMap.getOrElseUpdate(getOffsetKeyMethod(jobId, mappingTaskName).asInstanceOf[String], -1)
+    val newLastProccessedOffset =
+      processedOffsetMap.getOrElseUpdate(getOffsetKeyMethod(jobId, mappingTaskName).asInstanceOf[String], -1)
 
     // Check whether lastProccessedOffset is updated
     newLastProccessedOffset shouldBe 2
@@ -313,7 +331,9 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
 
     // Create a test csv
     val testCsvWriter = new PrintWriter(testCsvFile)
-    testCsvWriter.write("testColumn1,testColumn2,testColumn3,testColumn4,testColumn5\ntestRow1,testRow2,testRow3,testRow4,testRow5")
+    testCsvWriter.write(
+      "testColumn1,testColumn2,testColumn3,testColumn4,testColumn5\ntestRow1,testRow2,testRow3,testRow4,testRow5"
+    )
     testCsvWriter.close()
 
     // Create a commit file inorder to start range function in applyArchivingOnStreamingJob
@@ -336,10 +356,12 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
    * @return Return source file
    */
   def getSourceFileFromTestArchiver(jobId: String, mappingTaskName: String, fileName: String): File = {
-    Paths.get(
-      SparkUtil.getSourceDirectoryPath(FileUtils.getPath("test-archiver", jobId, mappingTaskName.hashCode.toString)),
-      fileName
-    ).toFile
+    Paths
+      .get(
+        SparkUtil.getSourceDirectoryPath(FileUtils.getPath("test-archiver", jobId, mappingTaskName.hashCode.toString)),
+        fileName
+      )
+      .toFile
   }
 
   /**
@@ -351,10 +373,14 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
    * @return Return source file
    */
   def getSourceFileFromSparkArchiver(jobId: String, mappingTaskName: String, fileName: String): File = {
-    Paths.get(
-      SparkUtil.getSourceDirectoryPath(Paths.get(ToFhirConfig.sparkCheckpointDirectory, jobId, mappingTaskName.hashCode.toString)),
-      fileName
-    ).toFile
+    Paths
+      .get(
+        SparkUtil.getSourceDirectoryPath(
+          Paths.get(ToFhirConfig.sparkCheckpointDirectory, jobId, mappingTaskName.hashCode.toString)
+        ),
+        fileName
+      )
+      .toFile
   }
 
   /**
@@ -366,10 +392,12 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
    * @return Return commit file
    */
   def getCommitFileFromTestArchiver(jobId: String, mappingTaskName: String, fileName: String): File = {
-    Paths.get(
-      SparkUtil.getCommitDirectoryPath(FileUtils.getPath("test-archiver", jobId, mappingTaskName.hashCode.toString)),
-      fileName
-    ).toFile
+    Paths
+      .get(
+        SparkUtil.getCommitDirectoryPath(FileUtils.getPath("test-archiver", jobId, mappingTaskName.hashCode.toString)),
+        fileName
+      )
+      .toFile
   }
 
   /**
@@ -381,9 +409,13 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
    * @return Return commit file
    */
   def getCommitFileFromSparkArchiver(jobId: String, mappingTaskName: String, fileName: String): File = {
-    Paths.get(
-      SparkUtil.getCommitDirectoryPath(Paths.get(ToFhirConfig.sparkCheckpointDirectory, jobId, mappingTaskName.hashCode.toString)),
-      fileName
-    ).toFile
+    Paths
+      .get(
+        SparkUtil.getCommitDirectoryPath(
+          Paths.get(ToFhirConfig.sparkCheckpointDirectory, jobId, mappingTaskName.hashCode.toString)
+        ),
+        fileName
+      )
+      .toFile
   }
 }

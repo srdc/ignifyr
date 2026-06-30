@@ -47,7 +47,11 @@ class CodeSystemService(codeSystemRepository: ICodeSystemRepository) extends Laz
    * @param codeSystem TerminologyCodeSystem to update
    * @return updated TerminologyCodeSystem
    */
-  def updateCodeSystem(terminologyId: String, codeSystemId: String, codeSystem: TerminologyCodeSystem): Future[TerminologyCodeSystem] = {
+  def updateCodeSystem(
+      terminologyId: String,
+      codeSystemId: String,
+      codeSystem: TerminologyCodeSystem
+  ): Future[TerminologyCodeSystem] = {
     codeSystemRepository.updateCodeSystem(terminologyId, codeSystemId, codeSystem)
   }
 
@@ -79,7 +83,13 @@ class CodeSystemService(codeSystemRepository: ICodeSystemRepository) extends Laz
    * @param byteSource Source of the csv file
    * @return
    */
-  def saveCodeSystemContent(terminologyId: String, codeSystemId: String, byteSource: Source[ByteString, Any], pageNumber: Int, pageSize: Int): Future[Long] = {
+  def saveCodeSystemContent(
+      terminologyId: String,
+      codeSystemId: String,
+      byteSource: Source[ByteString, Any],
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[Long] = {
     codeSystemRepository.saveCodeSystemContent(terminologyId, codeSystemId, byteSource, pageNumber, pageSize)
   }
 
@@ -89,7 +99,12 @@ class CodeSystemService(codeSystemRepository: ICodeSystemRepository) extends Laz
    * @param codeSystemId id of the code system
    * @return Source of the csv file
    */
-  def getCodeSystemContent(terminologyId: String, codeSystemId: String, pageNumber: Int, pageSize: Int): Future[(Source[ByteString, Any], Long)] = {
+  def getCodeSystemContent(
+      terminologyId: String,
+      codeSystemId: String,
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[(Source[ByteString, Any], Long)] = {
     codeSystemRepository.getCodeSystemContent(terminologyId, codeSystemId, pageNumber, pageSize)
   }
 
@@ -100,7 +115,11 @@ class CodeSystemService(codeSystemRepository: ICodeSystemRepository) extends Laz
    * @param byteSource Source of the csv file
    * @return
    */
-  def uploadCodeSystemFile(terminologyId: String, codeSystemId: String, byteSource: Source[ByteString, Any]): Future[Unit] = {
+  def uploadCodeSystemFile(
+      terminologyId: String,
+      codeSystemId: String,
+      byteSource: Source[ByteString, Any]
+  ): Future[Unit] = {
     codeSystemRepository.uploadCodeSystem(terminologyId, codeSystemId, byteSource)
   }
 

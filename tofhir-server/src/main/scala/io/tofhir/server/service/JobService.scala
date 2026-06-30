@@ -61,7 +61,10 @@ class JobService(jobRepository: IJobRepository) extends LazyLogging {
    */
   def updateJob(projectId: String, jobId: String, job: FhirMappingJob): Future[FhirMappingJob] = {
     if (!jobId.equals(job.id)) {
-      throw BadRequest("Job definition is not valid.", s"Identifier of the job definition: ${job.id} does not match with the provided jobId: $jobId in the path!")
+      throw BadRequest(
+        "Job definition is not valid.",
+        s"Identifier of the job definition: ${job.id} does not match with the provided jobId: $jobId in the path!"
+      )
     }
     try {
       // validate the mapping job definition

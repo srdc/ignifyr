@@ -29,7 +29,7 @@ class FileSystemTreeStructureService {
     var fileCount = 0 // Track total number of files processed
 
     val basePath = FileUtils.getPath(basePathString)
-    if(!basePath.toAbsolutePath.normalize().startsWith(FileUtils.getPath("").toAbsolutePath)) {
+    if (!basePath.toAbsolutePath.normalize().startsWith(FileUtils.getPath("").toAbsolutePath)) {
       throw new IllegalArgumentException("The given path is outside the root context path.")
     }
 
@@ -41,9 +41,11 @@ class FileSystemTreeStructureService {
       val children = if (Files.isDirectory(path)) {
         val dirStream = Files.list(path)
         try {
-          dirStream.iterator().asScala
+          dirStream
+            .iterator()
+            .asScala
             .filter(p => includeFiles || Files.isDirectory(p))
-            .filterNot(shouldBeExcluded)  // Filter out hidden files, folders
+            .filterNot(shouldBeExcluded) // Filter out hidden files, folders
             .map { p =>
               fileCount += 1
               buildNode(p)
@@ -55,7 +57,12 @@ class FileSystemTreeStructureService {
       } else {
         List.empty[FilePathNode]
       }
-      FilePathNode(path.getFileName.toString, Files.isDirectory(path), basePath.relativize(path).toString.replaceAll("\\\\", "/"), children)
+      FilePathNode(
+        path.getFileName.toString,
+        Files.isDirectory(path),
+        basePath.relativize(path).toString.replaceAll("\\\\", "/"),
+        children
+      )
     }
     buildNode(basePath)
   }

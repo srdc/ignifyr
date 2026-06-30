@@ -5,7 +5,16 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
 import io.tofhir.engine.model.FhirMappingJob
-import io.tofhir.server.endpoint.JobEndpoint.{SEGMENT_DESCHEDULE, SEGMENT_EXECUTIONS, SEGMENT_JOB, SEGMENT_MAPPINGS, SEGMENT_RUN, SEGMENT_STATUS, SEGMENT_STOP, SEGMENT_TEST}
+import io.tofhir.server.endpoint.JobEndpoint.{
+  SEGMENT_DESCHEDULE,
+  SEGMENT_EXECUTIONS,
+  SEGMENT_JOB,
+  SEGMENT_MAPPINGS,
+  SEGMENT_RUN,
+  SEGMENT_STATUS,
+  SEGMENT_STOP,
+  SEGMENT_TEST
+}
 import io.onfhir.definitions.common.model.Json4sSupport._
 import io.tofhir.server.model.{ExecuteJobTask, RowSelectionOrder, TestResourceCreationRequest}
 import io.tofhir.server.service.{ExecutionService, JobService}
@@ -18,7 +27,12 @@ import io.tofhir.server.repository.schema.ISchemaRepository
 import io.tofhir.server.common.interceptor.ICORSHandler
 import scala.concurrent.Future
 
-class JobEndpoint(jobRepository: IJobRepository, mappingRepository: IMappingRepository, schemaRepository: ISchemaRepository) extends LazyLogging with ICORSHandler {
+class JobEndpoint(
+    jobRepository: IJobRepository,
+    mappingRepository: IMappingRepository,
+    schemaRepository: ISchemaRepository
+) extends LazyLogging
+    with ICORSHandler {
 
   val service: JobService = new JobService(jobRepository)
   val executionService: ExecutionService = new ExecutionService(jobRepository, mappingRepository, schemaRepository)
@@ -46,28 +60,30 @@ class JobEndpoint(jobRepository: IJobRepository, mappingRepository: IMappingRepo
         } ~ pathPrefix(SEGMENT_EXECUTIONS) { // Operations on all executions, jobs/<jobId>/executions
           pathEndOrSingleSlash {
             getExecutions(projectId, jobId) ~ stopExecutions(jobId)
-          } ~ pathPrefix(Segment) { executionId: String => // operations on a single execution, jobs/<jobId>/executions/<executionId>
-            pathPrefix(SEGMENT_RUN) { // jobs/<jobId>/executions/<executionId>/run
-              pathEndOrSingleSlash {
-                continueJobExecution(projectId, jobId, executionId)
-              }
-            } ~ pathPrefix(SEGMENT_STOP) { // jobs/<jobId>/executions/<executionId>/stop
-              pathEndOrSingleSlash {
-                stopJobExecution(jobId, executionId)
-              }
-            } ~ pathPrefix(SEGMENT_DESCHEDULE) { // jobs/<jobId>/executions/<executionId>/deschedule
-              pathEndOrSingleSlash {
-                descheduleJobExecution(jobId, executionId)
-              }
-            } ~ pathPrefix(SEGMENT_MAPPINGS) { // jobs/<jobId>/executions/<executionId>/mappings
-              pathPrefix(Segment) { mappingTaskName: String => // jobs/<jobId>/executions/<executionId>/mappings/<mappingTaskName>
-                pathPrefix(SEGMENT_STOP) { // jobs/<jobId>/executions/<executionId>/mappings/<mappingTaskName>/stop
-                  pathEndOrSingleSlash {
-                    stopMappingExecution(jobId, executionId, mappingTaskName)
-                  }
+          } ~ pathPrefix(Segment) {
+            executionId: String => // operations on a single execution, jobs/<jobId>/executions/<executionId>
+              pathPrefix(SEGMENT_RUN) { // jobs/<jobId>/executions/<executionId>/run
+                pathEndOrSingleSlash {
+                  continueJobExecution(projectId, jobId, executionId)
+                }
+              } ~ pathPrefix(SEGMENT_STOP) { // jobs/<jobId>/executions/<executionId>/stop
+                pathEndOrSingleSlash {
+                  stopJobExecution(jobId, executionId)
+                }
+              } ~ pathPrefix(SEGMENT_DESCHEDULE) { // jobs/<jobId>/executions/<executionId>/deschedule
+                pathEndOrSingleSlash {
+                  descheduleJobExecution(jobId, executionId)
+                }
+              } ~ pathPrefix(SEGMENT_MAPPINGS) { // jobs/<jobId>/executions/<executionId>/mappings
+                pathPrefix(Segment) {
+                  mappingTaskName: String => // jobs/<jobId>/executions/<executionId>/mappings/<mappingTaskName>
+                    pathPrefix(SEGMENT_STOP) { // jobs/<jobId>/executions/<executionId>/mappings/<mappingTaskName>/stop
+                      pathEndOrSingleSlash {
+                        stopMappingExecution(jobId, executionId, mappingTaskName)
+                      }
+                    }
                 }
               }
-            }
           }
         }
       }
@@ -99,9 +115,10 @@ class JobEndpoint(jobRepository: IJobRepository, mappingRepository: IMappingRepo
       complete {
         service.getJob(projectId, jobId) map {
           case Some(mappingJob) => StatusCodes.OK -> mappingJob
-          case None => StatusCodes.NotFound -> {
-            throw ResourceNotFound("Job not found", s"Mapping job with name $jobId not found")
-          }
+          case None =>
+            StatusCodes.NotFound -> {
+              throw ResourceNotFound("Job not found", s"Mapping job with name $jobId not found")
+            }
         }
       }
     }
@@ -176,8 +193,10 @@ class JobEndpoint(jobRepository: IJobRepository, mappingRepository: IMappingRepo
   private def testMappingWithJob(projectId: String, jobId: String): Route = {
     post {
       entity(as[TestResourceCreationRequest]) { requestBody =>
-        validate(RowSelectionOrder.isValid(requestBody.resourceFilter.order),
-          s"Invalid row selection order. Available options are: ${RowSelectionOrder.START}, ${RowSelectionOrder.RANDOM}") {
+        validate(
+          RowSelectionOrder.isValid(requestBody.resourceFilter.order),
+          s"Invalid row selection order. Available options are: ${RowSelectionOrder.START}, ${RowSelectionOrder.RANDOM}"
+        ) {
           complete {
             executionService.testMappingWithJob(projectId, jobId, requestBody)
           }

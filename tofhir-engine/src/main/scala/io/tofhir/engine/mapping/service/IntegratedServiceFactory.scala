@@ -3,7 +3,12 @@ package io.tofhir.engine.mapping.service
 import com.typesafe.scalalogging.Logger
 import io.onfhir.api.service.{IFhirIdentityService, IFhirTerminologyService}
 import io.onfhir.client.{IdentityServiceClient, TerminologyServiceClient}
-import io.tofhir.engine.model.{FhirRepositorySinkSettings, IdentityServiceSettings, LocalFhirTerminologyServiceSettings, TerminologyServiceSettings}
+import io.tofhir.engine.model.{
+  FhirRepositorySinkSettings,
+  IdentityServiceSettings,
+  LocalFhirTerminologyServiceSettings,
+  TerminologyServiceSettings
+}
 
 import scala.concurrent.ExecutionContext
 
@@ -23,12 +28,12 @@ object IntegratedServiceFactory {
   def createTerminologyService(terminologyServiceSettings: TerminologyServiceSettings): IFhirTerminologyService = {
     try {
       terminologyServiceSettings match {
-        //If this is a FHIR repository settings, it means it is a terminology service
+        // If this is a FHIR repository settings, it means it is a terminology service
         case terminologyService: FhirRepositorySinkSettings =>
           import io.tofhir.engine.Execution.actorSystem
           implicit val ec: ExecutionContext = actorSystem.dispatcher
           new TerminologyServiceClient(terminologyService.createOnFhirClient(actorSystem))
-        //If we are having a local terminology service
+        // If we are having a local terminology service
         case localTerminologySettings: LocalFhirTerminologyServiceSettings =>
           new LocalTerminologyService(localTerminologySettings)
       }
@@ -48,10 +53,10 @@ object IntegratedServiceFactory {
    */
   def createIdentityService(identityServiceSettings: IdentityServiceSettings): IFhirIdentityService = {
     identityServiceSettings match {
-      //If identity service will be based on FHIR repo
+      // If identity service will be based on FHIR repo
       case fhirRepositorySinkSettings: FhirRepositorySinkSettings =>
         import io.tofhir.engine.Execution.actorSystem
-        implicit val ec:ExecutionContext = actorSystem.dispatcher
+        implicit val ec: ExecutionContext = actorSystem.dispatcher
         new IdentityServiceClient(fhirRepositorySinkSettings.createOnFhirClient(actorSystem))
     }
   }

@@ -40,7 +40,8 @@ class RedCapService(redCapServiceConfig: RedCapServiceConfig) extends LazyLoggin
     )
 
     // Add timeout and transform response to a String
-    Http().singleRequest(proxiedRequest)
+    Http()
+      .singleRequest(proxiedRequest)
       .flatMap { resp => resp.entity.toStrict(timeout) }
       .map(strictEntity => strictEntity.data.utf8String)
   }
@@ -62,7 +63,8 @@ class RedCapService(redCapServiceConfig: RedCapServiceConfig) extends LazyLoggin
     )
 
     // Add timeout
-    Http().singleRequest(proxiedRequest)
+    Http()
+      .singleRequest(proxiedRequest)
       .flatMap { resp => resp.entity.toStrict(timeout) }
       .map(_ => ())
   }
@@ -80,7 +82,8 @@ class RedCapService(redCapServiceConfig: RedCapServiceConfig) extends LazyLoggin
     )
 
     // Add timeout and transform response to a sequence of RedCapProjectConfig objects
-    Http().singleRequest(proxiedRequest)
+    Http()
+      .singleRequest(proxiedRequest)
       .flatMap { resp => resp.entity.toStrict(timeout) }
       .map(strictEntity => JsonMethods.parse(strictEntity.data.utf8String).extract[Seq[RedCapProjectConfig]])
   }
@@ -94,12 +97,14 @@ class RedCapService(redCapServiceConfig: RedCapServiceConfig) extends LazyLoggin
   def deleteRedCapData(projectId: String, reload: Boolean): Future[Unit] = {
     val proxiedRequest = HttpRequest(
       method = HttpMethods.DELETE,
-      uri = s"${redCapServiceConfig.projectsEndpoint}/${redCapServiceConfig.projectDataPath}/$projectId?${redCapServiceConfig.projectDataReloadParameter}=$reload",
+      uri =
+        s"${redCapServiceConfig.projectsEndpoint}/${redCapServiceConfig.projectDataPath}/$projectId?${redCapServiceConfig.projectDataReloadParameter}=$reload",
       headers = RawHeader("Content-Type", "application/json") :: Nil
     )
 
     // Add timeout
-    Http().singleRequest(proxiedRequest)
+    Http()
+      .singleRequest(proxiedRequest)
       .flatMap { resp => resp.entity.toStrict(timeout) }
       .map(_ => ())
   }

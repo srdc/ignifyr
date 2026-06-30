@@ -22,27 +22,31 @@ import java.util.regex.Pattern
  * @param saveErroneousRecords           Whether to save erroneous records or not
  * @param isScheduledJob                 Whether the execution is scheduled or not
  */
-case class FhirMappingJobExecution(id: String,
-                                   projectId: String,
-                                   jobId: String,
-                                   mappingTasks: Seq[FhirMappingTask],
-                                   jobGroupIdOrStreamingQuery: Option[Either[String, collection.mutable.Map[String, StreamingQuery]]],
-                                   isStreamingJob: Boolean,
-                                   fileSystemSourceDataFolderPath: Option[String],
-                                   archiveMode: ArchiveModes,
-                                   saveErroneousRecords: Boolean,
-                                   isScheduledJob: Boolean
-                                  ) {
+case class FhirMappingJobExecution(
+    id: String,
+    projectId: String,
+    jobId: String,
+    mappingTasks: Seq[FhirMappingTask],
+    jobGroupIdOrStreamingQuery: Option[Either[String, collection.mutable.Map[String, StreamingQuery]]],
+    isStreamingJob: Boolean,
+    fileSystemSourceDataFolderPath: Option[String],
+    archiveMode: ArchiveModes,
+    saveErroneousRecords: Boolean,
+    isScheduledJob: Boolean
+) {
+
   /**
    * Returns the map of streaming queries i.e. map of (mappingTask name -> streaming query)
    * @return
    */
   def getStreamingQueryMap(): collection.mutable.Map[String, StreamingQuery] = {
     jobGroupIdOrStreamingQuery match {
-      case Some(value) => value match {
-        case Right(queryMap) => queryMap
-        case Left(_) => throw new IllegalStateException("Trying to access StreamingQuery map, but job group id exists instead")
-      }
+      case Some(value) =>
+        value match {
+          case Right(queryMap) => queryMap
+          case Left(_) =>
+            throw new IllegalStateException("Trying to access StreamingQuery map, but job group id exists instead")
+        }
       case None => throw new IllegalStateException("Trying to access StreamingQuery map, but it does not exist")
     }
   }
@@ -54,7 +58,10 @@ case class FhirMappingJobExecution(id: String,
   def getStreamingQuery(mappingTaskName: String): StreamingQuery = {
     getStreamingQueryMap().get(mappingTaskName) match {
       case Some(query) => query
-      case None => throw new IllegalStateException(s"Trying to access StreamingQuery, but none exists for the given mappingTask name: $mappingTaskName")
+      case None =>
+        throw new IllegalStateException(
+          s"Trying to access StreamingQuery, but none exists for the given mappingTask name: $mappingTaskName"
+        )
     }
   }
 
@@ -64,10 +71,12 @@ case class FhirMappingJobExecution(id: String,
    */
   def getJobGroupId(): String = {
     jobGroupIdOrStreamingQuery match {
-      case Some(value) => value match {
-        case Right(_) => throw new IllegalStateException("Trying to access StreamingQuery, but streaming query exists instead")
-        case Left(jobGroupId) => jobGroupId
-      }
+      case Some(value) =>
+        value match {
+          case Right(_) =>
+            throw new IllegalStateException("Trying to access StreamingQuery, but streaming query exists instead")
+          case Left(jobGroupId) => jobGroupId
+        }
       case None => throw new IllegalStateException("Trying to access job group id, but it does not exist")
     }
   }
@@ -111,8 +120,15 @@ case class FhirMappingJobExecution(id: String,
    * @return
    */
   def getErrorOutputDirectory(mappingTaskName: String, errorType: String): String =
-    Paths.get(ToFhirConfig.engineConfig.erroneousRecordsFolder, errorType, s"job-${jobId}", s"execution-${id}",
-      mappingTaskName).toString
+    Paths
+      .get(
+        ToFhirConfig.engineConfig.erroneousRecordsFolder,
+        errorType,
+        s"job-${jobId}",
+        s"execution-${id}",
+        mappingTaskName
+      )
+      .toString
 
 }
 
@@ -130,19 +146,20 @@ object FhirMappingJobExecution {
    * @param jobGroupIdOrStreamingQuery     Keeps Spark job group id for batch jobs and StreamingQuery for streaming jobs
    * @return
    */
-  def apply(id: String = UUID.randomUUID().toString,
-            projectId: String = "",
-            job: FhirMappingJob,
-            mappingTasks: Seq[FhirMappingTask] = Seq.empty,
-            jobGroupIdOrStreamingQuery: Option[Either[String, collection.mutable.Map[String, StreamingQuery]]] = None
-           ): FhirMappingJobExecution = {
+  def apply(
+      id: String = UUID.randomUUID().toString,
+      projectId: String = "",
+      job: FhirMappingJob,
+      mappingTasks: Seq[FhirMappingTask] = Seq.empty,
+      jobGroupIdOrStreamingQuery: Option[Either[String, collection.mutable.Map[String, StreamingQuery]]] = None
+  ): FhirMappingJobExecution = {
 
     // Configure properties related to the source settings of the job
     var isStreamingJob = false
     var fileSystemSourceDataFolderPath: Option[String] = None
     if (job.sourceSettings.nonEmpty) {
       isStreamingJob = job.sourceSettings.exists(source => source._2.asStream)
-      fileSystemSourceDataFolderPath  = job.sourceSettings.head._2 match {
+      fileSystemSourceDataFolderPath = job.sourceSettings.head._2 match {
         case settings: FileSystemSourceSettings => Some(settings.dataFolderPath)
         case _ => None
       }
@@ -151,7 +168,7 @@ object FhirMappingJobExecution {
     // Configure properties related to the data processing settings of the job
     var archiveMode = ArchiveModes.OFF
     var saveErroneousRecords = false
-    if(job.dataProcessingSettings != null) {
+    if (job.dataProcessingSettings != null) {
       archiveMode = job.dataProcessingSettings.archiveMode
       saveErroneousRecords = job.dataProcessingSettings.saveErroneousRecords
     }
@@ -159,7 +176,17 @@ object FhirMappingJobExecution {
     val isScheduledJob = job.schedulingSettings.nonEmpty
 
     // Create a FhirMappingJobExecution with only necessary properties
-    FhirMappingJobExecution(id, projectId, job.id, mappingTasks, jobGroupIdOrStreamingQuery, isStreamingJob, fileSystemSourceDataFolderPath, archiveMode, saveErroneousRecords, isScheduledJob)
+    FhirMappingJobExecution(
+      id,
+      projectId,
+      job.id,
+      mappingTasks,
+      jobGroupIdOrStreamingQuery,
+      isStreamingJob,
+      fileSystemSourceDataFolderPath,
+      archiveMode,
+      saveErroneousRecords,
+      isScheduledJob
+    )
   }
 }
-

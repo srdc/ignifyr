@@ -6,7 +6,13 @@ import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
 import io.onfhir.definitions.common.model.SchemaDefinition
 import io.tofhir.engine.Execution.actorSystem.dispatcher
-import io.tofhir.server.endpoint.SchemaDefinitionEndpoint.{SEGMENT_IMPORT, SEGMENT_IMPORT_ZIP, SEGMENT_INFER, SEGMENT_REDCAP, SEGMENT_SCHEMAS}
+import io.tofhir.server.endpoint.SchemaDefinitionEndpoint.{
+  SEGMENT_IMPORT,
+  SEGMENT_IMPORT_ZIP,
+  SEGMENT_INFER,
+  SEGMENT_REDCAP,
+  SEGMENT_SCHEMAS
+}
 import io.onfhir.definitions.common.model.Json4sSupport._
 import io.tofhir.server.model.{ImportSchemaSettings, InferTask}
 import io.tofhir.engine.util.FhirMappingJobFormatter.formats
@@ -23,7 +29,8 @@ import java.io.File
 import java.nio.file.Files
 import scala.util.{Failure, Success}
 
-class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepository: IMappingRepository) extends LazyLogging {
+class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepository: IMappingRepository)
+    extends LazyLogging {
 
   val service: SchemaDefinitionService = new SchemaDefinitionService(schemaRepository, mappingRepository)
 
@@ -34,7 +41,11 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
         parameterMap { queryParams =>
           queryParams.get(SchemaDefinitionEndpoint.QUERY_PARAM_URL) match {
             case Some(url) => getSchemaByUrl(url, queryParams.get(SchemaDefinitionEndpoint.QUERY_PARAM_TYPE))
-            case None => getAllSchemas(request) ~ createSchema(projectId, queryParams.getOrElse("format", SchemaFormats.SIMPLE_STRUCTURE_DEFINITION)) // Operations on all schemas
+            case None =>
+              getAllSchemas(request) ~ createSchema(
+                projectId,
+                queryParams.getOrElse("format", SchemaFormats.SIMPLE_STRUCTURE_DEFINITION)
+              ) // Operations on all schemas
           }
         }
       } ~ pathPrefix(SEGMENT_INFER) { // infer a schema
@@ -72,8 +83,7 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
             service.createSchemaFromStructureDefinition(projectId, schemaStructureDefinition)
           }
         }
-      }
-      else{
+      } else {
         entity(as[SchemaDefinition]) { schemaDefinition =>
           complete {
             service.createSchema(projectId, schemaDefinition) map { createdDefinition =>
@@ -92,7 +102,7 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
           // Requested format of the schema: "StructureDefinition" or "SimpleStructureDefinition"
           val format: String = queryParams.getOrElse("format", SchemaFormats.SIMPLE_STRUCTURE_DEFINITION)
           // Send structure definition for the user to export
-          if(format == SchemaFormats.STRUCTURE_DEFINITION){
+          if (format == SchemaFormats.STRUCTURE_DEFINITION) {
             service.getSchemaAsStructureDefinition(projectId, schemaId) map {
               case Some(schemaStructureDefinition) => StatusCodes.OK -> schemaStructureDefinition
               case None => {
@@ -100,13 +110,14 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
               }
             }
           }
-            // Send simple structure definition for general use in frontend
+          // Send simple structure definition for general use in frontend
           else {
             service.getSchema(projectId, schemaId) map {
               case Some(schemaSimpleStructureDefinition) => StatusCodes.OK -> schemaSimpleStructureDefinition
-              case None => StatusCodes.NotFound -> {
-                throw ResourceNotFound("Schema not found", s"Schema definition with name $schemaId not found")
-              }
+              case None =>
+                StatusCodes.NotFound -> {
+                  throw ResourceNotFound("Schema not found", s"Schema definition with name $schemaId not found")
+                }
             }
           }
         }
@@ -128,9 +139,10 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
                 // Return the full schema definition, including all metadata and element definitions.
                 StatusCodes.OK -> schemaDefinition
             }
-          case None => StatusCodes.NotFound -> {
-            throw ResourceNotFound("Schema not found", s"Schema definition with url $url not found")
-          }
+          case None =>
+            StatusCodes.NotFound -> {
+              throw ResourceNotFound("Schema not found", s"Schema definition with url $url not found")
+            }
         }
       }
     }
@@ -157,6 +169,7 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
       }
     }
   }
+
   /**
    * Route to infer a schema
    * */
@@ -166,9 +179,10 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
         complete {
           service.inferSchema(inferTask) map {
             case Some(schemaDefinition) => StatusCodes.OK -> schemaDefinition
-            case None => StatusCodes.BadRequest -> {
-              throw BadRequest("Schema inferring problem", s"Schema cannot be inferred")
-            }
+            case None =>
+              StatusCodes.BadRequest -> {
+                throw BadRequest("Schema inferring problem", s"Schema cannot be inferred")
+              }
           }
         }
       }
@@ -180,13 +194,12 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
    * */
   private def importREDCapDataDictionary(projectId: String): Route = {
     post {
-      fileUpload(ATTACHMENT) {
-        case (_, byteSource) =>
-          parameters("rootUrl", "recordIdField") { (rootUrl, recordIdField) =>
-            complete {
-              service.importREDCapDataDictionary(projectId, byteSource, rootUrl, recordIdField)
-            }
+      fileUpload(ATTACHMENT) { case (_, byteSource) =>
+        parameters("rootUrl", "recordIdField") { (rootUrl, recordIdField) =>
+          complete {
+            service.importREDCapDataDictionary(projectId, byteSource, rootUrl, recordIdField)
           }
+        }
 
       }
     }
@@ -217,17 +230,16 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
    */
   private def importFromZipOfFHIRProfiles(projectId: String): Route = {
     post {
-      storeUploadedFile("file", createTempFile) {
-        case (_, file) =>
-          val zipProcessingResult = FileOperations.processZipFile(file.toPath)
-          onComplete(zipProcessingResult) {
-            case Success(result) =>
-              complete(
-                service.createSchemas(projectId, result)
-              )
-            case Failure(ex) =>
-              throw InternalError("Processing of ZIP file failed!", s"Cannot process the ZIP file: ${ex.getMessage}")
-          }
+      storeUploadedFile("file", createTempFile) { case (_, file) =>
+        val zipProcessingResult = FileOperations.processZipFile(file.toPath)
+        onComplete(zipProcessingResult) {
+          case Success(result) =>
+            complete(
+              service.createSchemas(projectId, result)
+            )
+          case Failure(ex) =>
+            throw InternalError("Processing of ZIP file failed!", s"Cannot process the ZIP file: ${ex.getMessage}")
+        }
       }
     }
   }
@@ -242,9 +254,9 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
    * @return A temporary file object.
    */
   private def createTempFile(fileInfo: FileInfo): File = {
-      val tempFile = Files.createTempFile(fileInfo.fileName, ".tmp").toFile
-      tempFile.deleteOnExit()
-      tempFile
+    val tempFile = Files.createTempFile(fileInfo.fileName, ".tmp").toFile
+    tempFile.deleteOnExit()
+    tempFile
   }
 }
 
@@ -262,6 +274,7 @@ object SchemaDefinitionEndpoint {
  * The schema formats available for POST and GET schema methods
  */
 object SchemaFormats {
+
   /**
    * Specifies that the format of the schema to be created or retrieved follows the FHIR StructureDefinition resource format.
    * For more information on this format, see the FHIR StructureDefinition documentation at:
@@ -275,4 +288,3 @@ object SchemaFormats {
    */
   val SIMPLE_STRUCTURE_DEFINITION = "SimpleStructureDefinition"
 }
-

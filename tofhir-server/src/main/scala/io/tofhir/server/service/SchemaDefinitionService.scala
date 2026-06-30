@@ -24,7 +24,8 @@ import org.apache.spark.sql.types.StructType
 
 import scala.concurrent.Future
 
-class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingRepository: IMappingRepository) extends LazyLogging {
+class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingRepository: IMappingRepository)
+    extends LazyLogging {
 
   /**
    * Get all schema definition metadata (not populated with field definitions) from the schema repository
@@ -78,7 +79,10 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
   def putSchema(projectId: String, schemaId: String, schemaDefinition: SchemaDefinition): Future[SchemaDefinition] = { // TODO: HTTP PUT methods should return the updated object w.r.t REST principles
     // Ensure that the provided schemaId matches the SchemaDefinition's schemaId
     if (!schemaId.equals(schemaDefinition.id)) {
-      throw BadRequest("Schema definition is not valid.", s"Identifier of the schema definition: ${schemaDefinition.id} does not match with the provided schemaId: $schemaId in the path!")
+      throw BadRequest(
+        "Schema definition is not valid.",
+        s"Identifier of the schema definition: ${schemaDefinition.id} does not match with the provided schemaId: $schemaId in the path!"
+      )
     }
     schemaRepository.updateSchema(projectId, schemaId, schemaDefinition)
   }
@@ -93,16 +97,26 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
    * @return
    */
   def deleteSchema(projectId: String, schemaId: String): Future[Unit] = {
-    schemaRepository.getSchema(projectId, schemaId).flatMap(schema => {
-      if (schema.isEmpty)
-        throw ResourceNotFound("Schema does not exists.", s"A schema definition with id $schemaId does not exists in the schema repository.")
-      mappingRepository.getMappingsReferencingSchema(projectId, schema.get.url).flatMap(mappingIds => {
-        if (mappingIds.isEmpty)
-          schemaRepository.deleteSchema(projectId, schemaId)
-        else
-          throw BadRequest("Schema is referenced by some mappings.", s"Schema definition with id $schemaId is referenced by the following mappings:${mappingIds.mkString(",")}")
+    schemaRepository
+      .getSchema(projectId, schemaId)
+      .flatMap(schema => {
+        if (schema.isEmpty)
+          throw ResourceNotFound(
+            "Schema does not exists.",
+            s"A schema definition with id $schemaId does not exists in the schema repository."
+          )
+        mappingRepository
+          .getMappingsReferencingSchema(projectId, schema.get.url)
+          .flatMap(mappingIds => {
+            if (mappingIds.isEmpty)
+              schemaRepository.deleteSchema(projectId, schemaId)
+            else
+              throw BadRequest(
+                "Schema is referenced by some mappings.",
+                s"Schema definition with id $schemaId is referenced by the following mappings:${mappingIds.mkString(",")}"
+              )
+          })
       })
-    })
   }
 
   /**
@@ -114,30 +128,42 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
   def inferSchema(inferTask: InferTask): Future[Option[SchemaDefinition]] = {
 
     // Initialize a SchemaConverter for our FHIR version
-    val schemaConverter = new SchemaConverter(majorFhirVersion = FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion))
+    val schemaConverter = new SchemaConverter(majorFhirVersion =
+      FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion)
+    )
 
     // Extract the first mapping job source setting
-    val sourceSettings = inferTask.mappingJobSourceSettings
-      .head // We are sure that we only have a single sourceSetting since this is an infer task
-      ._2 // Get the MappingJobSourceSettings object
+    val sourceSettings =
+      inferTask.mappingJobSourceSettings.head // We are sure that we only have a single sourceSetting since this is an infer task
+        ._2 // Get the MappingJobSourceSettings object
 
     // Inner function to call from multiple lines below so that the schema is inferred after read by spark.
     def inferSchemaFromSparkRead(): StructType = {
       // Execute SQL and get the dataFrame
-      val dataFrame = try {
-        SourceHandler
-          .readSource(inferTask.name, ToFhirConfig.sparkSession, inferTask.sourceBinding, sourceSettings, schema = None)
-          .limit(1) // It is enough to take the first row to infer the schema.
-      } catch {
-        case e: FhirMappingException =>
-          val simplifiedCause = Option(e.getCause).map(_.getMessage).map(_.replace("\n", " ")).getOrElse("")
-          val detail =
-            if (simplifiedCause.toLowerCase.contains("parquet") && simplifiedCause.toLowerCase.contains("not a parquet file"))
-              "Content type mismatch: the input file is not a valid Parquet file."
-            else
-              simplifiedCause.capitalize
-          throw BadRequest(e.getMessage, detail)
-      }
+      val dataFrame =
+        try {
+          SourceHandler
+            .readSource(
+              inferTask.name,
+              ToFhirConfig.sparkSession,
+              inferTask.sourceBinding,
+              sourceSettings,
+              schema = None
+            )
+            .limit(1) // It is enough to take the first row to infer the schema.
+        } catch {
+          case e: FhirMappingException =>
+            val simplifiedCause = Option(e.getCause).map(_.getMessage).map(_.replace("\n", " ")).getOrElse("")
+            val detail =
+              if (
+                simplifiedCause.toLowerCase
+                  .contains("parquet") && simplifiedCause.toLowerCase.contains("not a parquet file")
+              )
+                "Content type mismatch: the input file is not a valid Parquet file."
+              else
+                simplifiedCause.capitalize
+            throw BadRequest(e.getMessage, detail)
+        }
       dataFrame.schema // Get the schema inferred by Spark
     }
 
@@ -152,14 +178,18 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
                   sqlSourceSettings.username,
                   sqlSourceSettings.password,
                   sqlSource.tableName.getOrElse(sqlSource.query.get),
-                  sqlSource.query.isDefined)
+                  sqlSource.query.isDefined
+                )
             } catch {
               case e: Throwable =>
                 throw BadRequest(e.getMessage, e.getCause.toString, Some(e))
             }
           case sqlSource: SqlSource if sqlSource.preprocessSql.isDefined =>
             inferSchemaFromSparkRead()
-          case _ => throw new IllegalStateException("Source binding must be SqlSource if the sourceSettings is SqlSourceSettings.")
+          case _ =>
+            throw new IllegalStateException(
+              "Source binding must be SqlSource if the sourceSettings is SqlSourceSettings."
+            )
         }
       case _ =>
         inferSchemaFromSparkRead()
@@ -170,10 +200,20 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
     // Create unnamed Schema definition by infer the schema from DataFrame
     val unnamedSchema = {
       // Map SQL DataTypes to Fhir DataTypes
-      var fieldDefinitions = effectiveSchema.fields.map(structField => schemaConverter.fieldsToSchema(structField, defaultName))
+      var fieldDefinitions =
+        effectiveSchema.fields.map(structField => schemaConverter.fieldsToSchema(structField, defaultName))
       // Remove INPUT_VALIDITY_ERROR fieldDefinition that is added by SourceHandler
-      fieldDefinitions = fieldDefinitions.filter(fieldDefinition => fieldDefinition.id != SourceHandler.INPUT_VALIDITY_ERROR)
-      SchemaDefinition(url = defaultName, version = SchemaDefinition.VERSION_LATEST, `type` = defaultName, name = defaultName, description = Option.empty, rootDefinition = Option.empty, fieldDefinitions = Some(fieldDefinitions))
+      fieldDefinitions =
+        fieldDefinitions.filter(fieldDefinition => fieldDefinition.id != SourceHandler.INPUT_VALIDITY_ERROR)
+      SchemaDefinition(
+        url = defaultName,
+        version = SchemaDefinition.VERSION_LATEST,
+        `type` = defaultName,
+        name = defaultName,
+        description = Option.empty,
+        rootDefinition = Option.empty,
+        fieldDefinitions = Some(fieldDefinitions)
+      )
     }
     Future.apply(Some(unnamedSchema))
   }
@@ -194,9 +234,13 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
     onFhirClient.read("StructureDefinition", settings.resourceId).execute() flatMap { response =>
       // the requested resource does not exist
       if (response.httpStatus.intValue() == HttpStatus.SC_NOT_FOUND)
-        throw BadRequest("Invalid resource identifier!", s"Structure Definition with id '${settings.resourceId}' does not exist.")
+        throw BadRequest(
+          "Invalid resource identifier!",
+          s"Structure Definition with id '${settings.resourceId}' does not exist."
+        )
       // save the schema
-      schemaRepository.saveSchemaByStructureDefinition(projectId, Seq(response.responseBody.get))
+      schemaRepository
+        .saveSchemaByStructureDefinition(projectId, Seq(response.responseBody.get))
         .map(definitions => definitions.head)
     }
   }
@@ -221,12 +265,18 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
    * @param recordIdField The name of the field that represents the record ID.
    * @return
    */
-  def importREDCapDataDictionary(projectId: String, byteSource: Source[ByteString, Any], rootUrl: String, recordIdField: String): Future[Seq[SchemaDefinition]] = {
+  def importREDCapDataDictionary(
+      projectId: String,
+      byteSource: Source[ByteString, Any],
+      rootUrl: String,
+      recordIdField: String
+  ): Future[Seq[SchemaDefinition]] = {
     // read the file
     val content: Future[Seq[Map[String, String]]] = CsvUtil.readFromCSVSource(byteSource)
     content.flatMap(rows => {
       // extract schema definitions
-      val definitions: Seq[SchemaDefinition] = RedCapUtil.extractSchemasAsSchemaDefinitions(rows, rootUrl, recordIdField)
+      val definitions: Seq[SchemaDefinition] =
+        RedCapUtil.extractSchemasAsSchemaDefinitions(rows, rootUrl, recordIdField)
       // save each schema
       Future.sequence(definitions.map(definition => schemaRepository.saveSchema(projectId, definition)))
     })
@@ -250,8 +300,12 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
    * @param structureDefinitionResource schema definition in the form of Structure Definition resource
    * @return the SchemaDefinition of the created schema
    */
-  def createSchemaFromStructureDefinition(projectId: String, structureDefinitionResource: Resource): Future[SchemaDefinition] = {
-    schemaRepository.saveSchemaByStructureDefinition(projectId, Seq(structureDefinitionResource))
+  def createSchemaFromStructureDefinition(
+      projectId: String,
+      structureDefinitionResource: Resource
+  ): Future[SchemaDefinition] = {
+    schemaRepository
+      .saveSchemaByStructureDefinition(projectId, Seq(structureDefinitionResource))
       .map(definitions => definitions.head)
   }
 }

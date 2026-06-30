@@ -13,6 +13,7 @@ import scala.concurrent.Future
  * Interface to load a context from definition
  */
 trait IMappingContextLoader {
+
   /**
    * Retrieve the given context data from the definition
    *
@@ -26,13 +27,15 @@ class MappingContextLoader extends IMappingContextLoader {
 
   def retrieveContext(contextDefinition: FhirMappingContextDefinition): Future[FhirMappingContext] = {
     if (contextDefinition.url.isDefined) {
-      //logger.debug("The context definition for the mapping repository is defined at a URL:{}. It will be loaded...", contextDefinition.url.get)
+      // logger.debug("The context definition for the mapping repository is defined at a URL:{}. It will be loaded...", contextDefinition.url.get)
       // FIXME: To build the context, we only accept CSV files with a header to read from.
       readConceptMapContextFromCSV(contextDefinition.url.get)
     } else {
       // FIXME: If there is no URL to read from, then the context definition may be given through the value of the FhirMappingContextDefinition as a JSON object.
       //  It needs to be converted to a FhirMappingContext object.
-      throw new NotImplementedError("A FhirMappingContextDefinition must include a valid URL pointing to a CSV file so that I can load it.")
+      throw new NotImplementedError(
+        "A FhirMappingContextDefinition must include a valid URL pointing to a CSV file so that I can load it."
+      )
     }
   }
 
@@ -44,14 +47,16 @@ class MappingContextLoader extends IMappingContextLoader {
    * @param filePath
    * @return
    */
-  private def readFromCSV(filePath: String): Future[(Seq[String],Seq[Map[String, String]])] = {
+  private def readFromCSV(filePath: String): Future[(Seq[String], Seq[Map[String, String]])] = {
     val path =
-    // replace $CONTEXT_REPO placeholder
-    if (filePath.contains(FhirMappingContextUrlPlaceHolder.CONTEXT_REPO))
-      filePath.replace(FhirMappingContextUrlPlaceHolder.CONTEXT_REPO,
-        ToFhirConfig.engineConfig.mappingContextRepositoryFolderPath)
-     else
-      filePath
+      // replace $CONTEXT_REPO placeholder
+      if (filePath.contains(FhirMappingContextUrlPlaceHolder.CONTEXT_REPO))
+        filePath.replace(
+          FhirMappingContextUrlPlaceHolder.CONTEXT_REPO,
+          ToFhirConfig.engineConfig.mappingContextRepositoryFolderPath
+        )
+      else
+        filePath
     Future {
       CsvUtil.readFromCSVAndReturnWithColumnNames(FileUtils.getPath(path).toString)
     }
@@ -95,16 +100,15 @@ class MappingContextLoader extends IMappingContextLoader {
    * @return
    */
   private def readConceptMapContextFromCSV(filePath: String): Future[ConceptMapContext] = {
-    readFromCSV(filePath) map {
-      case (columns, records) =>
-        //val (firstColumnName, _) = records.head.head // Get the first element in the records list and then get the first (k,v) pair to get the name of the first column.
-        val columnHeadKey = columns.head
-        val lowerCols  = columns.map(_.toLowerCase)
+    readFromCSV(filePath) map { case (columns, records) =>
+      // val (firstColumnName, _) = records.head.head // Get the first element in the records list and then get the first (k,v) pair to get the name of the first column.
+      val columnHeadKey = columns.head
+      val lowerCols = columns.map(_.toLowerCase)
 
-        def colName(wanted: String): Option[String] = {
-          val i = lowerCols.indexOf(wanted)
-          if (i == -1) None else Some(columns(i))
-        }
+      def colName(wanted: String): Option[String] = {
+        val i = lowerCols.indexOf(wanted)
+        if (i == -1) None else Some(columns(i))
+      }
 
       // Concept Map view
       val concepts: Map[String, Seq[Map[String, String]]] =
@@ -113,14 +117,14 @@ class MappingContextLoader extends IMappingContextLoader {
       // Unit Conversion view
       val maybeSrcUnit = colName("source_unit")
       val maybeTgtUnit = colName("target_unit")
-      val maybeFn      = colName("conversion_function")
+      val maybeFn = colName("conversion_function")
 
       val conversionFunctions: Map[(String, String), (String, String)] =
         (maybeSrcUnit, maybeTgtUnit, maybeFn) match {
           case (Some(srcU), Some(tgtU), Some(fn)) =>
-            records.foldLeft(Map.empty[(String, String), (String, String)]) {
-              (acc, row) =>
-              acc + ((row(columnHeadKey) -> row(srcU)) -> (row(tgtU) -> row(fn)))}
+            records.foldLeft(Map.empty[(String, String), (String, String)]) { (acc, row) =>
+              acc + ((row(columnHeadKey) -> row(srcU)) -> (row(tgtU) -> row(fn)))
+            }
           case _ => Map.empty
         }
 
@@ -138,15 +142,16 @@ class MappingContextLoader extends IMappingContextLoader {
    * @return
    */
   private def readUnitConversionFunctionsFromCSV(filePath: String): Future[Map[(String, String), (String, String)]] = {
-    readFromCSV(filePath) map {
-      case (columnNames, records) =>
-        val sourceCode = columnNames.head
-        val sourceUnit = columnNames(1)
-        val targetUnit = columnNames(2)
-        val conversionFunction = columnNames(3)
-        records.foldLeft(Map[(String, String), (String, String)]()) { (unitConversionMap, columnMap) =>
-          unitConversionMap + ((columnMap(sourceCode) -> columnMap(sourceUnit)) -> (columnMap(targetUnit) -> columnMap(conversionFunction)))
-        }
+    readFromCSV(filePath) map { case (columnNames, records) =>
+      val sourceCode = columnNames.head
+      val sourceUnit = columnNames(1)
+      val targetUnit = columnNames(2)
+      val conversionFunction = columnNames(3)
+      records.foldLeft(Map[(String, String), (String, String)]()) { (unitConversionMap, columnMap) =>
+        unitConversionMap + ((columnMap(sourceCode) -> columnMap(sourceUnit)) -> (columnMap(targetUnit) -> columnMap(
+          conversionFunction
+        )))
+      }
     }
   }
 
@@ -164,22 +169,30 @@ object MappingContextLoader {
    */
   def normalizeContextURLs(fhirMappings: Seq[(FhirMapping, File)]): Seq[FhirMapping] = {
     fhirMappings.map { case (fhirMapping, file) => // iterate over each FhirMapping
-      val newContextDefinitionMap = fhirMapping.context.map { case (key, contextDefinition) => // iterate over each contextDefinition entry
-        val newContextDefinition = // create a new context definition object
-          if (contextDefinition.url.isDefined) {
-            if (contextDefinition.url.get.contains(FhirMappingContextUrlPlaceHolder.CONTEXT_REPO)) { // if the URL of the context definition object contains the $CONTEXT_REPO placeholder
-              val replacedContextDefinition = contextDefinition.url.get.replace(FhirMappingContextUrlPlaceHolder.CONTEXT_REPO,
-                ToFhirConfig.engineConfig.mappingContextRepositoryFolderPath)
-              contextDefinition.withURL(FileUtils.getPath(replacedContextDefinition).toAbsolutePath.toString)
-            } else { // context path is relative to the mapping file
-              val folderPathObj = Paths.get(file.getParent)
-              val contextDefinitionPath = Paths.get(contextDefinition.url.get) // parse the path
-              if (!contextDefinitionPath.isAbsolute) { //if the URL of the context definition object is relative
-                contextDefinition.withURL(Paths.get(folderPathObj.normalize().toString, contextDefinitionPath.normalize().toString).toAbsolutePath.toString) // join it with the folderPath of this repository
-              } else contextDefinition // keep it otherwise
-            }
-          } else contextDefinition // keep it otherwise
-        key -> newContextDefinition
+      val newContextDefinitionMap = fhirMapping.context.map {
+        case (key, contextDefinition) => // iterate over each contextDefinition entry
+          val newContextDefinition = // create a new context definition object
+            if (contextDefinition.url.isDefined) {
+              if (contextDefinition.url.get.contains(FhirMappingContextUrlPlaceHolder.CONTEXT_REPO)) { // if the URL of the context definition object contains the $CONTEXT_REPO placeholder
+                val replacedContextDefinition = contextDefinition.url.get.replace(
+                  FhirMappingContextUrlPlaceHolder.CONTEXT_REPO,
+                  ToFhirConfig.engineConfig.mappingContextRepositoryFolderPath
+                )
+                contextDefinition.withURL(FileUtils.getPath(replacedContextDefinition).toAbsolutePath.toString)
+              } else { // context path is relative to the mapping file
+                val folderPathObj = Paths.get(file.getParent)
+                val contextDefinitionPath = Paths.get(contextDefinition.url.get) // parse the path
+                if (!contextDefinitionPath.isAbsolute) { // if the URL of the context definition object is relative
+                  contextDefinition.withURL(
+                    Paths
+                      .get(folderPathObj.normalize().toString, contextDefinitionPath.normalize().toString)
+                      .toAbsolutePath
+                      .toString
+                  ) // join it with the folderPath of this repository
+                } else contextDefinition // keep it otherwise
+              }
+            } else contextDefinition // keep it otherwise
+          key -> newContextDefinition
       }
       fhirMapping.withContext(newContextDefinitionMap)
     }

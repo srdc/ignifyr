@@ -22,7 +22,8 @@ object CsvUtil {
    * it could cause the application to run out of memory while trying to buffer the entire line.
    * allowTruncation indicates that we don't require an explicit line ending even for the last message
    */
-  private val lineDelimiterFlow: Flow[ByteString, ByteString, _] = Framing.delimiter(ByteString("\n"), maximumFrameLength = 1024, allowTruncation = true)
+  private val lineDelimiterFlow: Flow[ByteString, ByteString, _] =
+    Framing.delimiter(ByteString("\n"), maximumFrameLength = 1024, allowTruncation = true)
 
   /**
    * Flow to remove carriage returns from a ByteString
@@ -41,7 +42,8 @@ object CsvUtil {
    * @return Future[Long] total number of rows in the file
    */
   private def getTotalRows(file: File): Future[Long] = {
-    FileIO.fromPath(file.toPath)
+    FileIO
+      .fromPath(file.toPath)
       .via(lineDelimiterFlow) // split the file content by lines
       .filterNot(_.isEmpty) // filter out empty lines
       .drop(1) // skip first line which is the header
@@ -64,7 +66,8 @@ object CsvUtil {
     val parser = new CSVParserBuilder().withSeparator(',').withQuoteChar('"').build()
 
     // Read the existing CSV file into a list of list where each list represents a row
-    val existingContentFuture = FileIO.fromPath(file.toPath)
+    val existingContentFuture = FileIO
+      .fromPath(file.toPath)
       .via(lineDelimiterFlow) // split the file content by lines
       .map(_.utf8String) // convert ByteString to String
       .filterNot(_.isEmpty) // filter out empty lines
@@ -80,7 +83,6 @@ object CsvUtil {
           Seq.empty
         }
       }
-
 
     // here an example existingContent looks like:
     // header1,  header2,  header3
@@ -118,9 +120,11 @@ object CsvUtil {
       // create a header line by joining the new headers with a comma
       // create row content by using the second element of the tuple and joining them with a comma
       // finally merge the header and row content with a comma
-      val csvContent = (newHeaderNames.mkString(",") +: updatedContent.map(_.map(x => s"\"${x._2}\"").mkString(","))).map(ByteString(_))
+      val csvContent = (newHeaderNames.mkString(",") +: updatedContent.map(_.map(x => s"\"${x._2}\"").mkString(",")))
+        .map(ByteString(_))
       // Write the updated CSV content back to the file
-      Source(csvContent).intersperse(ByteString("\n"))
+      Source(csvContent)
+        .intersperse(ByteString("\n"))
         .runWith(FileIO.toPath(file.toPath, Set(StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)))
     }
   }
@@ -166,7 +170,12 @@ object CsvUtil {
    * @param pageSize Page size
    * @return Future[Long] Future of total number of rows in the CSV file
    */
-  def writeCsvAndReturnRowNumber(file: File, content: Source[ByteString, Any], pageNumber: Int, pageSize: Int): Future[Long] = {
+  def writeCsvAndReturnRowNumber(
+      file: File,
+      content: Source[ByteString, Any],
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[Long] = {
     val start = (pageNumber - 1) * pageSize + 1 // +1 to skip the header
 
     // Convert the CSV content to a list of strings
@@ -179,30 +188,28 @@ object CsvUtil {
       .runWith(Sink.seq[String])
 
     // Convert the CSV content to a list of strings
-    val existingContentFuture: Future[Seq[String]] = FileIO.fromPath(file.toPath)
+    val existingContentFuture: Future[Seq[String]] = FileIO
+      .fromPath(file.toPath)
       .via(removeCarriageReturns) // remove out \r chars to avoid issues with Windows line endings
       .via(lineDelimiterFlow) // split the file content by lines
       .map(_.utf8String) // convert ByteString to String
       .filterNot(_.isEmpty) // filter out empty lines
       .runWith(Sink.seq[String])
 
-    Future.sequence(Seq(contentFuture, existingContentFuture)).flatMap {
-      case Seq(newContent, existingContent) =>
-        // Replace the rows in the existing CSV file with the new content starting from 'start' and number of 'pageSize' rows
-        val updatedContent = existingContent.patch(start, newContent, pageSize)
-        // Write the updated list back to the CSV file by
-        // converting each line to ByteString and adding a newline character at the end
-        // and then write line by line to the file
-        val byteSource = Source(updatedContent).map(s => ByteString(s + "\n")).filterNot(_.isEmpty)
-        byteSource.runWith(FileIO.toPath(file.toPath, Set(StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)))
-          // flatMap is applied to the Future returned by runWith to get the total number of rows in the file in the end
-          .flatMap(
-            _ => getTotalRows(file)
-          )
+    Future.sequence(Seq(contentFuture, existingContentFuture)).flatMap { case Seq(newContent, existingContent) =>
+      // Replace the rows in the existing CSV file with the new content starting from 'start' and number of 'pageSize' rows
+      val updatedContent = existingContent.patch(start, newContent, pageSize)
+      // Write the updated list back to the CSV file by
+      // converting each line to ByteString and adding a newline character at the end
+      // and then write line by line to the file
+      val byteSource = Source(updatedContent).map(s => ByteString(s + "\n")).filterNot(_.isEmpty)
+      byteSource
+        .runWith(FileIO.toPath(file.toPath, Set(StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)))
+        // flatMap is applied to the Future returned by runWith to get the total number of rows in the file in the end
+        .flatMap(_ => getTotalRows(file))
     }
 
   }
-
 
   /**
    * Overwrite the content of a CSV file with the given content

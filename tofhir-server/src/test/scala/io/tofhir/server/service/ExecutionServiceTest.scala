@@ -29,7 +29,14 @@ class ExecutionServiceTest extends AsyncWordSpec with Matchers with BeforeAndAft
   // FhirMappingJob definition with streaming file source
   val testJob: FhirMappingJob = FhirMappingJob(
     name = Some("testJob"),
-    sourceSettings = Map("test" -> FileSystemSourceSettings(name = "test-source", sourceUri = "test-source", dataFolderPath = testDataFolder, asStream = true)),
+    sourceSettings = Map(
+      "test" -> FileSystemSourceSettings(
+        name = "test-source",
+        sourceUri = "test-source",
+        dataFolderPath = testDataFolder,
+        asStream = true
+      )
+    ),
     sinkSettings = FileSystemSinkSettings(path = "http://example.com/fhir", contentType = SinkContentTypes.CSV),
     mappings = Seq.apply(
       FhirMappingTask(
@@ -47,12 +54,15 @@ class ExecutionServiceTest extends AsyncWordSpec with Matchers with BeforeAndAft
   val schemaRepository: SchemaFolderRepository = getMockSchemaRepository
   val mappingJobRepository: JobFolderRepository = getMockMappingJobRepository
   // the execution service instance for the test
-  val executionService: ExecutionService = new ExecutionService(mappingJobRepository, mappingRepository, schemaRepository)
+  val executionService: ExecutionService =
+    new ExecutionService(mappingJobRepository, mappingRepository, schemaRepository)
 
   "The Execution Service" should {
     "should clear checkpoint directory" in {
       // create an example file for the mapping job in the corresponding checkpoint directory
-      val path: String = Paths.get(ToFhirConfig.sparkCheckpointDirectory, testJob.id, testJob.mappings.head.name.hashCode.toString).toString
+      val path: String = Paths
+        .get(ToFhirConfig.sparkCheckpointDirectory, testJob.id, testJob.mappings.head.name.hashCode.toString)
+        .toString
       val testFile: File = new File(s"$path/test.txt")
       io.FileUtils.createParentDirectories(testFile)
       val fileOutputStream = new FileOutputStream(testFile)
@@ -64,7 +74,8 @@ class ExecutionServiceTest extends AsyncWordSpec with Matchers with BeforeAndAft
       io.FileUtils.sizeOfDirectory(testDirectory) shouldBe >(0L)
 
       // run the job and expect to clear the created directory
-      executionService.runJob("testProject", "testJob", Option.empty, Some(testExecuteJobTask))
+      executionService
+        .runJob("testProject", "testJob", Option.empty, Some(testExecuteJobTask))
         .map(_ =>
           // Check whether the directory is deleted after the job has completed
           Files.exists(testDirectory.toPath) shouldBe false
@@ -105,7 +116,14 @@ class ExecutionServiceTest extends AsyncWordSpec with Matchers with BeforeAndAft
     val mockMappingRepository: ProjectMappingFolderRepository = mock[ProjectMappingFolderRepository]
     when(mockMappingRepository.getFhirMappingByUrl("https://aiccelerate.eu/fhir/mappings/patient-mapping"))
       .thenReturn(
-        FhirMapping(id = "test", url = "https://aiccelerate.eu/fhir/mappings/patient-mapping", name = "test", source = Seq(FhirMappingSource(alias = "source", url = "test-source")), context = Map.empty, mapping = Seq.empty)
+        FhirMapping(
+          id = "test",
+          url = "https://aiccelerate.eu/fhir/mappings/patient-mapping",
+          name = "test",
+          source = Seq(FhirMappingSource(alias = "source", url = "test-source")),
+          context = Map.empty,
+          mapping = Seq.empty
+        )
       )
     mockMappingRepository
   }

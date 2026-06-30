@@ -22,8 +22,8 @@ object CsvUtil {
    * @return
    */
   def readFromCSVSource(byteSource: Source[ByteString, Any]): Future[Seq[Map[String, String]]] = {
-    byteSource.
-      map(x => x.utf8String) // map ByteString to String
+    byteSource
+      .map(x => x.utf8String) // map ByteString to String
       .runReduce((previous, current) => { // concatenate Strings
         previous + current
       })
@@ -32,13 +32,16 @@ object CsvUtil {
         val csvSchema = CsvSchema.emptySchema().withHeader()
 
         val mappingIterator: MappingIterator[java.util.Map[String, String]] =
-          csvMapper.readerFor(classOf[java.util.Map[String, String]]) // read each line into a Map[String, String]
+          csvMapper
+            .readerFor(classOf[java.util.Map[String, String]]) // read each line into a Map[String, String]
             .`with`(csvSchema) // where the key of the map will be the column name according to the first (header) row
             .readValues(content) // read CSV
 
-        val javaList: java.util.List[java.util.Map[String, String]] = mappingIterator.readAll() // Read all lines as a List of Map
+        val javaList: java.util.List[java.util.Map[String, String]] =
+          mappingIterator.readAll() // Read all lines as a List of Map
 
-        CollectionConverters.asScala(javaList)
+        CollectionConverters
+          .asScala(javaList)
           .toSeq // convert the outer List to Scala Seq
           .map(CollectionConverters.asScala(_).toMap) // convert each inner Java Map to Scala Map
       })
@@ -51,20 +54,23 @@ object CsvUtil {
    * @return
    */
   def readFromCSV(filePath: String, encoding: String = "UTF-8"): Seq[Map[String, String]] = {
-      val csvFile = new File(filePath)
-      val csvMapper = new CsvMapper()
-      val csvSchema = CsvSchema.emptySchema().withEscapeChar('\\').withHeader()
+    val csvFile = new File(filePath)
+    val csvMapper = new CsvMapper()
+    val csvSchema = CsvSchema.emptySchema().withEscapeChar('\\').withHeader()
 
-      val mappingIterator:MappingIterator[java.util.Map[String, String]] =
-        csvMapper.readerFor(classOf[java.util.Map[String, String]]) // read each line into a Map[String, String]
-          .`with`(csvSchema) // where the key of the map will be the column name according to the first (header) row
-          .readValues(new InputStreamReader(new FileInputStream(csvFile), encoding)) // read CSV with the given encoding
+    val mappingIterator: MappingIterator[java.util.Map[String, String]] =
+      csvMapper
+        .readerFor(classOf[java.util.Map[String, String]]) // read each line into a Map[String, String]
+        .`with`(csvSchema) // where the key of the map will be the column name according to the first (header) row
+        .readValues(new InputStreamReader(new FileInputStream(csvFile), encoding)) // read CSV with the given encoding
 
-      val javaList: java.util.List[java.util.Map[String, String]] =  mappingIterator.readAll() // Read all lines as a List of Map
+    val javaList: java.util.List[java.util.Map[String, String]] =
+      mappingIterator.readAll() // Read all lines as a List of Map
 
-      CollectionConverters.asScala(javaList)
-        .toSeq // convert the outer List to Scala Seq
-        .map(CollectionConverters.asScala(_).toMap) // convert each inner Java Map to Scala Map
+    CollectionConverters
+      .asScala(javaList)
+      .toSeq // convert the outer List to Scala Seq
+      .map(CollectionConverters.asScala(_).toMap) // convert each inner Java Map to Scala Map
   }
 
   /**
@@ -80,16 +86,19 @@ object CsvUtil {
     val csvSchema = CsvSchema.emptySchema().withHeader()
 
     val mappingIterator: MappingIterator[java.util.Map[String, String]] =
-      csvMapper.readerFor(classOf[java.util.Map[String, String]]) // read each line into a Map[String, String]
+      csvMapper
+        .readerFor(classOf[java.util.Map[String, String]]) // read each line into a Map[String, String]
         .`with`(csvSchema) // where the key of the map will be the column name according to the first (header) row
         .readValues(csvFile)
 
-    val javaList: java.util.List[java.util.Map[String, String]] = mappingIterator.readAll() // Read all lines as a List of Map
+    val javaList: java.util.List[java.util.Map[String, String]] =
+      mappingIterator.readAll() // Read all lines as a List of Map
 
     val schema: CsvSchema = mappingIterator.getParser.getSchema.asInstanceOf[CsvSchema]
     val columns = schema.iterator.asScala.toSeq.map(_.getName)
     columns ->
-      CollectionConverters.asScala(javaList)
+      CollectionConverters
+        .asScala(javaList)
         .toSeq // convert the outer List to Scala Seq
         .map(CollectionConverters.asScala(_).toMap) // convert each inner Java Map to Scala Map
   }

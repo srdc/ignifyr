@@ -9,4 +9,8 @@ import io.tofhir.engine.model.{MappingJobSourceSettings, MappingSourceBinding}
  * @param mappingJobSourceSettings connection details for data source (e.g. JDBC connection details, file path)
  * @param sourceBinding mapping task source configuration (e.g. file name, table name, query)
  */
-case class InferTask(name: String, mappingJobSourceSettings: Map[String, MappingJobSourceSettings], sourceBinding: MappingSourceBinding)
+case class InferTask(
+    name: String,
+    mappingJobSourceSettings: Map[String, MappingJobSourceSettings],
+    sourceBinding: MappingSourceBinding
+)

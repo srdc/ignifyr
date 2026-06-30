@@ -19,8 +19,6 @@ trait IProjectRepository {
    */
   def getAllProjects: Future[Seq[Project]]
 
-
-
   /**
    * Save project to the repository.
    *

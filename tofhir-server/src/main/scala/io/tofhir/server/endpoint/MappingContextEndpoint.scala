@@ -7,7 +7,13 @@ import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
 import io.tofhir.engine.Execution.actorSystem.dispatcher
 import io.tofhir.server.common.model.ToFhirRestCall
-import io.tofhir.server.endpoint.MappingContextEndpoint.{ATTACHMENT, SEGMENT_CONTENT, SEGMENT_CONTEXTS, SEGMENT_FILE, SEGMENT_HEADER}
+import io.tofhir.server.endpoint.MappingContextEndpoint.{
+  ATTACHMENT,
+  SEGMENT_CONTENT,
+  SEGMENT_CONTEXTS,
+  SEGMENT_FILE,
+  SEGMENT_HEADER
+}
 import io.onfhir.definitions.common.model.Json4sSupport._
 import io.tofhir.server.model.csv.CsvHeader
 import io.tofhir.server.repository.mappingContext.IMappingContextRepository
@@ -28,7 +34,10 @@ class MappingContextEndpoint(mappingContextRepository: IMappingContextRepository
             deleteMappingContext(projectId, id) // Delete a mapping context: mapping-contexts/<mapping-context-id>
           } ~ pathPrefix(SEGMENT_CONTENT) {
             pathEndOrSingleSlash {
-              getOrSaveMappingContextContentRoute(projectId, id) // mapping-contexts/<mapping-context-id>/content (paginated operations)
+              getOrSaveMappingContextContentRoute(
+                projectId,
+                id
+              ) // mapping-contexts/<mapping-context-id>/content (paginated operations)
             }
           } ~ pathPrefix(SEGMENT_HEADER) { // mapping-contexts/<mapping-context-id>/header (CSV headers update)
             pathEndOrSingleSlash {
@@ -144,27 +153,28 @@ class MappingContextEndpoint(mappingContextRepository: IMappingContextRepository
    * @return
    */
   private def getOrSaveMappingContextContentRoute(projectId: String, id: String): Route = {
+
     /**
      * POST request to update part of the mapping context content
      * byteSource contains the CSV content to be updated
      * Returns empty body with a total records header in case of success
      */
     post {
-      fileUpload(ATTACHMENT) {
-        case (fileInfo, byteSource) =>
-          parameterMap { queryParams =>
-            complete {
-              val pageNumber = queryParams.getOrElse("page", "1").toInt
-              val pageSize = queryParams.getOrElse("size", "10").toInt
-              service.saveMappingContextContent(projectId, id, byteSource, pageNumber, pageSize) map { totalRecords =>
-                HttpResponse(
-                  StatusCodes.OK,
-                  headers = List(RawHeader("X-Total-Count", totalRecords.toString)),
-                )
-              }
+      fileUpload(ATTACHMENT) { case (fileInfo, byteSource) =>
+        parameterMap { queryParams =>
+          complete {
+            val pageNumber = queryParams.getOrElse("page", "1").toInt
+            val pageSize = queryParams.getOrElse("size", "10").toInt
+            service.saveMappingContextContent(projectId, id, byteSource, pageNumber, pageSize) map { totalRecords =>
+              HttpResponse(
+                StatusCodes.OK,
+                headers = List(RawHeader("X-Total-Count", totalRecords.toString))
+              )
             }
           }
+        }
       }
+
       /**
        * GET request to get a paginated mapping context content
        * Returns the paginated CSV content with a total records header
@@ -174,13 +184,12 @@ class MappingContextEndpoint(mappingContextRepository: IMappingContextRepository
         complete {
           val pageNumber = queryParams.getOrElse("page", "1").toInt
           val pageSize = queryParams.getOrElse("size", "10").toInt
-          service.getMappingContextContent(projectId, id, pageNumber, pageSize) map {
-            case (byteSource, totalRecords) =>
-              HttpResponse(
-                StatusCodes.OK,
-                headers = List(RawHeader("X-Total-Count", totalRecords.toString)),
-                entity = HttpEntity(ContentTypes.`text/csv(UTF-8)`, byteSource)
-              )
+          service.getMappingContextContent(projectId, id, pageNumber, pageSize) map { case (byteSource, totalRecords) =>
+            HttpResponse(
+              StatusCodes.OK,
+              headers = List(RawHeader("X-Total-Count", totalRecords.toString)),
+              entity = HttpEntity(ContentTypes.`text/csv(UTF-8)`, byteSource)
+            )
           }
         }
       }
@@ -199,13 +208,12 @@ class MappingContextEndpoint(mappingContextRepository: IMappingContextRepository
    */
   private def uploadDownloadMappingContextRoute(projectId: String, id: String): Route = {
     post {
-      fileUpload(ATTACHMENT) {
-        case (fileInfo, byteSource) =>
-          complete {
-            service.uploadMappingContextFile(projectId, id, byteSource) map {
-              _ => StatusCodes.OK
-            }
+      fileUpload(ATTACHMENT) { case (fileInfo, byteSource) =>
+        complete {
+          service.uploadMappingContextFile(projectId, id, byteSource) map { _ =>
+            StatusCodes.OK
           }
+        }
       }
     } ~ get {
       complete {
@@ -225,6 +233,3 @@ object MappingContextEndpoint {
   val SEGMENT_FILE = "file"
   val ATTACHMENT = "attachment"
 }
-
-
-

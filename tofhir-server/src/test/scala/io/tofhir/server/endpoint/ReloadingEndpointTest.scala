@@ -19,14 +19,17 @@ import scala.concurrent.duration.DurationInt
 class ReloadingEndpointTest extends BaseEndpointTest {
 
   // default timeout is 1 seconds, which is not enough for this test
-  implicit def default(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(new DurationInt(10).second.dilated(system))
+  implicit def default(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(
+    new DurationInt(10).second.dilated(system)
+  )
 
   "The service" should {
 
     "should reload projects successfully after updating project file" in {
       // Read projects and update description fields from projects.json
       val projectsFile = FileUtils.getPath(ProjectFolderRepository.PROJECTS_JSON).toFile
-      val parsedProjects = FileOperations.readFileIntoJson(projectsFile).asInstanceOf[JArray].arr.map(p => p.asInstanceOf[JObject])
+      val parsedProjects =
+        FileOperations.readFileIntoJson(projectsFile).asInstanceOf[JArray].arr.map(p => p.asInstanceOf[JObject])
       val reloadedProjects = parsedProjects.map(project => {
         project.mapField {
           case ("description", _) => ("description", JString("reloaded"))
@@ -34,7 +37,8 @@ class ReloadingEndpointTest extends BaseEndpointTest {
         }
       })
       val fw = new FileWriter(projectsFile)
-      try fw.write(Serialization.writePretty(reloadedProjects)) finally fw.close()
+      try fw.write(Serialization.writePretty(reloadedProjects))
+      finally fw.close()
 
       // Trigger reload endpoint
       Get(s"/${webServerConfig.baseUri}/${ReloadEndpoint.SEGMENT_RELOAD}") ~> route ~> check {

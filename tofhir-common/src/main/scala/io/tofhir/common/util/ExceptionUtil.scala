@@ -1,6 +1,7 @@
 package io.tofhir.common.util
 
 object ExceptionUtil {
+
   /**
    * Accumulates a single message from messages of exceptions that are reached through the cause relationship
    *

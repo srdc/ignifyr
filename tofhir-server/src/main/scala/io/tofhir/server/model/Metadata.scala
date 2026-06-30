@@ -14,18 +14,19 @@ package io.tofhir.server.model
  * @param archiving               The archiving configuration.
  * @param executionConfigurations The list of configurations used during the execution of mappings.
  */
-case class Metadata(name: String,
-                    description: String,
-                    version: String,
-                    fhirDefinitionsVersion: String,
-                    toFhirRedcapVersion: Option[String],
-                    definitionsRootUrls: Option[Seq[String]],
-                    schemasFhirVersion: String,
-                    repositoryNames: RepositoryNames,
-                    archiving: Archiving,
-                    environmentVariables: Map[String, String],
-                    executionConfigurations: Seq[MappingExecutionConfiguration]
-                   )
+case class Metadata(
+    name: String,
+    description: String,
+    version: String,
+    fhirDefinitionsVersion: String,
+    toFhirRedcapVersion: Option[String],
+    definitionsRootUrls: Option[Seq[String]],
+    schemasFhirVersion: String,
+    repositoryNames: RepositoryNames,
+    archiving: Archiving,
+    environmentVariables: Map[String, String],
+    executionConfigurations: Seq[MappingExecutionConfiguration]
+)
 
 /**
  * Represents the configured repository names included in the metadata.
@@ -36,11 +37,13 @@ case class Metadata(name: String,
  * @param jobs               The path to the folder where the job definitions are kept.
  * @param terminologySystems The path to the folder where the terminology system definitions are kept.
  */
-case class RepositoryNames(mappings: String,
-                           schemas: String,
-                           contexts: String,
-                           jobs: String,
-                           terminologySystems: String)
+case class RepositoryNames(
+    mappings: String,
+    schemas: String,
+    contexts: String,
+    jobs: String,
+    terminologySystems: String
+)
 
 /**
  * Archiving configs included inside the metadata.
@@ -49,9 +52,7 @@ case class RepositoryNames(mappings: String,
  * @param archiveFolder            The folder path where the archive of the processed source data is stored.
  * @param streamArchivingFrequency The period (in milliseconds) to run the archiving task for file streaming jobs.
  */
-case class Archiving(erroneousRecordsFolder: String,
-                     archiveFolder: String,
-                     streamArchivingFrequency: Int)
+case class Archiving(erroneousRecordsFolder: String, archiveFolder: String, streamArchivingFrequency: Int)
 
 /**
  * Represents a configuration used during the execution of mappings.
@@ -60,6 +61,4 @@ case class Archiving(erroneousRecordsFolder: String,
  * @param description A brief description of the configuration, explaining its purpose or usage.
  * @param value       The value assigned to the configuration, specifying its current setting.
  */
-case class MappingExecutionConfiguration(name: String,
-                                         description: String,
-                                         value: String)
+case class MappingExecutionConfiguration(name: String, description: String, value: String)

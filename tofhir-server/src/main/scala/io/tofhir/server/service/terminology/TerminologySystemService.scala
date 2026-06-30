@@ -9,7 +9,10 @@ import io.tofhir.server.repository.terminology.ITerminologySystemRepository
 import io.tofhir.engine.Execution.actorSystem.dispatcher
 import scala.concurrent.Future
 
-class TerminologySystemService(terminologySystemRepository: ITerminologySystemRepository, mappingJobRepository: IJobRepository) extends LazyLogging {
+class TerminologySystemService(
+    terminologySystemRepository: ITerminologySystemRepository,
+    mappingJobRepository: IJobRepository
+) extends LazyLogging {
 
   /**
    * Get all TerminologySystem metadata from the TerminologySystem repository
@@ -76,38 +79,42 @@ class TerminologySystemService(terminologySystemRepository: ITerminologySystemRe
    * @param terminologySystem   TerminologySystem
    * @return
    */
-  private def updateJobTerminologyServiceSettings(terminologySystemId: String, terminologySystem: Option[TerminologySystem] = Option.empty): Future[Unit] = {
-    Future.sequence(mappingJobRepository.getProjectPairs.flatMap { // Get all mapping jobs grouped under their projects.
-      case (projectId, mappingJobs) =>
-        mappingJobs.filter { job => // Find the mapping jobs which refer to the given terminologySystemId
-          job.terminologyServiceSettings match {
-            case Some(settings: LocalFhirTerminologyServiceSettings) =>
-              settings.folderPath.split('/').lastOption.contains(terminologySystemId)
-            case _ => false
+  private def updateJobTerminologyServiceSettings(
+      terminologySystemId: String,
+      terminologySystem: Option[TerminologySystem] = Option.empty
+  ): Future[Unit] = {
+    Future
+      .sequence(mappingJobRepository.getProjectPairs.flatMap { // Get all mapping jobs grouped under their projects.
+        case (projectId, mappingJobs) =>
+          mappingJobs.filter { job => // Find the mapping jobs which refer to the given terminologySystemId
+            job.terminologyServiceSettings match {
+              case Some(settings: LocalFhirTerminologyServiceSettings) =>
+                settings.folderPath.split('/').lastOption.contains(terminologySystemId)
+              case _ => false
+            }
+          } map { jobToBeUpdated =>
+            // Create updated mapping job object
+            val updatedJob = terminologySystem match {
+              // Update terminology service case
+              case Some(ts) =>
+                val terminologyServiceSettings: LocalFhirTerminologyServiceSettings =
+                  jobToBeUpdated.terminologyServiceSettings.get.asInstanceOf[LocalFhirTerminologyServiceSettings]
+                // Update concept maps
+                val updatedConceptMaps =
+                  terminologyServiceSettings.conceptMapFiles.flatMap(cm => ts.conceptMaps.find(_.id == cm.id))
+                // Update code systems
+                val updatedCodeSystems =
+                  terminologyServiceSettings.codeSystemFiles.flatMap(cs => ts.codeSystems.find(_.id == cs.id))
+                val updatedTerminologyServiceSettings: LocalFhirTerminologyServiceSettings = terminologyServiceSettings
+                  .copy(conceptMapFiles = updatedConceptMaps, codeSystemFiles = updatedCodeSystems)
+                jobToBeUpdated.copy(terminologyServiceSettings = Some(updatedTerminologyServiceSettings))
+              // Delete terminology service case
+              case None => jobToBeUpdated.copy(terminologyServiceSettings = None)
+            }
+            // Update job in the repository
+            mappingJobRepository.updateJob(projectId, jobToBeUpdated.id, updatedJob)
           }
-        } map { jobToBeUpdated =>
-          // Create updated mapping job object
-          val updatedJob = terminologySystem match {
-            // Update terminology service case
-            case Some(ts) =>
-              val terminologyServiceSettings: LocalFhirTerminologyServiceSettings =
-                jobToBeUpdated.terminologyServiceSettings.get.asInstanceOf[LocalFhirTerminologyServiceSettings]
-              // Update concept maps
-              val updatedConceptMaps = terminologyServiceSettings.conceptMapFiles.flatMap(cm =>
-                ts.conceptMaps.find(_.id == cm.id)
-              )
-              // Update code systems
-              val updatedCodeSystems = terminologyServiceSettings.codeSystemFiles.flatMap(cs =>
-                ts.codeSystems.find(_.id == cs.id)
-              )
-              val updatedTerminologyServiceSettings: LocalFhirTerminologyServiceSettings = terminologyServiceSettings.copy(conceptMapFiles = updatedConceptMaps, codeSystemFiles = updatedCodeSystems)
-              jobToBeUpdated.copy(terminologyServiceSettings = Some(updatedTerminologyServiceSettings))
-            // Delete terminology service case
-            case None => jobToBeUpdated.copy(terminologyServiceSettings = None)
-          }
-          // Update job in the repository
-          mappingJobRepository.updateJob(projectId, jobToBeUpdated.id, updatedJob)
-        }
-    }.toSeq).map { _ => () }
+      }.toSeq)
+      .map { _ => () }
   }
 }

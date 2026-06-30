@@ -9,6 +9,7 @@ import org.json4s.JsonDSL._
  * Utility class providing a function to convert a {@link SchemaDefinition} to {@link Resource}
  * */
 object SchemaUtil {
+
   /**
    * Convert our internal SchemaDefinition instance to FHIR StructureDefinition resource
    *
@@ -33,7 +34,10 @@ object SchemaUtil {
       ("type" -> schemaDefinition.`type`) ~
       ("baseDefinition" -> "http://hl7.org/fhir/StructureDefinition/Element") ~
       ("derivation" -> "specialization") ~
-      ("differential" -> ("element" -> generateElementArray(schemaDefinition.`type`, schemaDefinition.fieldDefinitions.getOrElse(Seq.empty))))
+      ("differential" -> ("element" -> generateElementArray(
+        schemaDefinition.`type`,
+        schemaDefinition.fieldDefinitions.getOrElse(Seq.empty)
+      )))
   }
 
   /**
@@ -48,7 +52,9 @@ object SchemaUtil {
     // Check whether all field definitions have at least one data type
     val integrityCheck = fieldDefinitions.forall(fd => fd.dataTypes.isDefined && fd.dataTypes.get.nonEmpty)
     if (!integrityCheck) {
-      throw new IllegalArgumentException(s"Missing data type.A field definition must have at least one data type. Element rootPath: ${`type`}")
+      throw new IllegalArgumentException(
+        s"Missing data type.A field definition must have at least one data type. Element rootPath: ${`type`}"
+      )
     }
 
     val rootElement =

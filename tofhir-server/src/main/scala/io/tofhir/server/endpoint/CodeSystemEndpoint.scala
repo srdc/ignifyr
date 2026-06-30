@@ -126,29 +126,30 @@ class CodeSystemEndpoint(codeSystemRepository: ICodeSystemRepository) extends La
    * @return
    */
   private def getOrSaveCodeSystemContentRoute(terminologyId: String, codeSystemId: String): Route = {
+
     /**
      * POST request to update part of the code system content
      * byteSource contains the CSV content to be updated
      * Returns empty body with a total records header in case of success
      */
     post {
-      fileUpload(ATTACHMENT) {
-        case (fileInfo, byteSource) =>
-          parameterMap { queryParams =>
-            complete {
-              val pageNumber = queryParams.getOrElse("page", "1").toInt
-              val pageSize = queryParams.getOrElse("size", "10").toInt
-              service.saveCodeSystemContent(terminologyId, codeSystemId, byteSource, pageNumber, pageSize) map { totalRecords =>
+      fileUpload(ATTACHMENT) { case (fileInfo, byteSource) =>
+        parameterMap { queryParams =>
+          complete {
+            val pageNumber = queryParams.getOrElse("page", "1").toInt
+            val pageSize = queryParams.getOrElse("size", "10").toInt
+            service.saveCodeSystemContent(terminologyId, codeSystemId, byteSource, pageNumber, pageSize) map {
+              totalRecords =>
                 HttpResponse(
                   StatusCodes.OK,
-                  headers = List(RawHeader("X-Total-Count", totalRecords.toString)),
+                  headers = List(RawHeader("X-Total-Count", totalRecords.toString))
                 )
-              }
             }
           }
+        }
       }
 
-    /**
+      /**
      * GET request to get a paginated code system content
      * Returns the paginated CSV content with a total records header
      */
@@ -182,13 +183,12 @@ class CodeSystemEndpoint(codeSystemRepository: ICodeSystemRepository) extends La
    */
   private def uploadDownloadCodeSystemFileRoute(terminologyId: String, codeSystemId: String): Route = {
     post {
-      fileUpload(ATTACHMENT) {
-        case (fileInfo, byteSource) =>
-          complete {
-            service.uploadCodeSystemFile(terminologyId, codeSystemId, byteSource) map {
-              _ => StatusCodes.OK
-            }
+      fileUpload(ATTACHMENT) { case (fileInfo, byteSource) =>
+        complete {
+          service.uploadCodeSystemFile(terminologyId, codeSystemId, byteSource) map { _ =>
+            StatusCodes.OK
           }
+        }
       }
     } ~ get {
       complete {

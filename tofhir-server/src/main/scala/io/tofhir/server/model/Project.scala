@@ -19,16 +19,17 @@ import io.onfhir.definitions.common.model.SchemaDefinition
  * @param mappingContexts    Identifiers of the mapping contexts defined in this project
  * @param mappingJobs        Mapping jobs defined in this project
  */
-case class Project(id: String = UUID.randomUUID().toString,
-                   name: String,
-                   description: Option[String] = None,
-                   schemaUrlPrefix: Option[String] = None,
-                   mappingUrlPrefix: Option[String] = None,
-                   schemas: Seq[SchemaDefinition] = Seq.empty,
-                   mappings: Seq[FhirMapping] = Seq.empty,
-                   mappingContexts: Seq[String] = Seq.empty,
-                   mappingJobs: Seq[FhirMappingJob] = Seq.empty
-                  ) {
+case class Project(
+    id: String = UUID.randomUUID().toString,
+    name: String,
+    description: Option[String] = None,
+    schemaUrlPrefix: Option[String] = None,
+    mappingUrlPrefix: Option[String] = None,
+    schemas: Seq[SchemaDefinition] = Seq.empty,
+    mappings: Seq[FhirMapping] = Seq.empty,
+    mappingContexts: Seq[String] = Seq.empty,
+    mappingJobs: Seq[FhirMappingJob] = Seq.empty
+) {
 
   /**
    * Extracts the project metadata to be written to the metadata file.

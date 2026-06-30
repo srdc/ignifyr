@@ -21,7 +21,11 @@ class Load extends Command {
       try {
         val mappingJob = FhirMappingJobFormatter.readMappingJobFromFile(filePath)
         println("The following FhirMappingJob successfully loaded.")
-        val newContext = command.CommandExecutionContext(context.toFhirEngine, Some(mappingJob), Load.getTaskNameUrlTuples(mappingJob.mappings, context.toFhirEngine.mappingRepo))
+        val newContext = command.CommandExecutionContext(
+          context.toFhirEngine,
+          Some(mappingJob),
+          Load.getTaskNameUrlTuples(mappingJob.mappings, context.toFhirEngine.mappingRepo)
+        )
         println(Load.serializeMappingJobToCommandLine(newContext))
         newContext
       } catch {
@@ -37,7 +41,10 @@ class Load extends Command {
 }
 
 object Load {
-  def getTaskNameUrlTuples(tasks: Seq[FhirMappingTask], mappingRepository: IFhirMappingRepository): Map[String, String] = {
+  def getTaskNameUrlTuples(
+      tasks: Seq[FhirMappingTask],
+      mappingRepository: IFhirMappingRepository
+  ): Map[String, String] = {
     tasks.foldLeft(Map.empty[String, String]) { (map, task) => // Convert to tuple (name -> url)
       map + (task.name -> task.mappingRef)
     }
@@ -45,29 +52,33 @@ object Load {
 
   def serializeMappingJobToCommandLine(context: CommandExecutionContext): String = {
     if (context.fhirMappingJob.isEmpty) {
-      throw new IllegalStateException("!!! I am trying to serialize the MappingJob from the context, but it is not there!!!")
+      throw new IllegalStateException(
+        "!!! I am trying to serialize the MappingJob from the context, but it is not there!!!"
+      )
     }
     val mj = context.fhirMappingJob.get
-    val sourceSettingsStr = mj.sourceSettings.map {
-      case (sourceAlias, settings: FileSystemSourceSettings) =>
-        s"\tFile System Source Settings for '$sourceAlias':\n" +
-          s"\t\tName: ${settings.name},\n" +
-          s"\t\tSource URI: ${settings.sourceUri},\n" +
-          s"\t\tData Folder Path: ${settings.dataFolderPath}\n"
-      case (sourceAlias, settings: SqlSourceSettings) =>
-        s"\tSql Source Settings for '$sourceAlias':\n" +
-          s"\t\tName: ${settings.name},\n" +
-          s"\t\tSource URI: ${settings.sourceUri},\n" +
-          s"\t\tDatabase URL: ${settings.databaseUrl},\n" +
-          s"\t\tUsername: ${settings.username},\n" +
-          s"\t\tPassword: ********\n"
-      case (sourceAlias, settings: KafkaSourceSettings) =>
-        s"\tKafka Source Settings for '$sourceAlias':\n" +
-          s"\t\tName: ${settings.name},\n" +
-          s"\t\tSource URI: ${settings.sourceUri},\n" +
-          s"\t\tBootstrap servers: ${settings.bootstrapServers}\n"
-      case _ => "\tNo Source Settings\n"
-    }.mkString("\n")
+    val sourceSettingsStr = mj.sourceSettings
+      .map {
+        case (sourceAlias, settings: FileSystemSourceSettings) =>
+          s"\tFile System Source Settings for '$sourceAlias':\n" +
+            s"\t\tName: ${settings.name},\n" +
+            s"\t\tSource URI: ${settings.sourceUri},\n" +
+            s"\t\tData Folder Path: ${settings.dataFolderPath}\n"
+        case (sourceAlias, settings: SqlSourceSettings) =>
+          s"\tSql Source Settings for '$sourceAlias':\n" +
+            s"\t\tName: ${settings.name},\n" +
+            s"\t\tSource URI: ${settings.sourceUri},\n" +
+            s"\t\tDatabase URL: ${settings.databaseUrl},\n" +
+            s"\t\tUsername: ${settings.username},\n" +
+            s"\t\tPassword: ********\n"
+        case (sourceAlias, settings: KafkaSourceSettings) =>
+          s"\tKafka Source Settings for '$sourceAlias':\n" +
+            s"\t\tName: ${settings.name},\n" +
+            s"\t\tSource URI: ${settings.sourceUri},\n" +
+            s"\t\tBootstrap servers: ${settings.bootstrapServers}\n"
+        case _ => "\tNo Source Settings\n"
+      }
+      .mkString("\n")
     val sinkSettingsStr = mj.sinkSettings match {
       case settings: FhirRepositorySinkSettings =>
         s"\tFHIR Repository URL: ${settings.fhirRepoUrl}\n"

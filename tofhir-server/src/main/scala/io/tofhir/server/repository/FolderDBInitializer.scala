@@ -23,11 +23,13 @@ import scala.language.postfixOps
 /**
  * Folder/Directory based database initializer implementation.
  * */
-class FolderDBInitializer(projectFolderRepository: ProjectFolderRepository,
-                          schemaFolderRepository: SchemaFolderRepository,
-                          mappingFolderRepository: ProjectMappingFolderRepository,
-                          mappingJobFolderRepository: JobFolderRepository,
-                          mappingContextRepository: MappingContextFolderRepository) {
+class FolderDBInitializer(
+    projectFolderRepository: ProjectFolderRepository,
+    schemaFolderRepository: SchemaFolderRepository,
+    mappingFolderRepository: ProjectMappingFolderRepository,
+    mappingJobFolderRepository: JobFolderRepository,
+    mappingContextRepository: MappingContextFolderRepository
+) {
 
   private val logger: Logger = Logger(this.getClass)
 
@@ -40,12 +42,16 @@ class FolderDBInitializer(projectFolderRepository: ProjectFolderRepository,
 
     val parsedProjects = if (file.exists()) {
       val projects: JArray = FileOperations.readFileIntoJson(file).asInstanceOf[JArray]
-      projects.arr.map(p => {
-        val project: Project = initProjectFromMetadata(p.asInstanceOf[JObject])
-        project.id -> project
-      }).toMap
+      projects.arr
+        .map(p => {
+          val project: Project = initProjectFromMetadata(p.asInstanceOf[JObject])
+          project.id -> project
+        })
+        .toMap
     } else {
-      logger.debug(s"There does not exist a metadata file (${ProjectFolderRepository.PROJECTS_JSON}) for projects. Creating it...")
+      logger.debug(
+        s"There does not exist a metadata file (${ProjectFolderRepository.PROJECTS_JSON}) for projects. Creating it..."
+      )
       file.createNewFile()
       // Parse the folder structure of the respective resource and to initialize projects with the resources found.
       val projects = initProjectsWithResources()
@@ -70,40 +76,53 @@ class FolderDBInitializer(projectFolderRepository: ProjectFolderRepository,
     val mappingContexts: Seq[String] = (projectMetadata \ "mappingContexts").extract[Seq[String]]
     // resolve schemas via the schema repository
     val schemaFutures: Future[Seq[Option[SchemaDefinition]]] = Future.sequence(
-      (projectMetadata \ "schemas").asInstanceOf[JArray].arr.map(schemaMetadata => {
-        val schemaId: String = (schemaMetadata \ "id").extract[String]
-        schemaFolderRepository.getSchema(id, schemaId)
-          .map {
-            case None => throw new IllegalStateException(s"Failed to retrieve schema with id: $schemaId")
-            case schema => schema
-          }
-      })
+      (projectMetadata \ "schemas")
+        .asInstanceOf[JArray]
+        .arr
+        .map(schemaMetadata => {
+          val schemaId: String = (schemaMetadata \ "id").extract[String]
+          schemaFolderRepository
+            .getSchema(id, schemaId)
+            .map {
+              case None => throw new IllegalStateException(s"Failed to retrieve schema with id: $schemaId")
+              case schema => schema
+            }
+        })
     )
-    val schemas: Seq[SchemaDefinition] = Await.result[Seq[Option[SchemaDefinition]]](schemaFutures, 2 seconds).map(_.get)
+    val schemas: Seq[SchemaDefinition] =
+      Await.result[Seq[Option[SchemaDefinition]]](schemaFutures, 2 seconds).map(_.get)
 
     // resolve mappings via the mapping repository
     val mappingFutures: Future[Seq[Option[FhirMapping]]] = Future.sequence(
-      (projectMetadata \ "mappings").asInstanceOf[JArray].arr.map(mappingMetadata => {
-        val mappingId: String = (mappingMetadata \ "id").extract[String]
-        mappingFolderRepository.getMapping(id, mappingId)
-          .map {
-            case None => throw new IllegalStateException(s"Failed to retrieve mapping with id: $mappingId")
-            case mapping => mapping
-          }
-      })
+      (projectMetadata \ "mappings")
+        .asInstanceOf[JArray]
+        .arr
+        .map(mappingMetadata => {
+          val mappingId: String = (mappingMetadata \ "id").extract[String]
+          mappingFolderRepository
+            .getMapping(id, mappingId)
+            .map {
+              case None => throw new IllegalStateException(s"Failed to retrieve mapping with id: $mappingId")
+              case mapping => mapping
+            }
+        })
     )
     val mappings: Seq[FhirMapping] = Await.result[Seq[Option[FhirMapping]]](mappingFutures, 2 seconds).map(_.get)
 
     // resolve mapping jobs via the mapping repository
     val mappingJobFutures: Future[Seq[Option[FhirMappingJob]]] = Future.sequence(
-      (projectMetadata \ "mappingJobs").asInstanceOf[JArray].arr.map(jobMetadata => {
-        val jobId: String = (jobMetadata \ "id").extract[String]
-        mappingJobFolderRepository.getJob(id, jobId)
-          .map {
-            case None => throw new IllegalStateException(s"Failed to retrieve job with id: $jobId")
-            case job => job
-          }
-      })
+      (projectMetadata \ "mappingJobs")
+        .asInstanceOf[JArray]
+        .arr
+        .map(jobMetadata => {
+          val jobId: String = (jobMetadata \ "id").extract[String]
+          mappingJobFolderRepository
+            .getJob(id, jobId)
+            .map {
+              case None => throw new IllegalStateException(s"Failed to retrieve job with id: $jobId")
+              case job => job
+            }
+        })
     )
     val jobs: Seq[FhirMappingJob] = Await.result[Seq[Option[FhirMappingJob]]](mappingJobFutures, 2 seconds).map(_.get)
 
@@ -129,43 +148,39 @@ class FolderDBInitializer(projectFolderRepository: ProjectFolderRepository,
     val projects: mutable.Map[String, Project] = mutable.Map.empty
 
     // Parse schemas
-    schemaFolderRepository.getProjectPairs.foreach {
-      case (projectId, schemaDefinitionList) =>
-        val schemaUrl = schemaDefinitionList.head.url
-        // If there is no project create a new one. Use id as name as well
-        val project: Project = projects.get(projectId) match {
-          case Some(existingProject) => existingProject.copy(schemaUrlPrefix = Some(dropLastPart(schemaUrl)))
-          case None => Project(id = projectId, name = projectId, schemaUrlPrefix = Some(dropLastPart(schemaUrl)))
-        }
-        projects.put(projectId, project.copy(schemas = schemaDefinitionList))
+    schemaFolderRepository.getProjectPairs.foreach { case (projectId, schemaDefinitionList) =>
+      val schemaUrl = schemaDefinitionList.head.url
+      // If there is no project create a new one. Use id as name as well
+      val project: Project = projects.get(projectId) match {
+        case Some(existingProject) => existingProject.copy(schemaUrlPrefix = Some(dropLastPart(schemaUrl)))
+        case None => Project(id = projectId, name = projectId, schemaUrlPrefix = Some(dropLastPart(schemaUrl)))
+      }
+      projects.put(projectId, project.copy(schemas = schemaDefinitionList))
     }
 
     // Parse mappings
-    mappingFolderRepository.getProjectPairs.foreach {
-      case (projectId, mappingList) =>
-        val mappingUrl: String = mappingList.head.url
-        // If there is no project create a new one. Use id as name as well
-        val project: Project = projects.get(projectId) match {
-          case Some(existingProject) => existingProject.copy(mappingUrlPrefix = Some(dropLastPart(mappingUrl)))
-          case None => Project(id = projectId, name = projectId, mappingUrlPrefix = Some(dropLastPart(mappingUrl)))
-        }
-        projects.put(projectId, project.copy(mappings = mappingList))
+    mappingFolderRepository.getProjectPairs.foreach { case (projectId, mappingList) =>
+      val mappingUrl: String = mappingList.head.url
+      // If there is no project create a new one. Use id as name as well
+      val project: Project = projects.get(projectId) match {
+        case Some(existingProject) => existingProject.copy(mappingUrlPrefix = Some(dropLastPart(mappingUrl)))
+        case None => Project(id = projectId, name = projectId, mappingUrlPrefix = Some(dropLastPart(mappingUrl)))
+      }
+      projects.put(projectId, project.copy(mappings = mappingList))
     }
 
     // Parse mapping jobs
-    mappingJobFolderRepository.getProjectPairs.foreach {
-      case (projectId, jobList) =>
-        // If there is no project create a new one. Use id as name as well
-        val project: Project = projects.getOrElse(projectId, Project(id = projectId, name = projectId))
-        projects.put(projectId, project.copy(mappingJobs = jobList))
+    mappingJobFolderRepository.getProjectPairs.foreach { case (projectId, jobList) =>
+      // If there is no project create a new one. Use id as name as well
+      val project: Project = projects.getOrElse(projectId, Project(id = projectId, name = projectId))
+      projects.put(projectId, project.copy(mappingJobs = jobList))
     }
 
     // Parse mapping contexts
-    mappingContextRepository.getProjectPairs.foreach {
-      case (projectId, mappingContextIdList) =>
-        // If there is no project create a new one. Use id as name as well
-        val project: Project = projects.getOrElse(projectId, Project(id = projectId, name = projectId))
-        projects.put(projectId, project.copy(mappingContexts = mappingContextIdList))
+    mappingContextRepository.getProjectPairs.foreach { case (projectId, mappingContextIdList) =>
+      // If there is no project create a new one. Use id as name as well
+      val project: Project = projects.getOrElse(projectId, Project(id = projectId, name = projectId))
+      projects.put(projectId, project.copy(mappingContexts = mappingContextIdList))
     }
 
     projects.toMap

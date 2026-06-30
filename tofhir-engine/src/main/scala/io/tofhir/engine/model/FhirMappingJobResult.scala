@@ -2,6 +2,7 @@ package io.tofhir.engine.model
 
 import ch.qos.logback.more.appenders.marker.MapMarker
 import io.tofhir.engine.util.TimeUtil
+
 /**
  * Result of a mapping job execution
  *
@@ -18,27 +19,29 @@ import io.tofhir.engine.util.TimeUtil
  * @param totalNumOfBatches   The total number of batches for the mapping tasks is determined based on {@link FhirMappingTask.batchingStrategy}
  * @param completedNumOfBatches Number of batches that have been completed so far in the batch mapping job execution
  */
-case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
-                                mappingTaskName: Option[String],
-                                numOfInvalids: Long = 0,
-                                numOfNotMapped: Long = 0,
-                                numOfFhirResources: Long = 0,
-                                numOfFailedWrites: Long = 0,
-                                status: Option[String] = None,
-                                chunkResult: Boolean = true,
-                                totalNumOfChunks: Int = 1,
-                                completedNumOfChunks: Int = 0,
-                                totalNumOfBatches: Int = 1,
-                                completedNumOfBatches: Int = 0
-                               ) {
+case class FhirMappingJobResult(
+    mappingJobExecution: FhirMappingJobExecution,
+    mappingTaskName: Option[String],
+    numOfInvalids: Long = 0,
+    numOfNotMapped: Long = 0,
+    numOfFhirResources: Long = 0,
+    numOfFailedWrites: Long = 0,
+    status: Option[String] = None,
+    chunkResult: Boolean = true,
+    totalNumOfChunks: Int = 1,
+    completedNumOfChunks: Int = 0,
+    totalNumOfBatches: Int = 1,
+    completedNumOfBatches: Int = 0
+) {
   final val eventId: String = "MAPPING_JOB_RESULT"
+
   /**
    * Determines the status of a FHIR mapping job. If it has an associated status, it is returned.
    * Otherwise, the status is determined using the result of the mapping job i.e. the number of
    * invalid rows, the number of failed writes etc.
    */
   val result: String = {
-    if(status.nonEmpty)
+    if (status.nonEmpty)
       status.get
     else
       numOfInvalids + numOfNotMapped + numOfFailedWrites match {
@@ -55,9 +58,10 @@ case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
     // get the status of execution
     val status: String = result
     // construct the message for the execution of mapping job
-    var message = s"toFHIR ${if (chunkResult) "chunk " else "" }mapping result ($status) for execution '${mappingJobExecution.id}' of job '${mappingJobExecution.jobId}' in project '${mappingJobExecution.projectId}'${mappingTaskName.map(u => s" for mappingTask '$u'").getOrElse("")}!\n"
+    var message =
+      s"toFHIR ${if (chunkResult) "chunk " else ""}mapping result ($status) for execution '${mappingJobExecution.id}' of job '${mappingJobExecution.jobId}' in project '${mappingJobExecution.projectId}'${mappingTaskName.map(u => s" for mappingTask '$u'").getOrElse("")}!\n"
     // if it is not the start log, print the result of execution
-    if(!status.contentEquals(FhirMappingJobResult.STARTED)){
+    if (!status.contentEquals(FhirMappingJobResult.STARTED)) {
       message = message +
         s"\t# of Invalid Rows: \t$numOfInvalids\n" +
         s"\t# of Not Mapped: \t$numOfNotMapped\n" +
@@ -83,7 +87,7 @@ case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
     markerMap.put("chunkResult", chunkResult)
     // Store the overall execution result if chunkResult is null or absent.
     // Otherwise, mark the result as "STARTED" to indicate an ongoing process.
-    if(!chunkResult){
+    if (!chunkResult) {
       markerMap.put("result", result)
     } else {
       markerMap.put("result", FhirMappingJobResult.STARTED)
@@ -96,9 +100,9 @@ case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
     markerMap.put("isStreamingJob", mappingJobExecution.isStreamingJob)
     markerMap.put("isScheduledJob", mappingJobExecution.isScheduledJob)
     // log the chunk progress for batch jobs
-    if(!mappingJobExecution.isStreamingJob){
-      markerMap.put("chunkProgress",s"$completedNumOfChunks / $totalNumOfChunks")
-      markerMap.put("batchProgress",s"$completedNumOfBatches / $totalNumOfBatches")
+    if (!mappingJobExecution.isStreamingJob) {
+      markerMap.put("chunkProgress", s"$completedNumOfChunks / $totalNumOfChunks")
+      markerMap.put("batchProgress", s"$completedNumOfBatches / $totalNumOfBatches")
     }
     // The current timestamp is automatically added to the log entry when it is sent to Elasticsearch or written to a file.
     // As a result, there is no need to manually add a "@timestamp" field.
@@ -115,6 +119,7 @@ case class FhirMappingJobResult(mappingJobExecution: FhirMappingJobExecution,
  * Object representing possible statuses of a FHIR mapping job.
  */
 object FhirMappingJobResult {
+
   /**
    * Represents the status when the mapping job has been started.
    * Resources are in the process of being mapped and written.

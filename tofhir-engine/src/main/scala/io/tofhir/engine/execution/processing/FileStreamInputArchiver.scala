@@ -34,7 +34,11 @@ class FileStreamInputArchiver(runningJobRegistry: RunningJobRegistry) {
 
   def startStreamingArchiveTask(): Unit = {
     val timer: Timer = new Timer()
-    timer.schedule(new StreamingArchiverTask(this, runningJobRegistry), 0, ToFhirConfig.engineConfig.streamArchivingFrequency)
+    timer.schedule(
+      new StreamingArchiverTask(this, runningJobRegistry),
+      0,
+      ToFhirConfig.engineConfig.streamArchivingFrequency
+    )
   }
 
   /**
@@ -54,13 +58,16 @@ class FileStreamInputArchiver(runningJobRegistry: RunningJobRegistry) {
       // There won't be any file (with name as an integer) during the initialization or after checkpoints are cleared
       if (commitDirectory.listFiles().exists(file => file.isFile && !file.getName.contains("."))) {
         // Apply archiving for the files as of the last processed offset until the last unprocessed offset
-        val lastProcessedOffset: Int = processedOffsets.getOrElseUpdate(getOffsetKey(taskExecution.id, mappingTaskName), -1)
+        val lastProcessedOffset: Int =
+          processedOffsets.getOrElseUpdate(getOffsetKey(taskExecution.id, mappingTaskName), -1)
         val lastOffsetSet: Int = SparkUtil.getLastCommitOffset(commitDirectory)
 
-        Range.inclusive(lastProcessedOffset + 1, lastOffsetSet) // +1 for skipping the last processed offset
+        Range
+          .inclusive(lastProcessedOffset + 1, lastOffsetSet) // +1 for skipping the last processed offset
           .foreach(sourceFileName => {
             // Extract the actual input files
-            val inputFiles: Seq[File] = SparkUtil.getInputFiles(Paths.get(sourcesDirectory, sourceFileName.toString).toFile)
+            val inputFiles: Seq[File] =
+              SparkUtil.getInputFiles(Paths.get(sourcesDirectory, sourceFileName.toString).toFile)
             if (inputFiles.nonEmpty) {
               inputFiles.foreach(inputFile => {
                 processArchiveMode(inputFile, archiveMode)
@@ -111,7 +118,8 @@ object FileStreamInputArchiver {
         })
       }
     } catch {
-      case t:Throwable => logger.warn(s"Failed to apply archiving for job: ${execution.jobId}, execution: ${execution.id}")
+      case t: Throwable =>
+        logger.warn(s"Failed to apply archiving for job: ${execution.jobId}, execution: ${execution.id}")
     }
   }
 
@@ -166,7 +174,8 @@ object FileStreamInputArchiver {
       }
 
     } catch {
-      case t: Throwable => logger.warn(s"Failed to archive the file: ${file.getAbsolutePath}. Reason: ${t.getMessage}", t)
+      case t: Throwable =>
+        logger.warn(s"Failed to archive the file: ${file.getAbsolutePath}. Reason: ${t.getMessage}", t)
     }
   }
 }
@@ -177,15 +186,20 @@ object FileStreamInputArchiver {
  * @param archiver           Archiver to apply the archiving
  * @param runningJobRegistry Running job registry to fetch the running executions
  */
-class StreamingArchiverTask(archiver: FileStreamInputArchiver, runningJobRegistry: RunningJobRegistry) extends TimerTask {
+class StreamingArchiverTask(archiver: FileStreamInputArchiver, runningJobRegistry: RunningJobRegistry)
+    extends TimerTask {
   override def run(): Unit = {
     // Get executions with streaming queries and file system sources and apply
-    val executions = runningJobRegistry.getRunningExecutionsWithCompleteMetadata()
+    val executions = runningJobRegistry
+      .getRunningExecutionsWithCompleteMetadata()
       .filter(execution => execution.isStreamingJob && execution.fileSystemSourceDataFolderPath.nonEmpty)
     executions.foreach(execution => {
-      execution.getStreamingQueryMap().keys.foreach(mappingTaskName => {
-        archiver.applyArchivingOnStreamingJob(execution, mappingTaskName)
-      })
+      execution
+        .getStreamingQueryMap()
+        .keys
+        .foreach(mappingTaskName => {
+          archiver.applyArchivingOnStreamingJob(execution, mappingTaskName)
+        })
     })
   }
 }

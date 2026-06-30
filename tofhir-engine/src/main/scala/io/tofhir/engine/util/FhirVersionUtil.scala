@@ -16,7 +16,7 @@ object FhirVersionUtil {
   }
 
 }
- /* enumeration for major FHIR versions */
+/* enumeration for major FHIR versions */
 object MajorFhirVersion {
   val R4 = "R4"
   val R5 = "R5"

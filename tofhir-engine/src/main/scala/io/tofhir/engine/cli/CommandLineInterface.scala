@@ -20,24 +20,25 @@ object CommandLineInterface {
   private var commandExecutionContext: CommandExecutionContext = _
 
   private def init(toFhirEngine: ToFhirEngine, mappingJobFilePath: Option[String]): Unit = {
-    this.commandExecutionContext =
-      if (mappingJobFilePath.isDefined) {
-        try {
-          val mappingJob = FhirMappingJobFormatter.readMappingJobFromFile(mappingJobFilePath.get)
-          CommandExecutionContext(toFhirEngine = toFhirEngine,
-            fhirMappingJob = Some(mappingJob),
-            mappingNameUrlMap = Load.getTaskNameUrlTuples(mappingJob.mappings, toFhirEngine.mappingRepo))
-        } catch {
-          case _: FileNotFoundException =>
-            println(s"The file cannot be found at the specified path found in the config:${mappingJobFilePath.get}")
-            CommandExecutionContext(toFhirEngine)
-          case _: MappingException =>
-            println(s"Invalid MappingJob file at the specified path found in the config:${mappingJobFilePath.get}")
-            CommandExecutionContext(toFhirEngine)
-        }
-      } else {
-        CommandExecutionContext(toFhirEngine)
+    this.commandExecutionContext = if (mappingJobFilePath.isDefined) {
+      try {
+        val mappingJob = FhirMappingJobFormatter.readMappingJobFromFile(mappingJobFilePath.get)
+        CommandExecutionContext(
+          toFhirEngine = toFhirEngine,
+          fhirMappingJob = Some(mappingJob),
+          mappingNameUrlMap = Load.getTaskNameUrlTuples(mappingJob.mappings, toFhirEngine.mappingRepo)
+        )
+      } catch {
+        case _: FileNotFoundException =>
+          println(s"The file cannot be found at the specified path found in the config:${mappingJobFilePath.get}")
+          CommandExecutionContext(toFhirEngine)
+        case _: MappingException =>
+          println(s"Invalid MappingJob file at the specified path found in the config:${mappingJobFilePath.get}")
+          CommandExecutionContext(toFhirEngine)
       }
+    } else {
+      CommandExecutionContext(toFhirEngine)
+    }
   }
 
   /**
@@ -57,11 +58,14 @@ object CommandLineInterface {
     print("\n$ ")
     while (scanner.hasNextLine) {
       val userInput = scanner.nextLine()
-      val args = pattern.findAllMatchIn(userInput).map { m =>
-        if (m.group(0).startsWith("\"")) m.group(1) // get rid of the quotes (") at the beginning and the end
-        else if (m.group(0).startsWith("\'")) m.group(2) // get rid of the quotes (') at the beginning and the end
-        else m.group(0)
-      }.toSeq
+      val args = pattern
+        .findAllMatchIn(userInput)
+        .map { m =>
+          if (m.group(0).startsWith("\"")) m.group(1) // get rid of the quotes (") at the beginning and the end
+          else if (m.group(0).startsWith("\'")) m.group(2) // get rid of the quotes (') at the beginning and the end
+          else m.group(0)
+        }
+        .toSeq
       val commandName = Try(args.head).getOrElse("")
       val commandArgs = Try(args.tail).getOrElse(Seq.empty[String])
       commandExecutionContext = CommandFactory.apply(commandName).execute(commandArgs, commandExecutionContext)
@@ -104,7 +108,8 @@ object CommandLineInterface {
               sourceSettings = mappingJob.sourceSettings,
               sinkSettings = mappingJob.sinkSettings,
               terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-              identityServiceSettings = mappingJob.getIdentityServiceSettings())
+              identityServiceSettings = mappingJob.getIdentityServiceSettings()
+            )
             .map(sq => toFhirEngine.runningJobRegistry.registerStreamingQuery(mappingJobExecution, sq._1, sq._2))
             .toSeq
         // Wait for all Futures (i.e. Streaming Queries) to complete
@@ -126,7 +131,8 @@ object CommandLineInterface {
       val mappingJobScheduler: MappingJobScheduler = MappingJobScheduler.instance(toFhirDbFolderPath)
 
       val fhirMappingJobManager =
-        new FhirMappingJobManager(toFhirEngine.mappingRepo,
+        new FhirMappingJobManager(
+          toFhirEngine.mappingRepo,
           toFhirEngine.contextLoader,
           toFhirEngine.schemaLoader,
           toFhirEngine.functionLibraries,

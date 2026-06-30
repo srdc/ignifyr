@@ -14,8 +14,11 @@ object ToFhirServer {
 
     val webServerConfig = new WebServerConfig(actorSystem.settings.config.getConfig("webserver"))
     val fhirDefinitionsConfig = new FhirDefinitionsConfig(actorSystem.settings.config.getConfig("fhir"))
-    val redCapServiceConfig = Try(new RedCapServiceConfig(actorSystem.settings.config.getConfig("tofhir-redcap"))).toOption
-    val endpoint = new ToFhirServerEndpoint(ToFhirConfig.engineConfig, webServerConfig, fhirDefinitionsConfig, redCapServiceConfig)
+    val redCapServiceConfig = Try(
+      new RedCapServiceConfig(actorSystem.settings.config.getConfig("tofhir-redcap"))
+    ).toOption
+    val endpoint =
+      new ToFhirServerEndpoint(ToFhirConfig.engineConfig, webServerConfig, fhirDefinitionsConfig, redCapServiceConfig)
 
     ToFhirHttpServer.start(endpoint.toFHIRRoute, webServerConfig)
   }

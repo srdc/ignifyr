@@ -29,7 +29,11 @@ import java.util.{Collections, Properties, UUID}
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{Await, Future}
 
-class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with BeforeAndAfterAll with OnFhirTestContainer {
+class KafkaSourceIntegrationTest
+    extends AnyFlatSpec
+    with ToFhirTestSpec
+    with BeforeAndAfterAll
+    with OnFhirTestContainer {
 
   override protected def afterAll(): Unit = {
     deleteResources()
@@ -43,7 +47,9 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
   private def deleteResources(): Assertion = {
     var batchRequest: FhirBatchTransactionRequestBuilder = onFhirClient.batch()
     batchRequest = batchRequest.entry(_.delete("Patient", FhirMappingUtility.getHashedId("Patient", "p1")))
-    val f = onFhirClient.search("Observation").where("subject", "Patient/" + FhirMappingUtility.getHashedId("Patient", "p1"))
+    val f = onFhirClient
+      .search("Observation")
+      .where("subject", "Patient/" + FhirMappingUtility.getHashedId("Patient", "p1"))
       .executeAndReturnBundle() flatMap { obsBundle =>
       obsBundle.searchResults.foreach(obs =>
         batchRequest = batchRequest.entry(_.delete("Observation", (obs \ "id").extract[String]))
@@ -55,7 +61,7 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
     Await.result(f, FiniteDuration(60, TimeUnit.SECONDS))
   }
 
-  //kafka test-containers related
+  // kafka test-containers related
   val kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:6.2.1"))
   kafka.start()
   val kafkaPort: Integer = kafka.getFirstMappedPort
@@ -66,35 +72,66 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
   val adminClient: AdminClient = AdminClient.create(bootstrapProperties)
 
   val producerProperties = new Properties
-  val producerMap: Map[String, String] = Map(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> bootstrapServers, ProducerConfig.CLIENT_ID_CONFIG -> UUID.randomUUID.toString)
+  val producerMap: Map[String, String] = Map(
+    ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> bootstrapServers,
+    ProducerConfig.CLIENT_ID_CONFIG -> UUID.randomUUID.toString
+  )
   producerMap.foreach { case (key, value) => producerProperties.setProperty(key, value) }
 
   val consumerProperties = new Properties
-  val consumerMap: Map[String, String] = Map(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> bootstrapServers, ConsumerConfig.GROUP_ID_CONFIG -> "tc-".+(UUID.randomUUID.toString), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest")
+  val consumerMap: Map[String, String] = Map(
+    ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG -> bootstrapServers,
+    ConsumerConfig.GROUP_ID_CONFIG -> "tc-".+(UUID.randomUUID.toString),
+    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG -> "earliest"
+  )
   consumerMap.foreach { case (key, value) => consumerProperties.setProperty(key, value) }
 
   val producer = new KafkaProducer[String, String](producerProperties, new StringSerializer, new StringSerializer)
   val consumer = new KafkaConsumer[String, String](consumerProperties, new StringDeserializer, new StringDeserializer)
 
   val streamingSourceSettings: Map[String, KafkaSourceSettings] =
-    Map("kafka-source" -> KafkaSourceSettings("kafka-source", "https://aiccelerate.eu/data-integration-suite/kafka-data", s"PLAINTEXT://localhost:$kafkaPort"))
+    Map(
+      "kafka-source" -> KafkaSourceSettings(
+        "kafka-source",
+        "https://aiccelerate.eu/data-integration-suite/kafka-data",
+        s"PLAINTEXT://localhost:$kafkaPort"
+      )
+    )
 
   val fhirSinkSettings: FhirRepositorySinkSettings = FhirRepositorySinkSettings(fhirRepoUrl = onFhirClient.getBaseUrl())
 
   val patientMappingTask: FhirMappingTask = FhirMappingTask(
     name = "patient-mapping",
     mappingRef = "https://aiccelerate.eu/fhir/mappings/patient-mapping",
-    sourceBinding = Map("source" -> KafkaSource(topicName = "patients", sourceRef = Some("kafka-source"), options = Map("startingOffsets" -> "earliest")))
+    sourceBinding = Map(
+      "source" -> KafkaSource(
+        topicName = "patients",
+        sourceRef = Some("kafka-source"),
+        options = Map("startingOffsets" -> "earliest")
+      )
+    )
   )
   val otherObservationMappingTask: FhirMappingTask = FhirMappingTask(
     name = "other-observation-mapping",
     mappingRef = "https://aiccelerate.eu/fhir/mappings/other-observation-mapping",
-    sourceBinding = Map("source" -> KafkaSource(topicName = "observations", sourceRef = Some("kafka-source"), options = Map("startingOffsets" -> "earliest")))
+    sourceBinding = Map(
+      "source" -> KafkaSource(
+        topicName = "observations",
+        sourceRef = Some("kafka-source"),
+        options = Map("startingOffsets" -> "earliest")
+      )
+    )
   )
   val familyMemberHistoryMappingTask: FhirMappingTask = FhirMappingTask(
     name = "family-member-history-mapping",
     mappingRef = "https://aiccelerate.eu/fhir/mappings/family-member-history-mapping",
-    sourceBinding = Map("source" -> KafkaSource(topicName = "familyMembers", sourceRef = Some("kafka-source"), options = Map("startingOffsets" -> "earliest")))
+    sourceBinding = Map(
+      "source" -> KafkaSource(
+        topicName = "familyMembers",
+        sourceRef = Some("kafka-source"),
+        options = Map("startingOffsets" -> "earliest")
+      )
+    )
   )
 
   val fhirMappingJob: FhirMappingJob = FhirMappingJob(
@@ -105,7 +142,13 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
     dataProcessingSettings = DataProcessingSettings()
   )
 
-  val fhirMappingJobManager = new FhirMappingJobManager(mappingRepository, contextLoader, schemaRepository, Map(FhirPathUtilFunctionsFactory.defaultPrefix -> FhirPathUtilFunctionsFactory), sparkSession)
+  val fhirMappingJobManager = new FhirMappingJobManager(
+    mappingRepository,
+    contextLoader,
+    schemaRepository,
+    Map(FhirPathUtilFunctionsFactory.defaultPrefix -> FhirPathUtilFunctionsFactory),
+    sparkSession
+  )
 
   it should "check the test container working" in {
     val topicName = "testTopic"
@@ -113,17 +156,21 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
     adminClient.createTopics(topics).all.get(30, TimeUnit.SECONDS)
     consumer.subscribe(Collections.singletonList(topicName))
     producer.send(new ProducerRecord[String, String](topicName, "testContainer-key", "testContainer-value")).get
-    Unreliables.retryUntilTrue(10, TimeUnit.SECONDS, () => {
-      def foo(): Boolean = {
-        val records = consumer.poll(Duration.ofMillis(100))
-        if (records.isEmpty) return false
-        records.iterator.next.topic shouldBe "testTopic"
-        records.iterator.next.key shouldBe "testContainer-key"
-        records.iterator.next.value shouldBe "testContainer-value"
-        true
+    Unreliables.retryUntilTrue(
+      10,
+      TimeUnit.SECONDS,
+      () => {
+        def foo(): Boolean = {
+          val records = consumer.poll(Duration.ofMillis(100))
+          if (records.isEmpty) return false
+          records.iterator.next.topic shouldBe "testTopic"
+          records.iterator.next.key shouldBe "testContainer-key"
+          records.iterator.next.value shouldBe "testContainer-value"
+          true
+        }
+        foo()
       }
-      foo()
-    })
+    )
     consumer.unsubscribe()
   }
 
@@ -132,18 +179,30 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
     val topics = Collections.singletonList(new NewTopic(topicName, 1, 1.toShort))
     adminClient.createTopics(topics).all.get(30, TimeUnit.SECONDS)
     consumer.subscribe(Collections.singletonList(topicName))
-    producer.send(new ProducerRecord[String, String](topicName, "1", "{\"pid\":\"p1\",\"gender\":\"male\",\"birthDate\":\"1995-11-10\"}")).get
-    Unreliables.retryUntilTrue(10, TimeUnit.SECONDS, () => {
-      def foo(): Boolean = {
-        val records = consumer.poll(Duration.ofMillis(100))
-        if (records.isEmpty) return false
-        records.iterator.next.topic shouldBe "patients"
-        records.iterator.next.key shouldBe "1"
-        records.iterator.next.value shouldBe "{\"pid\":\"p1\",\"gender\":\"male\",\"birthDate\":\"1995-11-10\"}"
-        true
+    producer
+      .send(
+        new ProducerRecord[String, String](
+          topicName,
+          "1",
+          "{\"pid\":\"p1\",\"gender\":\"male\",\"birthDate\":\"1995-11-10\"}"
+        )
+      )
+      .get
+    Unreliables.retryUntilTrue(
+      10,
+      TimeUnit.SECONDS,
+      () => {
+        def foo(): Boolean = {
+          val records = consumer.poll(Duration.ofMillis(100))
+          if (records.isEmpty) return false
+          records.iterator.next.topic shouldBe "patients"
+          records.iterator.next.key shouldBe "1"
+          records.iterator.next.value shouldBe "{\"pid\":\"p1\",\"gender\":\"male\",\"birthDate\":\"1995-11-10\"}"
+          true
+        }
+        foo()
       }
-      foo()
-    })
+    )
     consumer.unsubscribe()
   }
 
@@ -152,72 +211,105 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
     val topics = Collections.singletonList(new NewTopic(topicName, 1, 1.toShort))
     adminClient.createTopics(topics).all.get(30, TimeUnit.SECONDS)
     consumer.subscribe(Collections.singletonList(topicName))
-    producer.send(new ProducerRecord[String, String](topicName, "1", "{\"pid\":\"p1\",\"time\":\"2007-10-12 10:00:00\",\"encounterId\":\"e1\",\"code\":\"9110-8\",\"value\":\"450\"}")).get
-    Unreliables.retryUntilTrue(10, TimeUnit.SECONDS, () => {
-      def foo(): Boolean = {
-        val records = consumer.poll(Duration.ofMillis(100))
-        if (records.isEmpty) return false
-        records.iterator.next.topic shouldBe "observations"
-        records.iterator.next.key shouldBe "1"
-        records.iterator.next.value shouldBe "{\"pid\":\"p1\",\"time\":\"2007-10-12 10:00:00\",\"encounterId\":\"e1\",\"code\":\"9110-8\",\"value\":\"450\"}"
-        true
+    producer
+      .send(
+        new ProducerRecord[String, String](
+          topicName,
+          "1",
+          "{\"pid\":\"p1\",\"time\":\"2007-10-12 10:00:00\",\"encounterId\":\"e1\",\"code\":\"9110-8\",\"value\":\"450\"}"
+        )
+      )
+      .get
+    Unreliables.retryUntilTrue(
+      10,
+      TimeUnit.SECONDS,
+      () => {
+        def foo(): Boolean = {
+          val records = consumer.poll(Duration.ofMillis(100))
+          if (records.isEmpty) return false
+          records.iterator.next.topic shouldBe "observations"
+          records.iterator.next.key shouldBe "1"
+          records.iterator.next.value shouldBe "{\"pid\":\"p1\",\"time\":\"2007-10-12 10:00:00\",\"encounterId\":\"e1\",\"code\":\"9110-8\",\"value\":\"450\"}"
+          true
+        }
+        foo()
       }
-      foo()
-    })
+    )
     consumer.unsubscribe()
   }
 
   it should "produce data to familyMembers topic" in {
     val topicName = "familyMembers"
-    val message = "{\"name\":\"test\",\"deceased\":\"true\",\"birthDate_y\":\"1995\",\"birthDate_m\":\"04\",\"birthDate_d\":\"12\"}"
+    val message =
+      "{\"name\":\"test\",\"deceased\":\"true\",\"birthDate_y\":\"1995\",\"birthDate_m\":\"04\",\"birthDate_d\":\"12\"}"
     val topics = Collections.singletonList(new NewTopic(topicName, 1, 1.toShort))
     adminClient.createTopics(topics).all.get(30, TimeUnit.SECONDS)
     consumer.subscribe(Collections.singletonList(topicName))
     producer.send(new ProducerRecord[String, String](topicName, "1", message)).get
-    Unreliables.retryUntilTrue(10, TimeUnit.SECONDS, () => {
-      def foo(): Boolean = {
-        val records = consumer.poll(Duration.ofMillis(100))
-        if (records.isEmpty) return false
-        records.iterator.next.topic shouldBe "familyMembers"
-        records.iterator.next.key shouldBe "1"
-        records.iterator.next.value shouldBe message
-        true
+    Unreliables.retryUntilTrue(
+      10,
+      TimeUnit.SECONDS,
+      () => {
+        def foo(): Boolean = {
+          val records = consumer.poll(Duration.ofMillis(100))
+          if (records.isEmpty) return false
+          records.iterator.next.topic shouldBe "familyMembers"
+          records.iterator.next.key shouldBe "1"
+          records.iterator.next.value shouldBe message
+          true
+        }
+        foo()
       }
-      foo()
-    })
+    )
     consumer.unsubscribe()
   }
 
   it should "consume patients, observations and family member history data and map and write to the fhir repository" in {
-    val execution: FhirMappingJobExecution = FhirMappingJobExecution(job = fhirMappingJob, mappingTasks = Seq(patientMappingTask, otherObservationMappingTask, familyMemberHistoryMappingTask))
-    val streamingQueryFutures: Map[String, Future[StreamingQuery]] = fhirMappingJobManager.startMappingJobStream(mappingJobExecution =
-      execution,
+    val execution: FhirMappingJobExecution = FhirMappingJobExecution(
+      job = fhirMappingJob,
+      mappingTasks = Seq(patientMappingTask, otherObservationMappingTask, familyMemberHistoryMappingTask)
+    )
+    val streamingQueryFutures: Map[String, Future[StreamingQuery]] = fhirMappingJobManager.startMappingJobStream(
+      mappingJobExecution = execution,
       sourceSettings = streamingSourceSettings,
       sinkSettings = fhirSinkSettings
     )
     streamingQueryFutures.foreach(sq => {
-      val streamingQuery: StreamingQuery = Await.result(sq._2, FiniteDuration.apply(60, TimeUnit.SECONDS)) // First wait for the StreamingQuery to become available
+      val streamingQuery: StreamingQuery = Await.result(
+        sq._2,
+        FiniteDuration.apply(60, TimeUnit.SECONDS)
+      ) // First wait for the StreamingQuery to become available
       streamingQuery.awaitTermination(20000L) // Wait for 20 seconds to consume and write to the fhir repo and terminate
       streamingQuery.stop()
-      io.FileUtils.deleteDirectory(new File(execution.getCheckpointDirectory(sq._1))) // Clear checkpoint directory to prevent conflicts with other tests
+      io.FileUtils.deleteDirectory(
+        new File(execution.getCheckpointDirectory(sq._1))
+      ) // Clear checkpoint directory to prevent conflicts with other tests
     })
 
-    val searchTest = onFhirClient.read("Patient", FhirMappingUtility.getHashedId("Patient", "p1")).executeAndReturnResource() flatMap { p1Resource =>
-      FHIRUtil.extractIdFromResource(p1Resource) shouldBe FhirMappingUtility.getHashedId("Patient", "p1")
-      FHIRUtil.extractValue[String](p1Resource, "gender") shouldBe "male"
-      FHIRUtil.extractValue[String](p1Resource, "birthDate") shouldBe "1995-11-10"
+    val searchTest =
+      onFhirClient.read("Patient", FhirMappingUtility.getHashedId("Patient", "p1")).executeAndReturnResource() flatMap {
+        p1Resource =>
+          FHIRUtil.extractIdFromResource(p1Resource) shouldBe FhirMappingUtility.getHashedId("Patient", "p1")
+          FHIRUtil.extractValue[String](p1Resource, "gender") shouldBe "male"
+          FHIRUtil.extractValue[String](p1Resource, "birthDate") shouldBe "1995-11-10"
 
-      onFhirClient.search("Observation").where("code", "9110-8").executeAndReturnBundle() flatMap  { observationBundle =>
-        (observationBundle.searchResults.head \ "subject" \ "reference").extract[String] shouldBe
-          FhirMappingUtility.getHashedReference("Patient", "p1")
+          onFhirClient.search("Observation").where("code", "9110-8").executeAndReturnBundle() flatMap {
+            observationBundle =>
+              (observationBundle.searchResults.head \ "subject" \ "reference").extract[String] shouldBe
+                FhirMappingUtility.getHashedReference("Patient", "p1")
 
-        onFhirClient.read("FamilyMemberHistory", FhirMappingUtility.getHashedId("FamilyMemberHistory","test")).executeAndReturnResource() map {resource =>
-          FHIRUtil.extractIdFromResource(resource) shouldBe FhirMappingUtility.getHashedId("FamilyMemberHistory", "test")
-          FHIRUtil.extractValue[Boolean](resource, "deceasedBoolean") shouldBe true
-          FHIRUtil.extractValue[String](resource, "bornDate") shouldBe "1995-04-12"
-        }
+              onFhirClient
+                .read("FamilyMemberHistory", FhirMappingUtility.getHashedId("FamilyMemberHistory", "test"))
+                .executeAndReturnResource() map { resource =>
+                FHIRUtil.extractIdFromResource(resource) shouldBe FhirMappingUtility.getHashedId(
+                  "FamilyMemberHistory",
+                  "test"
+                )
+                FHIRUtil.extractValue[Boolean](resource, "deceasedBoolean") shouldBe true
+                FHIRUtil.extractValue[String](resource, "bornDate") shouldBe "1995-04-12"
+              }
+          }
       }
-    }
     Await.result(searchTest, FiniteDuration(60, TimeUnit.SECONDS))
   }
 
@@ -227,31 +319,48 @@ class KafkaSourceIntegrationTest extends AnyFlatSpec with ToFhirTestSpec with Be
     val topics = Collections.singletonList(new NewTopic(topicName, 1, 1.toShort))
     adminClient.createTopics(topics).all.get(30, TimeUnit.SECONDS)
     consumer.subscribe(Collections.singletonList(topicName))
-    producer.send(new ProducerRecord[String, String](topicName, "1", "{\"name\":\"test\",\"deceased\":\"true\",\"birthDate_y\":\"1995\",")).get
-    Unreliables.retryUntilTrue(10, TimeUnit.SECONDS, () => {
-      def foo(): Boolean = {
-        val records = consumer.poll(Duration.ofMillis(100))
-        if (records.isEmpty) return false
-        records.iterator.next.topic shouldBe "familyMembersCorrupted"
-        records.iterator.next.key shouldBe "1"
-        records.iterator.next.value shouldBe "{\"name\":\"test\",\"deceased\":\"true\",\"birthDate_y\":\"1995\","
-        true
+    producer
+      .send(
+        new ProducerRecord[String, String](
+          topicName,
+          "1",
+          "{\"name\":\"test\",\"deceased\":\"true\",\"birthDate_y\":\"1995\","
+        )
+      )
+      .get
+    Unreliables.retryUntilTrue(
+      10,
+      TimeUnit.SECONDS,
+      () => {
+        def foo(): Boolean = {
+          val records = consumer.poll(Duration.ofMillis(100))
+          if (records.isEmpty) return false
+          records.iterator.next.topic shouldBe "familyMembersCorrupted"
+          records.iterator.next.key shouldBe "1"
+          records.iterator.next.value shouldBe "{\"name\":\"test\",\"deceased\":\"true\",\"birthDate_y\":\"1995\","
+          true
+        }
+        foo()
       }
-      foo()
-    })
+    )
     consumer.unsubscribe()
     // modify familyMemberHistoryMappingTask to listen to familyMembersCorrupted topic
-    val mappingTask = familyMemberHistoryMappingTask.copy(sourceBinding = Map("source" -> KafkaSource(topicName = "familyMembersCorrupted", options = Map("startingOffsets" -> "earliest"))))
-    val execution: FhirMappingJobExecution = FhirMappingJobExecution(job = fhirMappingJob, mappingTasks = Seq(mappingTask))
+    val mappingTask = familyMemberHistoryMappingTask.copy(sourceBinding =
+      Map("source" -> KafkaSource(topicName = "familyMembersCorrupted", options = Map("startingOffsets" -> "earliest")))
+    )
+    val execution: FhirMappingJobExecution =
+      FhirMappingJobExecution(job = fhirMappingJob, mappingTasks = Seq(mappingTask))
     val streamingQueryFutures: Map[String, Future[StreamingQuery]] = fhirMappingJobManager.startMappingJobStream(
       mappingJobExecution = execution,
       sourceSettings = streamingSourceSettings,
-      sinkSettings = fhirSinkSettings)
+      sinkSettings = fhirSinkSettings
+    )
     val streamingQuery = Await.result(streamingQueryFutures.head._2, FiniteDuration(5, TimeUnit.SECONDS))
 
     streamingQuery.awaitTermination(20000L)
     streamingQuery.stop()
-    io.FileUtils.deleteDirectory(new File(execution.getCheckpointDirectory(mappingTask.name))) // Clear checkpoint directory to prevent conflicts with other tests
+    io.FileUtils.deleteDirectory(
+      new File(execution.getCheckpointDirectory(mappingTask.name))
+    ) // Clear checkpoint directory to prevent conflicts with other tests
   }
 }
-

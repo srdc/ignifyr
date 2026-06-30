@@ -35,7 +35,11 @@ import scala.concurrent.{ExecutionContext, ExecutionException, Future}
  * @param mappingRepository
  * @param schemaRepository
  */
-class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappingRepository, schemaRepository: ISchemaRepository) extends LazyLogging {
+class ExecutionService(
+    jobRepository: IJobRepository,
+    mappingRepository: IMappingRepository,
+    schemaRepository: ISchemaRepository
+) extends LazyLogging {
 
   // TODO do not define engine and client as a global variable inside the class. (Testing becomes impossible)
   val toFhirEngine = new ToFhirEngine(Some(mappingRepository), Some(schemaRepository))
@@ -52,9 +56,18 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
    * @param executeJobTask execute job task instance contains mapping urls and error handling type
    * @return
    */
-  def runJob(projectId: String, jobId: String, executionId: Option[String], executeJobTask: Option[ExecuteJobTask]): Future[Unit] = {
+  def runJob(
+      projectId: String,
+      jobId: String,
+      executionId: Option[String],
+      executeJobTask: Option[ExecuteJobTask]
+  ): Future[Unit] = {
     jobRepository.getJob(projectId, jobId) map {
-      case None => throw ResourceNotFound("Mapping job does not exists.", s"A mapping job with id $jobId does not exists in the mapping job repository")
+      case None =>
+        throw ResourceNotFound(
+          "Mapping job does not exists.",
+          s"A mapping job with id $jobId does not exists in the mapping job repository"
+        )
       case Some(mj) =>
         val mappingJob = EnvironmentVariableResolver.resolveFhirMappingJob(mj)
 
@@ -85,23 +98,35 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
                 (x._1, x._2.filter(name => intersection.contains(name)))
               })
             // convert execution ids to json response
-            val jValueResponse = JArray(executionIds.map(x => {
-              JObject(
-                "executionId" -> JString(x._1),
-                "mappingTaskNames" -> JArray(x._2.map(JString(_)).toList)
-              )
-            }).toList)
+            val jValueResponse = JArray(
+              executionIds
+                .map(x => {
+                  JObject(
+                    "executionId" -> JString(x._1),
+                    "mappingTaskNames" -> JArray(x._2.map(JString(_)).toList)
+                  )
+                })
+                .toList
+            )
             // use it in the response message
-            throw BadRequest("Mapping tasks are already running!", JsonMethods.compact(JsonMethods.render(jValueResponse)))
+            throw BadRequest(
+              "Mapping tasks are already running!",
+              JsonMethods.compact(JsonMethods.render(jValueResponse))
+            )
           }
         }
 
         // create an instance of MappingJobScheduler
-        val mappingJobScheduler: MappingJobScheduler = MappingJobScheduler.instance(ToFhirConfig.engineConfig.toFhirDbFolderPath)
+        val mappingJobScheduler: MappingJobScheduler =
+          MappingJobScheduler.instance(ToFhirConfig.engineConfig.toFhirDbFolderPath)
 
         // create execution
-        val mappingJobExecution = FhirMappingJobExecution(executionId.getOrElse(UUID.randomUUID().toString), job = mappingJob,
-          projectId = projectId, mappingTasks = mappingTasks)
+        val mappingJobExecution = FhirMappingJobExecution(
+          executionId.getOrElse(UUID.randomUUID().toString),
+          job = mappingJob,
+          projectId = projectId,
+          mappingTasks = mappingTasks
+        )
         val fhirMappingJobManager = new FhirMappingJobManager(
           toFhirEngine.mappingRepo,
           toFhirEngine.contextLoader,
@@ -122,7 +147,9 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
 
                 val checkpointDirectory: File = new File(mappingJobExecution.getCheckpointDirectory(mappingTask.name))
                 io.FileUtils.deleteDirectory(checkpointDirectory)
-                logger.debug(s"Deleted checkpoint directory for jobId: ${mappingJobExecution.jobId}, executionId: ${mappingJobExecution.id}, mappingTaskName: ${mappingTask.name}, path: ${checkpointDirectory.getAbsolutePath}")
+                logger.debug(
+                  s"Deleted checkpoint directory for jobId: ${mappingJobExecution.jobId}, executionId: ${mappingJobExecution.id}, mappingTaskName: ${mappingTask.name}, path: ${checkpointDirectory.getAbsolutePath}"
+                )
               })
             }
 
@@ -143,7 +170,10 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
             if (mappingJob.schedulingSettings.nonEmpty) {
               // check whether the job execution is already scheduled
               if (executionId.nonEmpty && toFhirEngine.runningJobRegistry.isScheduled(mappingJob.id, executionId.get)) {
-                throw BadRequest("The mapping job execution is already scheduled!", s"The mapping job execution is already scheduled!")
+                throw BadRequest(
+                  "The mapping job execution is already scheduled!",
+                  s"The mapping job execution is already scheduled!"
+                )
               }
               // schedule the mapping job
               fhirMappingJobManager
@@ -192,13 +222,23 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
    * @param testResourceCreationRequest test resource creation request to be executed
    * @return
    */
-  def testMappingWithJob(projectId: String, jobId: String, testResourceCreationRequest: TestResourceCreationRequest): Future[Seq[FhirMappingResultsForInput]] = {
+  def testMappingWithJob(
+      projectId: String,
+      jobId: String,
+      testResourceCreationRequest: TestResourceCreationRequest
+  ): Future[Seq[FhirMappingResultsForInput]] = {
     jobRepository.getJob(projectId, jobId) flatMap {
-      case None => throw ResourceNotFound("Mapping job does not exists.", s"A mapping job with id $jobId does not exists in the mapping job repository")
+      case None =>
+        throw ResourceNotFound(
+          "Mapping job does not exists.",
+          s"A mapping job with id $jobId does not exists in the mapping job repository"
+        )
       case Some(mj) =>
         val mappingJob = EnvironmentVariableResolver.resolveFhirMappingJob(mj)
 
-        logger.debug(s"Testing the mapping ${testResourceCreationRequest.fhirMappingTask.mappingRef} inside the job $jobId by selecting ${testResourceCreationRequest.resourceFilter.numberOfRows} ${testResourceCreationRequest.resourceFilter.order} records.")
+        logger.debug(
+          s"Testing the mapping ${testResourceCreationRequest.fhirMappingTask.mappingRef} inside the job $jobId by selecting ${testResourceCreationRequest.resourceFilter.numberOfRows} ${testResourceCreationRequest.resourceFilter.order} records."
+        )
 
         // If an unmanaged mapping is provided within the mapping task, normalize the context urls
         val mappingTaskWithNormalizedUrls: FhirMappingTask =
@@ -206,9 +246,17 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
             case None => testResourceCreationRequest.fhirMappingTask
             case _ =>
               // get the path of mapping file which will be used to normalize mapping context urls
-              val pathToMappingFile: File = FileUtils.getPath(ToFhirConfig.engineConfig.mappingRepositoryFolderPath, projectId, s"${testResourceCreationRequest.fhirMappingTask.mapping.get.id}${FileExtensions.JSON}").toFile
+              val pathToMappingFile: File = FileUtils
+                .getPath(
+                  ToFhirConfig.engineConfig.mappingRepositoryFolderPath,
+                  projectId,
+                  s"${testResourceCreationRequest.fhirMappingTask.mapping.get.id}${FileExtensions.JSON}"
+                )
+                .toFile
               // normalize the mapping context urls
-              val mappingWithNormalizedContextUrls: FhirMapping = MappingContextLoader.normalizeContextURLs(Seq((testResourceCreationRequest.fhirMappingTask.mapping.get, pathToMappingFile))).head
+              val mappingWithNormalizedContextUrls: FhirMapping = MappingContextLoader
+                .normalizeContextURLs(Seq((testResourceCreationRequest.fhirMappingTask.mapping.get, pathToMappingFile)))
+                .head
               // Copy the mapping with the normalized urls
               testResourceCreationRequest.fhirMappingTask.copy(mapping = Some(mappingWithNormalizedContextUrls))
           }
@@ -239,7 +287,12 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
 
         val (fhirMapping, mappingJobSourceSettings, dataFrame) =
           try {
-            fhirMappingJobManager.readJoinSourceData(mappingTask, jobSourceSettings, jobId = Some(jobId), isTestExecution = true)
+            fhirMappingJobManager.readJoinSourceData(
+              mappingTask,
+              jobSourceSettings,
+              jobId = Some(jobId),
+              isTestExecution = true
+            )
           } catch {
             // Check if the root cause of the exception is an AnalysisException due to a missing file path.
             // If the error class is PATH_NOT_FOUND, extract and clean up the message by removing the prefix,
@@ -255,10 +308,21 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
                   throw e
               }
           }
-        val selectedDataFrame = DataFrameUtil.applyResourceFilter(dataFrame, testResourceCreationRequest.resourceFilter)
+        val selectedDataFrame = DataFrameUtil
+          .applyResourceFilter(dataFrame, testResourceCreationRequest.resourceFilter)
           .distinct() // Remove duplicate rows to ensure each FHIR Resource is represented only once per source.
         // This prevents confusion for users in the UI, as displaying the same resource multiple times could lead to misunderstandings.
-        fhirMappingJobManager.executeTask(mappingJob.id, mappingTask.name, fhirMapping, selectedDataFrame, mappingJobSourceSettings, mappingJob.terminologyServiceSettings, mappingJob.getIdentityServiceSettings(), projectId = Some(projectId))
+        fhirMappingJobManager
+          .executeTask(
+            mappingJob.id,
+            mappingTask.name,
+            fhirMapping,
+            selectedDataFrame,
+            mappingJobSourceSettings,
+            mappingJob.terminologyServiceSettings,
+            mappingJob.getIdentityServiceSettings(),
+            projectId = Some(projectId)
+          )
           .map { resultingDataFrame =>
             // Import implicits for the Spark session
             import toFhirEngine.sparkSession.implicits._
@@ -267,12 +331,15 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
               .groupByKey((result: FhirMappingResult) => result.source)
             // Map each group to FhirMappingResultForInput
             grouped.mapGroups(FhirMappingResultConverter.convertToFhirMappingResultsForInput).collect().toSeq
-          }.recover{
+          }
+          .recover {
             case ee: ExecutionException =>
               Option(ee.getCause) match {
                 // special handling of UnknownTopicOrPartitionException to include the missing topic names
                 case Some(_: UnknownTopicOrPartitionException) =>
-                  val topicNames: Seq[String] = testResourceCreationRequest.fhirMappingTask.sourceBinding.map(source => source._2.asInstanceOf[KafkaSource].topicName).toSeq
+                  val topicNames: Seq[String] = testResourceCreationRequest.fhirMappingTask.sourceBinding
+                    .map(source => source._2.asInstanceOf[KafkaSource].topicName)
+                    .toSeq
                   throw BadRequest(
                     "Invalid Kafka Topics",
                     s"The following Kafka topic(s) specified in the mapping task do not exist: ${topicNames.mkString(", ")}."
@@ -283,7 +350,8 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
             case se: SparkException =>
               throw BadRequest(
                 "Invalid Source File",
-                se.getCause.getMessage.replace("\n", " "), Some(se)
+                se.getCause.getMessage.replace("\n", " "),
+                Some(se)
               )
             case e: Exception =>
               throw e
@@ -304,25 +372,34 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
     jobRepository.getJob(projectId, jobId).flatMap {
       case Some(_) =>
         // Retrieve the running executions for the given job
-        val runningExecutionsJson: Seq[JValue] = toFhirEngine.runningJobRegistry.getRunningExecutions(jobId)
-          .map(id => JObject(
-            List(
-              "id" -> JString(id),
-              "runningStatus" -> JBool(true)
+        val runningExecutionsJson: Seq[JValue] = toFhirEngine.runningJobRegistry
+          .getRunningExecutions(jobId)
+          .map(id =>
+            JObject(
+              List(
+                "id" -> JString(id),
+                "runningStatus" -> JBool(true)
+              )
             )
-          )).toSeq
+          )
+          .toSeq
         // Retrieve the scheduled executions for the given job
-        val scheduledExecutionsJson: Seq[JValue] = toFhirEngine.runningJobRegistry.getScheduledExecutions(jobId)
-          .map(id => JObject(
-            List(
-              "id" -> JString(id),
-              "scheduled" -> JBool(true)
+        val scheduledExecutionsJson: Seq[JValue] = toFhirEngine.runningJobRegistry
+          .getScheduledExecutions(jobId)
+          .map(id =>
+            JObject(
+              List(
+                "id" -> JString(id),
+                "scheduled" -> JBool(true)
+              )
             )
-          )).toSeq
+          )
+          .toSeq
 
         Future.successful(runningExecutionsJson ++ scheduledExecutionsJson)
 
-      case None => throw ResourceNotFound("Mapping job does not exists.", s"A mapping job with id $jobId does not exists")
+      case None =>
+        throw ResourceNotFound("Mapping job does not exists.", s"A mapping job with id $jobId does not exists")
     }
   }
 
@@ -338,7 +415,10 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
         toFhirEngine.runningJobRegistry.stopJobExecution(jobId, executionId)
         logger.debug(s"Job execution stopped. jobId: $jobId, execution: $executionId")
       } else {
-        throw ResourceNotFound("Job execution does not exists.", s"A job execution with jobId: $jobId, executionId: $executionId does not exists.")
+        throw ResourceNotFound(
+          "Job execution does not exists.",
+          s"A job execution with jobId: $jobId, executionId: $executionId does not exists."
+        )
       }
 
     }
@@ -358,7 +438,10 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
         toFhirEngine.runningJobRegistry.descheduleJobExecution(jobId, executionId)
         logger.debug(s"Job execution descheduled. jobId: $jobId, execution: $executionId")
       } else {
-        throw ResourceNotFound("Job is not scheduled.", s"There is no scheduled job execution with jobId: $jobId, executionId: $executionId.")
+        throw ResourceNotFound(
+          "Job is not scheduled.",
+          s"There is no scheduled job execution with jobId: $jobId, executionId: $executionId."
+        )
       }
     }
   }
@@ -386,9 +469,14 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
     Future {
       if (toFhirEngine.runningJobRegistry.executionExists(jobId, executionId, Some(mappingTaskName))) {
         toFhirEngine.runningJobRegistry.stopMappingExecution(jobId, executionId, mappingTaskName)
-        logger.debug(s"Mapping execution stopped. jobId: $jobId, executionId: $executionId, mappingTaskName: $mappingTaskName")
+        logger.debug(
+          s"Mapping execution stopped. jobId: $jobId, executionId: $executionId, mappingTaskName: $mappingTaskName"
+        )
       } else {
-        throw ResourceNotFound("Mapping execution does not exists.", s"A mapping execution with jobId: $jobId, executionId: $executionId, mappingTaskName: $mappingTaskName does not exists.")
+        throw ResourceNotFound(
+          "Mapping execution does not exists.",
+          s"A mapping execution with jobId: $jobId, executionId: $executionId, mappingTaskName: $mappingTaskName does not exists."
+        )
       }
     }
   }
@@ -435,5 +523,3 @@ class ExecutionService(jobRepository: IJobRepository, mappingRepository: IMappin
     task.copy(sourceBinding = updatedSourceBinding)
   }
 }
-
-

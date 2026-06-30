@@ -60,13 +60,23 @@ class RunningJobRegistryTest extends AnyFlatSpec with Matchers {
 
   "it" should "register batch jobs" in {
     val input = getTestInput("j4", "e", Seq("m1", "m2"), false)
-    runningTaskRegistry.registerBatchJob(input._1, Some(Future.apply(
-      Thread.sleep(1000)
-    )), "")
+    runningTaskRegistry.registerBatchJob(
+      input._1,
+      Some(
+        Future.apply(
+          Thread.sleep(1000)
+        )
+      ),
+      ""
+    )
     runningTaskRegistry.getRunningExecutions()("j4").head._2 shouldEqual Seq("m1", "m2")
 
     val booleanCapturer: ArgumentCaptor[Boolean] = ArgumentCaptor.forClass(classOf[Boolean])
-    verify(mockSparkSession.sparkContext).setJobGroup(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), booleanCapturer.capture())
+    verify(mockSparkSession.sparkContext).setJobGroup(
+      ArgumentMatchers.anyString(),
+      ArgumentMatchers.anyString(),
+      booleanCapturer.capture()
+    )
     booleanCapturer.getValue shouldBe true
 
     // Wait for the Future to complete
@@ -76,11 +86,21 @@ class RunningJobRegistryTest extends AnyFlatSpec with Matchers {
     runningTaskRegistry.getRunningExecutions().contains("j4") shouldBe false
   }
 
-  private def getTestInput(jobId: String, executionId: String, mappingTaskNames: Seq[String], isStream: Boolean = true): (FhirMappingJobExecution, Seq[String], Future[StreamingQuery]) = {
+  private def getTestInput(
+      jobId: String,
+      executionId: String,
+      mappingTaskNames: Seq[String],
+      isStream: Boolean = true
+  ): (FhirMappingJobExecution, Seq[String], Future[StreamingQuery]) = {
     (
       FhirMappingJobExecution(
         id = executionId,
-        job = FhirMappingJob(id = jobId, sourceSettings = Map("s" -> FileSystemSourceSettings("n", "s", "d", isStream)), sinkSettings = null, mappings = Seq.empty),
+        job = FhirMappingJob(
+          id = jobId,
+          sourceSettings = Map("s" -> FileSystemSourceSettings("n", "s", "d", isStream)),
+          sinkSettings = null,
+          mappings = Seq.empty
+        ),
         mappingTasks = mappingTaskNames.map(name => FhirMappingTask(name, s"http://${name}", Map.empty))
       ),
       mappingTaskNames,

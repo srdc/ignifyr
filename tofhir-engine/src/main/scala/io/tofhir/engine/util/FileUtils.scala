@@ -20,15 +20,14 @@ object FileUtils {
   def getPath(path: String, paths: String*): Path = {
     val givenPath =
       if (paths.isEmpty) Paths.get(path)
-      else Paths.get(
-        Paths.get(path).normalize().toString,
-        paths.map(p => Paths.get(p).normalize().toString): _*
-      )
+      else
+        Paths.get(
+          Paths.get(path).normalize().toString,
+          paths.map(p => Paths.get(p).normalize().toString): _*
+        )
     val resultingPath =
       if (givenPath.isAbsolute) givenPath
-      else Paths.get(
-        ToFhirConfig.engineConfig.contextPath,
-        givenPath.toString)
+      else Paths.get(ToFhirConfig.engineConfig.contextPath, givenPath.toString)
     resultingPath.normalize()
   }
 
@@ -41,12 +40,17 @@ object FileUtils {
    */
   def findFileByName(repoPath: String, name: String): Option[File] = {
     val repoFile = FileUtils.getPath(repoPath).toFile
-    val allFiles = IOUtil.getFilesFromFolder(repoFile, recursively = true, ignoreHidden = true, withExtension = Some(FileExtensions.JSON.toString))
+    val allFiles = IOUtil.getFilesFromFolder(
+      repoFile,
+      recursively = true,
+      ignoreHidden = true,
+      withExtension = Some(FileExtensions.JSON.toString)
+    )
     val filteredFiles = allFiles.filter(f => {
-      f.getName
-        .toLowerCase.equals(name.toLowerCase)
+      f.getName.toLowerCase.equals(name.toLowerCase)
     })
-    if (filteredFiles.size > 1) throw new IllegalStateException(s"There are ${filteredFiles.size} definition files with the same name/rootPath!")
+    if (filteredFiles.size > 1)
+      throw new IllegalStateException(s"There are ${filteredFiles.size} definition files with the same name/rootPath!")
     filteredFiles.headOption
   }
 

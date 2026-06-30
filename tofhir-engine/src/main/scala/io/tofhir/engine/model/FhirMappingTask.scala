@@ -14,8 +14,13 @@ package io.tofhir.engine.model
  *                          (e.g., by year, ID range, or any custom grouping). If provided, the mapping will be executed
  *                          once for each parameter value, with the parameter available in preprocessSql as $parameterName
  */
-case class FhirMappingTask(name: String, mappingRef: String, sourceBinding: Map[String, MappingSourceBinding], mapping: Option[FhirMapping] = None, batchingStrategy: Option[BatchingStrategy] = None)
-
+case class FhirMappingTask(
+    name: String,
+    mappingRef: String,
+    sourceBinding: Map[String, MappingSourceBinding],
+    mapping: Option[FhirMapping] = None,
+    batchingStrategy: Option[BatchingStrategy] = None
+)
 
 /**
  * Interface for defining the mapping source binding in a mapping job.
@@ -25,10 +30,12 @@ case class FhirMappingTask(name: String, mappingRef: String, sourceBinding: Map[
  * should specify how to load each source data required by the mapping.
  */
 trait MappingSourceBinding extends Serializable {
+
   /**
    * SQL Query to preprocess the source data
    */
   val preprocessSql: Option[String] = None
+
   /**
    * Reference to the source specified in the sourceSettings of a mapping job.
    * This optional field can be used to explicitly link a source binding to a particular source setting.
@@ -60,7 +67,14 @@ trait MappingSourceBinding extends Serializable {
  * @param contentType Content of the file
  * @param options     Further options for the content type (Spark Data source options for the content type, e.g., for csv -> https://spark.apache.org/docs/latest/sql-data-sources-csv.html#data-source-option).
  */
-case class FileSystemSource(path: String, contentType:String, options:Map[String, String] = Map.empty[String, String], override val preprocessSql: Option[String] = None, override val sourceRef: Option[String] = None) extends MappingSourceBinding {}
+case class FileSystemSource(
+    path: String,
+    contentType: String,
+    options: Map[String, String] = Map.empty[String, String],
+    override val preprocessSql: Option[String] = None,
+    override val sourceRef: Option[String] = None
+) extends MappingSourceBinding {}
+
 /**
  * Context/configuration for one of the source of the mapping that will read the source data from an SQL database
  * Any of tableName and query must be defined. Not both, not neither
@@ -69,7 +83,13 @@ case class FileSystemSource(path: String, contentType:String, options:Map[String
  * @param query     Query to execute in the database
  * @param options   Further options for SQL source (Spark SQL Guide -> https://spark.apache.org/docs/3.4.1/sql-data-sources-jdbc.html ).
  */
-case class SqlSource(tableName: Option[String] = None, query: Option[String] = None, options:Map[String, String] = Map.empty[String, String], override val preprocessSql: Option[String] = None, override val sourceRef: Option[String] = None) extends MappingSourceBinding
+case class SqlSource(
+    tableName: Option[String] = None,
+    query: Option[String] = None,
+    options: Map[String, String] = Map.empty[String, String],
+    override val preprocessSql: Option[String] = None,
+    override val sourceRef: Option[String] = None
+) extends MappingSourceBinding
 
 /**
  * Context/configuration for one of the source of the mapping that will read the source data from a kafka as stream
@@ -77,7 +97,12 @@ case class SqlSource(tableName: Option[String] = None, query: Option[String] = N
  * @param topicName       The topic(s) to subscribe, may be comma seperated string list (topic1,topic2)
  * @param options         Further options for Kafka source (Spark Kafka Guide -> https://spark.apache.org/docs/3.5.1/structured-streaming-kafka-integration.html)
  */
-case class KafkaSource(topicName: String, options:Map[String, String] = Map.empty[String, String], override val preprocessSql: Option[String] = None, override val sourceRef: Option[String] = None) extends MappingSourceBinding
+case class KafkaSource(
+    topicName: String,
+    options: Map[String, String] = Map.empty[String, String],
+    override val preprocessSql: Option[String] = None,
+    override val sourceRef: Option[String] = None
+) extends MappingSourceBinding
 
 /**
  * Represents a mapping source binding for FHIR server data.
@@ -86,7 +111,12 @@ case class KafkaSource(topicName: String, options:Map[String, String] = Map.empt
  * @param query          An optional query string to filter the FHIR resources.
  * @param preprocessSql  An optional SQL string for preprocessing the data before mapping.
  */
-case class FhirServerSource(resourceType: String, query: Option[String] = None, override val preprocessSql: Option[String] = None, override val sourceRef: Option[String] = None) extends MappingSourceBinding
+case class FhirServerSource(
+    resourceType: String,
+    query: Option[String] = None,
+    override val preprocessSql: Option[String] = None,
+    override val sourceRef: Option[String] = None
+) extends MappingSourceBinding
 
 /**
  * List of source content types supported by tofhir
@@ -99,4 +129,3 @@ object SourceContentTypes {
   final val AVRO = "avro"
   final val NDJSON = "ndjson"
 }
-

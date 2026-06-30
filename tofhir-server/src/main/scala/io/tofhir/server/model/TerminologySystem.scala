@@ -12,11 +12,13 @@ import java.util.UUID
  * @param name        name of the terminology
  * @param description description of the terminology
  */
-case class TerminologySystem(id: String = UUID.randomUUID().toString,
-                             name: String,
-                             description: String,
-                             conceptMaps: Seq[TerminologyConceptMap] = Seq.empty,
-                             codeSystems: Seq[TerminologyCodeSystem] = Seq.empty)
+case class TerminologySystem(
+    id: String = UUID.randomUUID().toString,
+    name: String,
+    description: String,
+    conceptMaps: Seq[TerminologyConceptMap] = Seq.empty,
+    codeSystems: Seq[TerminologyCodeSystem] = Seq.empty
+)
 
 object TerminologySystem {
   type TerminologyConceptMap = ConceptMapFile

@@ -55,7 +55,10 @@ class MappingService(mappingRepository: IMappingRepository, jobRepository: IJobR
   def updateMapping(projectId: String, mappingId: String, mapping: FhirMapping): Future[FhirMapping] = {
     // Ensure that the provided schemaId matches the SchemaDefinition's schemaId
     if (!mappingId.equals(mapping.id)) {
-      throw BadRequest("Mapping definition is not valid.", s"Identifier of the mapping definition: ${mapping.id} does not match with the provided mappingId: $mappingId in the path!")
+      throw BadRequest(
+        "Mapping definition is not valid.",
+        s"Identifier of the mapping definition: ${mapping.id} does not match with the provided mappingId: $mappingId in the path!"
+      )
     }
     mappingRepository.updateMapping(projectId, mappingId, mapping)
   }
@@ -70,15 +73,23 @@ class MappingService(mappingRepository: IMappingRepository, jobRepository: IJobR
   def deleteMapping(projectId: String, mappingId: String): Future[Unit] = {
     // find mapping url from mapping id
     mappingRepository.getMapping(projectId, mappingId).flatMap { mapping =>
-      //find all jobs that reference this mapping
-      val mappingUrl = mapping.getOrElse(
-        throw ResourceNotFound("Mapping does not exists.", s"A mapping with id $mappingId does not exists in the mapping repository.")
-      ).url
+      // find all jobs that reference this mapping
+      val mappingUrl = mapping
+        .getOrElse(
+          throw ResourceNotFound(
+            "Mapping does not exists.",
+            s"A mapping with id $mappingId does not exists in the mapping repository."
+          )
+        )
+        .url
       jobRepository.getJobsReferencingMapping(projectId, mappingUrl).flatMap { jobs =>
         if (jobs.isEmpty)
           mappingRepository.deleteMapping(projectId, mappingId)
         else
-          throw BadRequest("Mapping is referenced by jobs.", s"The mapping with URL $mappingUrl is referenced by jobs: ${jobs.map(_.id).mkString(", ")}.")
+          throw BadRequest(
+            "Mapping is referenced by jobs.",
+            s"The mapping with URL $mappingUrl is referenced by jobs: ${jobs.map(_.id).mkString(", ")}."
+          )
       }
     }
   }

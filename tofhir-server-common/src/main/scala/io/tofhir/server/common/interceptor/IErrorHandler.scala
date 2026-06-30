@@ -14,8 +14,8 @@ trait IErrorHandler extends LazyLogging {
    * @return
    */
   def exceptionHandler(toFhirRestCall: ToFhirRestCall) =
-    ExceptionHandler {
-      case e: Exception => Directives.complete {
+    ExceptionHandler { case e: Exception =>
+      Directives.complete {
         val response = exceptionToResponse(e)
         response.statusCode -> response.toString
       }

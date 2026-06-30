@@ -13,34 +13,47 @@ import org.json4s.jackson.Serialization.writePretty
 
 class ProjectEndpointTest extends BaseEndpointTest {
   // first project to be created
-  val project1: Project = Project(name = "example", description = Some("example project"), schemaUrlPrefix = Some("https://example.com/StructureDefinition/"), mappingUrlPrefix = Some("https://example.com/mappings/"))
+  val project1: Project = Project(
+    name = "example",
+    description = Some("example project"),
+    schemaUrlPrefix = Some("https://example.com/StructureDefinition/"),
+    mappingUrlPrefix = Some("https://example.com/mappings/")
+  )
   // second project to be created
   val project2: Project = Project(name = "second example", description = Some("second example project"))
   // patch to be applied to the existing project
   val projectPatch: (String, String) = ProjectEditableFields.DESCRIPTION -> "updated description"
   // schema definition
-  val schemaDefinition: SchemaDefinition = SchemaDefinition(id = "id",
+  val schemaDefinition: SchemaDefinition = SchemaDefinition(
+    id = "id",
     version = SchemaDefinition.VERSION_LATEST,
     url = "https://example.com/fhir/StructureDefinition/schema",
     `type` = "Ty",
     name = "name",
     description = Some("description"),
     rootDefinition = None,
-    fieldDefinitions = None)
+    fieldDefinitions = None
+  )
 
   "The service" should {
 
     "create a project" in {
       // create the first project
       // note that in the initialization of database, a dummy project is already created due to the schemas defined in test resources
-      Post(s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}", akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(project1))) ~> route ~> check {
+      Post(
+        s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}",
+        akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(project1))
+      ) ~> route ~> check {
         status shouldEqual StatusCodes.Created
         // validate that projects metadata file is updated
         val projects: JArray = TestUtil.getProjectJsonFile(toFhirEngineConfig)
         projects.arr.length shouldEqual 1
       }
       // create the second project
-      Post(s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}", akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(project2))) ~> route ~> check {
+      Post(
+        s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}",
+        akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(project2))
+      ) ~> route ~> check {
         status shouldEqual StatusCodes.Created
         // validate that projects metadata file is updated
         val projects: JArray = TestUtil.getProjectJsonFile(toFhirEngineConfig)
@@ -77,28 +90,41 @@ class ProjectEndpointTest extends BaseEndpointTest {
 
     "patch a project" in {
       // patch a project
-      Patch(s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/${project1.id}", akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(projectPatch))) ~> route ~> check {
+      Patch(
+        s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/${project1.id}",
+        akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(projectPatch))
+      ) ~> route ~> check {
         status shouldEqual StatusCodes.OK
         // validate that the returned project includes the update
         val project: Project = JsonMethods.parse(responseAs[String]).extract[Project]
         project.description.get should not equal project1.description.get
         // validate that projects metadata is updated
         val projects: JArray = TestUtil.getProjectJsonFile(toFhirEngineConfig)
-        (projects.arr.find(p => (p \ "id").extract[String] == project1.id).get \ "description").extract[String] shouldEqual "updated description"
+        (projects.arr.find(p => (p \ "id").extract[String] == project1.id).get \ "description")
+          .extract[String] shouldEqual "updated description"
       }
       // patch a project with invalid id
-      Patch(s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/123123", akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(projectPatch))) ~> route ~> check {
+      Patch(
+        s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/123123",
+        akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(projectPatch))
+      ) ~> route ~> check {
         status shouldEqual StatusCodes.NotFound
       }
     }
 
     "delete a project" in {
       // first create a schema to trigger creation of the project folder under the schemas folder
-      Post(s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/${project1.id}/${SchemaDefinitionEndpoint.SEGMENT_SCHEMAS}", akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(schemaDefinition))) ~> route ~> check {
+      Post(
+        s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/${project1.id}/${SchemaDefinitionEndpoint.SEGMENT_SCHEMAS}",
+        akka.http.scaladsl.model.HttpEntity.apply(ContentTypes.`application/json`, writePretty(schemaDefinition))
+      ) ~> route ~> check {
         status shouldEqual StatusCodes.Created
         // validate that projects metadata file is updated for the first project
-        val firstProject = TestUtil.getProjectJsonFile(toFhirEngineConfig).arr
-          .find(p => (p \ "id").extract[String].contentEquals(project1.id)).get // find first project
+        val firstProject = TestUtil
+          .getProjectJsonFile(toFhirEngineConfig)
+          .arr
+          .find(p => (p \ "id").extract[String].contentEquals(project1.id))
+          .get // find first project
         (firstProject \ "schemas").asInstanceOf[JArray].arr.length shouldEqual 1
         // validate the project folder has been created within the schemas
         FileUtils.getPath(toFhirEngineConfig.schemaRepositoryFolderPath, project1.id).toFile should exist

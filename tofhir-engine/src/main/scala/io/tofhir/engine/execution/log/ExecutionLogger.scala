@@ -21,7 +21,7 @@ object ExecutionLogger {
   // A mapping task execution is divided into multiple chunks based on the max chunk size configuration
   // Keeps active executions in the form of: executionId -> FhirMappingJobResult
   private val batchJobMappingTaskExecutionResults: collection.mutable.Map[String, FhirMappingJobResult] =
-  collection.mutable.Map[String, FhirMappingJobResult]()
+    collection.mutable.Map[String, FhirMappingJobResult]()
 
   /**
    * Logs the status of a mapping job execution explicitly, i.e., the status is determined by the application
@@ -33,13 +33,16 @@ object ExecutionLogger {
    * @param exception             The optional exception that occurred
    * @param isChunkResult         Indicate whether the log is result of a chunk
    */
-  def logExecutionStatus(mappingJobExecution: FhirMappingJobExecution,
-                         status: String,
-                         mappingTaskName: Option[String] = None,
-                         exception: Option[Throwable] = None,
-                         isChunkResult: Boolean = true): Unit = {
+  def logExecutionStatus(
+      mappingJobExecution: FhirMappingJobExecution,
+      status: String,
+      mappingTaskName: Option[String] = None,
+      exception: Option[Throwable] = None,
+      isChunkResult: Boolean = true
+  ): Unit = {
     // create the job result
-    val jobResult = FhirMappingJobResult(mappingJobExecution, mappingTaskName, status = Some(status), chunkResult = isChunkResult)
+    val jobResult =
+      FhirMappingJobResult(mappingJobExecution, mappingTaskName, status = Some(status), chunkResult = isChunkResult)
     // log the status with either info or error based on the presence of an exception
     exception match {
       case Some(e) => logger.error(jobResult.toMapMarker, jobResult.toString, e)
@@ -68,11 +71,14 @@ object ExecutionLogger {
    * @param numOfFhirResources  The number of FHIR resources created
    * @param numOfFailedWrites   The number of failed writes
    */
-  def logExecutionResultForChunk(mappingJobExecution: FhirMappingJobExecution, mappingTaskName: String,
-                                 numOfInvalids: Long = 0,
-                                 numOfNotMapped: Long = 0,
-                                 numOfFhirResources: Long = 0,
-                                 numOfFailedWrites: Long = 0): Unit = {
+  def logExecutionResultForChunk(
+      mappingJobExecution: FhirMappingJobExecution,
+      mappingTaskName: String,
+      numOfInvalids: Long = 0,
+      numOfNotMapped: Long = 0,
+      numOfFhirResources: Long = 0,
+      numOfFailedWrites: Long = 0
+  ): Unit = {
     // get the cached result of mapping job execution
     val cachedResult = batchJobMappingTaskExecutionResults(mappingJobExecution.id)
     // increment the number of completed batches if the all chunks are completed in this batch
@@ -82,9 +88,17 @@ object ExecutionLogger {
         cachedResult.completedNumOfBatches + 1
       else
         cachedResult.completedNumOfBatches
-    //Log the job result
-    val jobResult = FhirMappingJobResult(mappingJobExecution, Some(mappingTaskName), numOfInvalids, numOfNotMapped, numOfFhirResources, numOfFailedWrites,
-      totalNumOfChunks = cachedResult.totalNumOfChunks, completedNumOfChunks = numOfCompletedChunks, totalNumOfBatches = cachedResult.totalNumOfBatches,
+    // Log the job result
+    val jobResult = FhirMappingJobResult(
+      mappingJobExecution,
+      Some(mappingTaskName),
+      numOfInvalids,
+      numOfNotMapped,
+      numOfFhirResources,
+      numOfFailedWrites,
+      totalNumOfChunks = cachedResult.totalNumOfChunks,
+      completedNumOfChunks = numOfCompletedChunks,
+      totalNumOfBatches = cachedResult.totalNumOfBatches,
       completedNumOfBatches = numOfCompletedBatches
     )
     logger.info(jobResult.toMapMarker, jobResult.toString)
@@ -95,7 +109,7 @@ object ExecutionLogger {
       numOfFailedWrites = cachedResult.numOfFailedWrites + numOfFailedWrites,
       numOfFhirResources = cachedResult.numOfFhirResources + numOfFhirResources,
       numOfInvalids = cachedResult.numOfInvalids + numOfInvalids,
-      completedNumOfChunks =  cachedResult.completedNumOfChunks + 1,
+      completedNumOfChunks = cachedResult.completedNumOfChunks + 1,
       completedNumOfBatches = numOfCompletedBatches
     )
     batchJobMappingTaskExecutionResults.put(mappingJobExecution.id, updatedResult)
@@ -112,13 +126,24 @@ object ExecutionLogger {
    * @param numOfFhirResources  The number of FHIR resources created
    * @param numOfFailedWrites   The number of failed writes
    */
-  def logExecutionResultForStreamingMappingTask(mappingJobExecution: FhirMappingJobExecution, mappingTaskName: String,
-                                                numOfInvalids: Long = 0,
-                                                numOfNotMapped: Long = 0,
-                                                numOfFhirResources: Long = 0,
-                                                numOfFailedWrites: Long = 0): Unit = {
-    //Log the job result
-    val jobResult = FhirMappingJobResult(mappingJobExecution, Some(mappingTaskName), numOfInvalids, numOfNotMapped, numOfFhirResources, numOfFailedWrites, chunkResult = false)
+  def logExecutionResultForStreamingMappingTask(
+      mappingJobExecution: FhirMappingJobExecution,
+      mappingTaskName: String,
+      numOfInvalids: Long = 0,
+      numOfNotMapped: Long = 0,
+      numOfFhirResources: Long = 0,
+      numOfFailedWrites: Long = 0
+  ): Unit = {
+    // Log the job result
+    val jobResult = FhirMappingJobResult(
+      mappingJobExecution,
+      Some(mappingTaskName),
+      numOfInvalids,
+      numOfNotMapped,
+      numOfFhirResources,
+      numOfFailedWrites,
+      chunkResult = false
+    )
     logger.info(jobResult.toMapMarker, jobResult.toString)
   }
 
@@ -128,7 +153,7 @@ object ExecutionLogger {
    * @param executionId The ID of the mapping job execution
    */
   def logExecutionResultForBatchMappingTask(executionId: String): Unit = {
-    //Log the job result
+    // Log the job result
     val jobResult = batchJobMappingTaskExecutionResults(executionId).copy(chunkResult = false)
     logger.info(jobResult.toMapMarker, jobResult.toString)
     // remove execution from the map
@@ -142,11 +167,16 @@ object ExecutionLogger {
    * @param mappingTaskName     The name of the mapping task being executed.
    * @param numOfChunks         The total number of chunks the batch mapping task will be executed in.
    */
-  def logChunkSizeForBatchMappingTask(mappingJobExecution: FhirMappingJobExecution, mappingTaskName: String, numOfChunks: Int): Unit = {
+  def logChunkSizeForBatchMappingTask(
+      mappingJobExecution: FhirMappingJobExecution,
+      mappingTaskName: String,
+      numOfChunks: Int
+  ): Unit = {
     // modify the result of mapping job execution kept in the map
     val cachedResult = batchJobMappingTaskExecutionResults(mappingJobExecution.id)
     val updatedResult = cachedResult.copy(
-      totalNumOfChunks = numOfChunks, completedNumOfChunks = 0
+      totalNumOfChunks = numOfChunks,
+      completedNumOfChunks = 0
     )
     batchJobMappingTaskExecutionResults.put(mappingJobExecution.id, updatedResult)
 
@@ -158,9 +188,9 @@ object ExecutionLogger {
     markerMap.put("executionId", mappingJobExecution.id)
     markerMap.put("mappingTaskName", mappingTaskName)
     // log the chunk progress for batch jobs
-    if(!mappingJobExecution.isStreamingJob){
-      markerMap.put("chunkProgress",s"0 / $numOfChunks")
-      markerMap.put("batchProgress",s"${updatedResult.completedNumOfBatches} / ${updatedResult.totalNumOfBatches}")
+    if (!mappingJobExecution.isStreamingJob) {
+      markerMap.put("chunkProgress", s"0 / $numOfChunks")
+      markerMap.put("batchProgress", s"${updatedResult.completedNumOfBatches} / ${updatedResult.totalNumOfBatches}")
     }
     // Set the result to "STARTED" to ensure proper display in the Kibana dashboard,
     // preventing the display of a "-" in the relevant column when the result is not yet available.
@@ -171,7 +201,10 @@ object ExecutionLogger {
     // For example, "2024-08-28_13:54:44.740" may be rounded to "2024-08-28_13:54:44.000" in Elasticsearch.
     // This rounding leads to the loss of crucial millisecond information, which is important for accurately sorting logs.
     markerMap.put("@timestamp", TimeUtil.getCurrentISOTime)
-    logger.info(new MapMarker("marker", markerMap), s"Executing the mapping ${mappingTaskName} within job ${mappingJobExecution.jobId} in $numOfChunks chunks ...")
+    logger.info(
+      new MapMarker("marker", markerMap),
+      s"Executing the mapping ${mappingTaskName} within job ${mappingJobExecution.jobId} in $numOfChunks chunks ..."
+    )
   }
 
   /**
@@ -183,7 +216,13 @@ object ExecutionLogger {
    * @param batchNumber the current batch number (0-based index)
    * @param batchParams batch parameters
    */
-  def logBatchStartForBatchMappingTask(mappingJobExecution: FhirMappingJobExecution, mappingTaskName: String, numOfBatches: Int, batchNumber: Int, batchParams:Map[String,String]): Unit = {
+  def logBatchStartForBatchMappingTask(
+      mappingJobExecution: FhirMappingJobExecution,
+      mappingTaskName: String,
+      numOfBatches: Int,
+      batchNumber: Int,
+      batchParams: Map[String, String]
+  ): Unit = {
     // modify the result of mapping job execution kept in the map
     val cachedResult = batchJobMappingTaskExecutionResults(mappingJobExecution.id)
     val updatedResult = cachedResult.copy(
@@ -200,9 +239,9 @@ object ExecutionLogger {
     markerMap.put("executionId", mappingJobExecution.id)
     markerMap.put("mappingTaskName", mappingTaskName)
     // log the batch progress for batch jobs
-    if(!mappingJobExecution.isStreamingJob){
-      markerMap.put("chunkProgress",s"0 / 1") // chunk size is not determined yet
-      markerMap.put("batchProgress",s"$batchNumber / $numOfBatches")
+    if (!mappingJobExecution.isStreamingJob) {
+      markerMap.put("chunkProgress", s"0 / 1") // chunk size is not determined yet
+      markerMap.put("batchProgress", s"$batchNumber / $numOfBatches")
     }
     // Set the result to "STARTED" to ensure proper display in the Kibana dashboard,
     // preventing the display of a "-" in the relevant column when the result is not yet available.
@@ -213,6 +252,9 @@ object ExecutionLogger {
     // For example, "2024-08-28_13:54:44.740" may be rounded to "2024-08-28_13:54:44.000" in Elasticsearch.
     // This rounding leads to the loss of crucial millisecond information, which is important for accurately sorting logs.
     markerMap.put("@timestamp", TimeUtil.getCurrentISOTime)
-    logger.info(new MapMarker("marker", markerMap), s"Processing batch ${batchNumber+1}/$numOfBatches for mapping ${mappingTaskName} with parameters: $batchParams")
+    logger.info(
+      new MapMarker("marker", markerMap),
+      s"Processing batch ${batchNumber + 1}/$numOfBatches for mapping ${mappingTaskName} with parameters: $batchParams"
+    )
   }
 }

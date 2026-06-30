@@ -19,7 +19,9 @@ trait IFhirMappingService extends Serializable {
    * @return Mapping expression identifier, Mapped resources, optional FHIR interaction for persistence details
    */
   @throws[FhirMappingException]
-  def mapToFhir(source: JObject, contextVariables: Map[String, JValue] = Map.empty): Future[Seq[(String, Seq[Resource], Option[FhirInteraction])]]
-
+  def mapToFhir(
+      source: JObject,
+      contextVariables: Map[String, JValue] = Map.empty
+  ): Future[Seq[(String, Seq[Resource], Option[FhirInteraction])]]
 
 }

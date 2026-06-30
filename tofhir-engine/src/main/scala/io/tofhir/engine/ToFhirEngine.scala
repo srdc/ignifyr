@@ -20,9 +20,14 @@ import org.apache.spark.sql.SparkSession
  * @param mappingRepository        Already instantiated mapping repository that maintains a dynamically-updated data structure based on the operations on the mappings
  * @param schemaRepository         Already instantiated schema repository that maintains a dynamically-updated data structure based on the operations on the schemas
  */
-class ToFhirEngine(mappingRepository: Option[IFhirMappingRepository] = None, schemaRepository: Option[IFhirSchemaLoader] = None) {
+class ToFhirEngine(
+    mappingRepository: Option[IFhirMappingRepository] = None,
+    schemaRepository: Option[IFhirSchemaLoader] = None
+) {
   // Validate that both mapping and schema repositories are empty or non-empty
-  if (mappingRepository.nonEmpty && schemaRepository.isEmpty || mappingRepository.isEmpty && schemaRepository.nonEmpty) {
+  if (
+    mappingRepository.nonEmpty && schemaRepository.isEmpty || mappingRepository.isEmpty && schemaRepository.nonEmpty
+  ) {
     throw EngineInitializationException("Mapping and schema repositories should both empty or non-empty")
   }
 
@@ -30,14 +35,17 @@ class ToFhirEngine(mappingRepository: Option[IFhirMappingRepository] = None, sch
 
   val sparkSession: SparkSession = ToFhirConfig.sparkSession
 
-  //Repository for mapping definitions
-  val mappingRepo: IFhirMappingRepository = mappingRepository.getOrElse(new FhirMappingFolderRepository(FileUtils.getPath(engineConfig.mappingRepositoryFolderPath).toUri))
+  // Repository for mapping definitions
+  val mappingRepo: IFhirMappingRepository = mappingRepository.getOrElse(
+    new FhirMappingFolderRepository(FileUtils.getPath(engineConfig.mappingRepositoryFolderPath).toUri)
+  )
 
-  //Context loader
+  // Context loader
   val contextLoader: IMappingContextLoader = new MappingContextLoader
 
-  //Repository for source data schemas
-  val schemaLoader: IFhirSchemaLoader = schemaRepository.getOrElse(new SchemaFolderLoader(FileUtils.getPath(engineConfig.schemaRepositoryFolderPath).toUri))
+  // Repository for source data schemas
+  val schemaLoader: IFhirSchemaLoader =
+    schemaRepository.getOrElse(new SchemaFolderLoader(FileUtils.getPath(engineConfig.schemaRepositoryFolderPath).toUri))
 
   // Function libraries containing context-independent, built-in libraries and libraries passed externally
   val functionLibraries: Map[String, IFhirPathFunctionLibraryFactory] = initializeFunctionLibraries()
@@ -55,9 +63,10 @@ class ToFhirEngine(mappingRepository: Option[IFhirMappingRepository] = None, sch
    * @return
    */
   private def initializeFunctionLibraries(): Map[String, IFhirPathFunctionLibraryFactory] = {
-    val externalFunctionLibraryFactories: Map[String, IFhirPathFunctionLibraryFactory] = engineConfig.functionLibrariesConfig
-      .map(_.functionLibrariesFactories)
-      .getOrElse(Map.empty)
+    val externalFunctionLibraryFactories: Map[String, IFhirPathFunctionLibraryFactory] =
+      engineConfig.functionLibrariesConfig
+        .map(_.functionLibrariesFactories)
+        .getOrElse(Map.empty)
     Map(
       FhirPathUtilFunctionsFactory.defaultPrefix -> FhirPathUtilFunctionsFactory,
       FhirPathNavFunctionsFactory.defaultPrefix -> FhirPathNavFunctionsFactory,

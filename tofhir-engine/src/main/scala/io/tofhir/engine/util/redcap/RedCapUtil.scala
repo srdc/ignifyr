@@ -20,10 +20,17 @@ object RedCapUtil {
    * @param recordIdField     The name of the field that represents the record ID.
    * @return the list of schemas extracted from REDCap data dictionary
    * */
-  def extractSchemas(content: Seq[Map[String, String]], definitionRootUrl: String, recordIdField: String = ""): Seq[Resource] = {
-    val schemaDefinitions: Seq[SchemaDefinition] = extractSchemasAsSchemaDefinitions(content, definitionRootUrl, recordIdField)
+  def extractSchemas(
+      content: Seq[Map[String, String]],
+      definitionRootUrl: String,
+      recordIdField: String = ""
+  ): Seq[Resource] = {
+    val schemaDefinitions: Seq[SchemaDefinition] =
+      extractSchemasAsSchemaDefinitions(content, definitionRootUrl, recordIdField)
     // convert it to FHIR Resources
-    schemaDefinitions.map(definition =>  SchemaUtil.convertToStructureDefinitionResource(definition, ToFhirConfig.engineConfig.schemaRepositoryFhirVersion))
+    schemaDefinitions.map(definition =>
+      SchemaUtil.convertToStructureDefinitionResource(definition, ToFhirConfig.engineConfig.schemaRepositoryFhirVersion)
+    )
   }
 
   /**
@@ -35,46 +42,88 @@ object RedCapUtil {
    * @return the list of schemas extracted from REDCap data dictionary
    * @throws BadRequestException when REDCap data dictionary file does not include {@link RedCapDataDictionaryColumns.VARIABLE_FIELD_NAME}
    * */
-  def extractSchemasAsSchemaDefinitions(content: Seq[Map[String, String]], definitionRootUrl: String, recordIdField: String): Seq[SchemaDefinition] = {
+  def extractSchemasAsSchemaDefinitions(
+      content: Seq[Map[String, String]],
+      definitionRootUrl: String,
+      recordIdField: String
+  ): Seq[SchemaDefinition] = {
     // find forms
-    val forms: Map[String, Seq[Map[String, String]]] = content.groupBy(row => row(RedCapDataDictionaryColumns.FORM_NAME))
+    val forms: Map[String, Seq[Map[String, String]]] =
+      content.groupBy(row => row(RedCapDataDictionaryColumns.FORM_NAME))
     // create a schema for each form
-    forms.map(form => {
-      val schemaName = form._1
-      val schemaId = schemaName.capitalize
-      // get schema definitions
-      var definitions:Seq[SimpleStructureDefinition] = Seq.empty
-      // whether the record identifier field is included in the instrument or not
-      var includeRecordIdentifierField: Boolean = false
-      form._2.foreach(row => {
-        // read columns
-        // try to retrieve the variable name from the regular field name column.
-        // if it's not present, fallback to the field name column that includes BOM.
-        val variableName: Option[String] = row.get(RedCapDataDictionaryColumns.VARIABLE_FIELD_NAME).orElse(row.get(RedCapDataDictionaryColumns.VARIABLE_FIELD_NAME_WITH_BOM))
-        if(variableName.isEmpty)
-          throw new BadRequestException(s"Invalid REDCap Data Dictionary file since it does not include the following column: ${RedCapDataDictionaryColumns.VARIABLE_FIELD_NAME}")
-        val fieldType = row(RedCapDataDictionaryColumns.FIELD_TYPE)
-        val fieldLabel = row(RedCapDataDictionaryColumns.FIELD_LABEL).trim()
-        val fieldNotes = row.getOrElse(RedCapDataDictionaryColumns.FIELD_NOTES, fieldLabel).trim()
-        val required = row(RedCapDataDictionaryColumns.REQUIRED_FIELD)
-        val textValidationType = row.get(RedCapDataDictionaryColumns.TEXT_VALIDATION_TYPE)
+    forms
+      .map(form => {
+        val schemaName = form._1
+        val schemaId = schemaName.capitalize
+        // get schema definitions
+        var definitions: Seq[SimpleStructureDefinition] = Seq.empty
+        // whether the record identifier field is included in the instrument or not
+        var includeRecordIdentifierField: Boolean = false
+        form._2.foreach(row => {
+          // read columns
+          // try to retrieve the variable name from the regular field name column.
+          // if it's not present, fallback to the field name column that includes BOM.
+          val variableName: Option[String] = row
+            .get(RedCapDataDictionaryColumns.VARIABLE_FIELD_NAME)
+            .orElse(row.get(RedCapDataDictionaryColumns.VARIABLE_FIELD_NAME_WITH_BOM))
+          if (variableName.isEmpty)
+            throw new BadRequestException(
+              s"Invalid REDCap Data Dictionary file since it does not include the following column: ${RedCapDataDictionaryColumns.VARIABLE_FIELD_NAME}"
+            )
+          val fieldType = row(RedCapDataDictionaryColumns.FIELD_TYPE)
+          val fieldLabel = row(RedCapDataDictionaryColumns.FIELD_LABEL).trim()
+          val fieldNotes = row.getOrElse(RedCapDataDictionaryColumns.FIELD_NOTES, fieldLabel).trim()
+          val required = row(RedCapDataDictionaryColumns.REQUIRED_FIELD)
+          val textValidationType = row.get(RedCapDataDictionaryColumns.TEXT_VALIDATION_TYPE)
 
-        // discard the descriptive fields since they do not provide any data and they are not included in the export
-        // record response
-        if(!fieldType.contentEquals(RedCapDataTypes.DESCRIPTIVE)){
-          // find applicable data type
-          val dataType = getDataType(fieldType, textValidationType)
-          // find cardinality
-          val cardinality = getCardinality(fieldType, required)
+          // discard the descriptive fields since they do not provide any data and they are not included in the export
+          // record response
+          if (!fieldType.contentEquals(RedCapDataTypes.DESCRIPTIVE)) {
+            // find applicable data type
+            val dataType = getDataType(fieldType, textValidationType)
+            // find cardinality
+            val cardinality = getCardinality(fieldType, required)
 
-          definitions = definitions :+ SimpleStructureDefinition(id = variableName.get,
-            path = s"$schemaId.${variableName.get}",
-            dataTypes = Some(Seq(dataType)),
+            definitions = definitions :+ SimpleStructureDefinition(
+              id = variableName.get,
+              path = s"$schemaId.${variableName.get}",
+              dataTypes = Some(Seq(dataType)),
+              isPrimitive = true, // every field of a REDCap schema is primitive
+              isChoiceRoot = false,
+              isArray = cardinality._2.isEmpty,
+              minCardinality = cardinality._1,
+              maxCardinality = cardinality._2,
+              boundToValueSet = None,
+              isValueSetBindingRequired = None,
+              referencableProfiles = None,
+              constraintDefinitions = None,
+              sliceDefinition = None,
+              sliceName = None,
+              fixedValue = None,
+              patternValue = None,
+              referringTo = None,
+              short = Some(fieldLabel),
+              definition = Some(fieldNotes),
+              comment = None,
+              elements = None
+            )
+          }
+          // check whether it is the record identifier field
+          if (!includeRecordIdentifierField && variableName.get.contentEquals(recordIdField)) {
+            includeRecordIdentifierField = true
+          }
+        })
+        // add record identifier field if it does not exist in the form
+        if (!includeRecordIdentifierField) {
+          definitions = SimpleStructureDefinition(
+            id = recordIdField,
+            path = s"$schemaId.${recordIdField}",
+            dataTypes = Some(Seq(getDataType(RedCapDataTypes.TEXT))),
             isPrimitive = true, // every field of a REDCap schema is primitive
             isChoiceRoot = false,
-            isArray = cardinality._2.isEmpty,
-            minCardinality = cardinality._1,
-            maxCardinality = cardinality._2,
+            isArray = false, // there is only one record identifier
+            minCardinality = 0,
+            maxCardinality = Some(1),
             boundToValueSet = None,
             isValueSetBindingRequired = None,
             referencableProfiles = None,
@@ -84,52 +133,25 @@ object RedCapUtil {
             fixedValue = None,
             patternValue = None,
             referringTo = None,
-            short = Some(fieldLabel),
-            definition = Some(fieldNotes),
+            short = Some("Record Identifier"),
+            definition = Some("Unique identifier for individual record within a project"),
             comment = None,
             elements = None
-          )
+          ) +: definitions
         }
-        // check whether it is the record identifier field
-        if(!includeRecordIdentifierField && variableName.get.contentEquals(recordIdField)){
-          includeRecordIdentifierField = true
-        }
-      })
-      // add record identifier field if it does not exist in the form
-      if(!includeRecordIdentifierField){
-        definitions = SimpleStructureDefinition(id = recordIdField,
-          path = s"$schemaId.${recordIdField}",
-          dataTypes = Some(Seq(getDataType(RedCapDataTypes.TEXT))),
-          isPrimitive = true, // every field of a REDCap schema is primitive
-          isChoiceRoot = false,
-          isArray = false, // there is only one record identifier
-          minCardinality = 0,
-          maxCardinality = Some(1),
-          boundToValueSet = None,
-          isValueSetBindingRequired = None,
-          referencableProfiles = None,
-          constraintDefinitions = None,
-          sliceDefinition = None,
-          sliceName = None,
-          fixedValue = None,
-          patternValue = None,
-          referringTo = None,
-          short = Some("Record Identifier"),
-          definition = Some("Unique identifier for individual record within a project"),
-          comment = None,
-          elements = None
-        ) +: definitions
-      }
 
-      SchemaDefinition(id = schemaId,
-        url = s"$definitionRootUrl/${FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION}/$schemaId",
-        version = SchemaDefinition.VERSION_LATEST, // Set the schema version to latest for the REDCap schemas
-        `type` = schemaId,
-        name = schemaName,
-        description = None,
-        rootDefinition = None,
-        fieldDefinitions = Some(definitions))
-    }).toSeq
+        SchemaDefinition(
+          id = schemaId,
+          url = s"$definitionRootUrl/${FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION}/$schemaId",
+          version = SchemaDefinition.VERSION_LATEST, // Set the schema version to latest for the REDCap schemas
+          `type` = schemaId,
+          name = schemaName,
+          description = None,
+          rootDefinition = None,
+          fieldDefinitions = Some(definitions)
+        )
+      })
+      .toSeq
   }
 
   /**
@@ -146,7 +168,8 @@ object RedCapUtil {
     }
     val maxCardinality = fieldType match {
       case RedCapDataTypes.CHECKBOXES => None
-      case RedCapDataTypes.DESCRIPTIVE => Some(0) // descriptive fields are used for decorative purposes, they do not provide any data
+      case RedCapDataTypes.DESCRIPTIVE =>
+        Some(0) // descriptive fields are used for decorative purposes, they do not provide any data
       case _ => Some(1)
     }
     (minCardinality, maxCardinality)
@@ -165,53 +188,180 @@ object RedCapUtil {
       case RedCapDataTypes.TEXT | RedCapDataTypes.NOTES =>
         if (textValidationType.nonEmpty) {
           textValidationType.get match {
-            case RedCapTextValidationTypes.DATE_DMY => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}")))
-            case RedCapTextValidationTypes.DATE_MDY => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}")))
-            case RedCapTextValidationTypes.DATE_YMD => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}")))
-            case RedCapTextValidationTypes.DATETIME_DMY => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))
-            case RedCapTextValidationTypes.DATETIME_MDY => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))
-            case RedCapTextValidationTypes.DATETIME_YMD => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))
-            case RedCapTextValidationTypes.DATETIME_SECOND_DMY => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))
-            case RedCapTextValidationTypes.DATETIME_SECONDS_MDY => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))
-            case RedCapTextValidationTypes.DATETIME_SECONDS_YMD => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))
-            case RedCapTextValidationTypes.EMAIL => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))
-            case RedCapTextValidationTypes.INTEGER => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.INTEGER, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}")))
-            case RedCapTextValidationTypes.NUMBER => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DECIMAL, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}")))
-            case RedCapTextValidationTypes.PHONE => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))
-            case RedCapTextValidationTypes.TIME => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.TIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.TIME}")))
-            case RedCapTextValidationTypes.ZIP_CODE => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))
-            case RedCapTextValidationTypes.POSTAL_CODE_GERMANY => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))
-            case RedCapTextValidationTypes.TIME_MM_SS => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.TIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.TIME}")))
-            case RedCapTextValidationTypes.NUMBER_2DP => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DECIMAL, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}")))
-            case "" => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))
+            case RedCapTextValidationTypes.DATE_DMY =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATE,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}"))
+              )
+            case RedCapTextValidationTypes.DATE_MDY =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATE,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}"))
+              )
+            case RedCapTextValidationTypes.DATE_YMD =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATE,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}"))
+              )
+            case RedCapTextValidationTypes.DATETIME_DMY =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATETIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+              )
+            case RedCapTextValidationTypes.DATETIME_MDY =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATETIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+              )
+            case RedCapTextValidationTypes.DATETIME_YMD =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATETIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+              )
+            case RedCapTextValidationTypes.DATETIME_SECOND_DMY =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATETIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+              )
+            case RedCapTextValidationTypes.DATETIME_SECONDS_MDY =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATETIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+              )
+            case RedCapTextValidationTypes.DATETIME_SECONDS_YMD =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DATETIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+              )
+            case RedCapTextValidationTypes.EMAIL =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.STRING,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+              )
+            case RedCapTextValidationTypes.INTEGER =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.INTEGER,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}"))
+              )
+            case RedCapTextValidationTypes.NUMBER =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DECIMAL,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}"))
+              )
+            case RedCapTextValidationTypes.PHONE =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.STRING,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+              )
+            case RedCapTextValidationTypes.TIME =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.TIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.TIME}"))
+              )
+            case RedCapTextValidationTypes.ZIP_CODE =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.STRING,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+              )
+            case RedCapTextValidationTypes.POSTAL_CODE_GERMANY =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.STRING,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+              )
+            case RedCapTextValidationTypes.TIME_MM_SS =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.TIME,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.TIME}"))
+              )
+            case RedCapTextValidationTypes.NUMBER_2DP =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.DECIMAL,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}"))
+              )
+            case "" =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.STRING,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+              )
             case _ => {
               throw new IllegalArgumentException(s"Invalid text validation type for texts: ${textValidationType.get}")
             }
           }
         } else {
-          DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))
+          DataTypeWithProfiles(
+            dataType = FHIR_DATA_TYPES.STRING,
+            profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+          )
         }
-      case RedCapDataTypes.RADIO => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.CODE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}")))
-      case RedCapDataTypes.DROPDOWN => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.CODE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}")))
-      case RedCapDataTypes.CHECKBOXES => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.CODE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}")))
-      case RedCapDataTypes.CALC => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DECIMAL, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}")))
+      case RedCapDataTypes.RADIO =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.CODE,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}"))
+        )
+      case RedCapDataTypes.DROPDOWN =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.CODE,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}"))
+        )
+      case RedCapDataTypes.CHECKBOXES =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.CODE,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}"))
+        )
+      case RedCapDataTypes.CALC =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.DECIMAL,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}"))
+        )
       case RedCapDataTypes.FILE =>
         if (textValidationType.nonEmpty) {
           textValidationType.get match {
-            case RedCapTextValidationTypes.SIGNATURE => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.SIGNATURE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.SIGNATURE}")))
-            case "" => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.BASE64BINARY, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BASE64BINARY}")))
+            case RedCapTextValidationTypes.SIGNATURE =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.SIGNATURE,
+                profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.SIGNATURE}"))
+              )
+            case "" =>
+              DataTypeWithProfiles(
+                dataType = FHIR_DATA_TYPES.BASE64BINARY,
+                profiles =
+                  Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BASE64BINARY}"))
+              )
             case _ => {
               throw new IllegalArgumentException(s"Invalid text validation type for files: ${textValidationType.get}")
             }
           }
         } else {
-          DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.BASE64BINARY, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BASE64BINARY}")))
+          DataTypeWithProfiles(
+            dataType = FHIR_DATA_TYPES.BASE64BINARY,
+            profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BASE64BINARY}"))
+          )
         }
-      case RedCapDataTypes.YES_NO => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.BOOLEAN, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BOOLEAN}")))
-      case RedCapDataTypes.TRUE_FALSE => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.BOOLEAN, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BOOLEAN}")))
-      case RedCapDataTypes.DESCRIPTIVE => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))
-      case RedCapDataTypes.SLIDER => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.INTEGER, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}")))
-      case RedCapDataTypes.SQL => DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.CODE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}")))
+      case RedCapDataTypes.YES_NO =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.BOOLEAN,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BOOLEAN}"))
+        )
+      case RedCapDataTypes.TRUE_FALSE =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.BOOLEAN,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BOOLEAN}"))
+        )
+      case RedCapDataTypes.DESCRIPTIVE =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.STRING,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+        )
+      case RedCapDataTypes.SLIDER =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.INTEGER,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}"))
+        )
+      case RedCapDataTypes.SQL =>
+        DataTypeWithProfiles(
+          dataType = FHIR_DATA_TYPES.CODE,
+          profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.CODE}"))
+        )
       case _ => {
         throw new IllegalArgumentException(s"Invalid data type: $fieldType")
       }
@@ -277,4 +427,3 @@ object RedCapTextValidationTypes {
   val SIGNATURE = "signature"
   val NUMBER_2DP = "number_2dp" // number with exactly two decimal places (125.34)
 }
-

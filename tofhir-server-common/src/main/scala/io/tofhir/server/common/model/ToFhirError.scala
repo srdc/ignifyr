@@ -6,18 +6,22 @@ import java.io.{PrintWriter, StringWriter}
  * Any exception thrown by ToFHIR server
  */
 abstract class ToFhirError extends Exception {
+
   /**
    * HTTP status code to return when this error occurs
    */
   val statusCode: Int
+
   /**
    * Type of the error
    */
   val `type`: String = s"https://tofhir.io/errors/${getClass.getSimpleName}"
+
   /**
    * Title of the error
    */
   val title: String
+
   /**
    * Details of the error
    */
@@ -58,7 +62,8 @@ case class ResourceNotFound(title: String, detail: String) extends ToFhirError {
   val statusCode = 404
 }
 
-case class InternalError(title: String, detail: String, override val cause: Option[Throwable] = None) extends ToFhirError {
+case class InternalError(title: String, detail: String, override val cause: Option[Throwable] = None)
+    extends ToFhirError {
   val statusCode = 500
 }
 

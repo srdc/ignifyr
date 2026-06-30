@@ -65,43 +65,60 @@ object PullRxNormNdcMedDetails extends App {
     // Create CSVWriter object
     val csvWriter = new CSVWriter(fileWriter)
 
-    try{
+    try {
       // Set headers for the csv file
-      val header = Array("ndc", "doseFormRxcui", "doseFormName", "activeIngredientRxcui", "activeIngredientName",
-        "numeratorUnit", "numeratorValue", "denominatorUnit", "denominatorValue")
+      val header = Array(
+        "ndc",
+        "doseFormRxcui",
+        "doseFormName",
+        "activeIngredientRxcui",
+        "activeIngredientName",
+        "numeratorUnit",
+        "numeratorValue",
+        "denominatorUnit",
+        "denominatorValue"
+      )
       csvWriter.writeNext(header)
 
       ndcSetImmutable.foreach(ndc => {
-        if(ndc.nonEmpty){
+        if (ndc.nonEmpty) {
           // Get conceptIds from RxNorm Api
-          try{
+          try {
             val conceptIds = rxNormApiClient.findRxConceptIdByNdc(ndc);
 
-            conceptIds
-              .iterator
+            conceptIds.iterator
               .filter(_.nonEmpty)
-              .flatMap(rxcui =>
-                rxNormApiClient.getRxcuiHistoryStatus(rxcui)
-              )
+              .flatMap(rxcui => rxNormApiClient.getRxcuiHistoryStatus(rxcui))
               .map(response => {
                 // Get the ingredient details
                 val ingredients =
                   FHIRUtil
-                    .extractValueOptionByPath[Seq[JObject]](response, "rxcuiStatusHistory.definitionalFeatures.ingredientAndStrength")
+                    .extractValueOptionByPath[Seq[JObject]](
+                      response,
+                      "rxcuiStatusHistory.definitionalFeatures.ingredientAndStrength"
+                    )
                     .getOrElse(Nil)
                 val ingredientObjs =
                   ingredients
                     .map(i => {
                       val requiredFields =
-                        Seq("activeIngredientRxcui", "activeIngredientName", "numeratorValue", "numeratorUnit", "denominatorValue", "denominatorUnit")
+                        Seq(
+                          "activeIngredientRxcui",
+                          "activeIngredientName",
+                          "numeratorValue",
+                          "numeratorUnit",
+                          "denominatorValue",
+                          "denominatorUnit"
+                        )
                           .map(f =>
-                            FHIRUtil.extractValueOption[String](i, f)
-                              .filter(_ != "")  // Should filter empty string values
+                            FHIRUtil
+                              .extractValueOption[String](i, f)
+                              .filter(_ != "") // Should filter empty string values
                               .map(v =>
-                                if(f == "numeratorValue" || f == "denominatorValue")
+                                if (f == "numeratorValue" || f == "denominatorValue")
                                   f -> JDouble(v.toDouble)
                                 else
-                                  f ->   JString(v)
+                                  f -> JString(v)
                               )
                           )
                       if (requiredFields.forall(_.isDefined))
@@ -112,10 +129,13 @@ object PullRxNormNdcMedDetails extends App {
 
                 val doseFormObj =
                   FHIRUtil
-                    .extractValueOptionByPath[Seq[JObject]](response, "rxcuiStatusHistory.definitionalFeatures.doseFormConcept")
+                    .extractValueOptionByPath[Seq[JObject]](
+                      response,
+                      "rxcuiStatusHistory.definitionalFeatures.doseFormConcept"
+                    )
                     .getOrElse(Nil)
                     .headOption
-                if(ingredientObjs.nonEmpty && ingredientObjs.forall(_.isDefined)){
+                if (ingredientObjs.nonEmpty && ingredientObjs.forall(_.isDefined)) {
                   Some(
                     JObject(
                       List(
@@ -129,22 +149,35 @@ object PullRxNormNdcMedDetails extends App {
                 } else
                   None
               })
-              .find(_.isDefined).foreach(r => {
+              .find(_.isDefined)
+              .foreach(r => {
 
-              val doseFormRxcui = (r.get \ "doseFormConcept" \ "doseFormRxcui").extract[String]
-              val doseFormName = (r.get \ "doseFormConcept" \ "doseFormName").extract[String]
-              val activeIngredientRxcui = ((r.get \ "ingredientAndStrength")(0) \ "activeIngredientRxcui").extract[String]
-              val activeIngredientName = ((r.get \ "ingredientAndStrength")(0) \ "activeIngredientName").extract[String]
-              val numeratorUnit = ((r.get \ "ingredientAndStrength")(0) \ "numeratorUnit").extract[String]
-              val numeratorValue = ((r.get \ "ingredientAndStrength")(0) \ "numeratorValue").extract[String]
-              val denominatorUnit = ((r.get \ "ingredientAndStrength")(0) \ "denominatorUnit").extract[String]
-              val denominatorValue = ((r.get \ "ingredientAndStrength")(0) \ "denominatorValue").extract[String]
-              csvWriter.writeNext(Array(ndc, doseFormRxcui, doseFormName, activeIngredientRxcui, activeIngredientName,
-                numeratorUnit, numeratorValue, denominatorUnit, denominatorValue))
+                val doseFormRxcui = (r.get \ "doseFormConcept" \ "doseFormRxcui").extract[String]
+                val doseFormName = (r.get \ "doseFormConcept" \ "doseFormName").extract[String]
+                val activeIngredientRxcui =
+                  ((r.get \ "ingredientAndStrength")(0) \ "activeIngredientRxcui").extract[String]
+                val activeIngredientName =
+                  ((r.get \ "ingredientAndStrength")(0) \ "activeIngredientName").extract[String]
+                val numeratorUnit = ((r.get \ "ingredientAndStrength")(0) \ "numeratorUnit").extract[String]
+                val numeratorValue = ((r.get \ "ingredientAndStrength")(0) \ "numeratorValue").extract[String]
+                val denominatorUnit = ((r.get \ "ingredientAndStrength")(0) \ "denominatorUnit").extract[String]
+                val denominatorValue = ((r.get \ "ingredientAndStrength")(0) \ "denominatorValue").extract[String]
+                csvWriter.writeNext(
+                  Array(
+                    ndc,
+                    doseFormRxcui,
+                    doseFormName,
+                    activeIngredientRxcui,
+                    activeIngredientName,
+                    numeratorUnit,
+                    numeratorValue,
+                    denominatorUnit,
+                    denominatorValue
+                  )
+                )
 
-            }
-            )
-          }catch {
+              })
+          } catch {
             case e: Throwable => println(e)
           }
         }

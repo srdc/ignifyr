@@ -46,7 +46,8 @@ class SchedulingTest extends AnyFlatSpec with BeforeAndAfterAll with ToFhirTestS
 
   private def readFileContent(fileName: String): String = {
     val source: BufferedSource = Source.fromInputStream(getClass.getResourceAsStream(fileName))
-    try source.mkString finally source.close()
+    try source.mkString
+    finally source.close()
   }
 
   private def runSQL(sql: String): Boolean = {
@@ -66,7 +67,9 @@ class SchedulingTest extends AnyFlatSpec with BeforeAndAfterAll with ToFhirTestS
     (1 to 10).foreach(i => {
       batchRequest = batchRequest.entry(_.delete("Patient", FhirMappingUtility.getHashedId("Patient", "p" + i)))
     })
-    val f = onFhirClient.search("Observation").where("subject", "Patient/" + FhirMappingUtility.getHashedId("Patient", "p4")) flatMap { observationBundle =>
+    val f = onFhirClient
+      .search("Observation")
+      .where("subject", "Patient/" + FhirMappingUtility.getHashedId("Patient", "p4")) flatMap { observationBundle =>
       observationBundle.searchResults.foreach(obs => {
         batchRequest = batchRequest.entry(_.delete("Observation", (obs \ "id").extract[String]))
       })
@@ -80,7 +83,8 @@ class SchedulingTest extends AnyFlatSpec with BeforeAndAfterAll with ToFhirTestS
   val scheduler = new Scheduler()
 
   val resourcePath: URI = getClass.getResource("/").toURI
-  val toFhirDb: Path = Paths.get(resourcePath.resolve(ToFhirConfig.engineConfig.toFhirDbFolderPath).resolve("scheduler"))
+  val toFhirDb: Path =
+    Paths.get(resourcePath.resolve(ToFhirConfig.engineConfig.toFhirDbFolderPath).resolve("scheduler"))
 
   val mappingJobScheduler: MappingJobScheduler = MappingJobScheduler(scheduler, toFhirDb.toUri)
 
@@ -91,33 +95,49 @@ class SchedulingTest extends AnyFlatSpec with BeforeAndAfterAll with ToFhirTestS
   it should "schedule a FhirMappingJob with cron and sink settings restored from a file" in {
     val lMappingJob: FhirMappingJob = FhirMappingJobFormatter.readMappingJobFromFile(testScheduleMappingJobFilePath)
 
-    val fhirMappingJobManager = new FhirMappingJobManager(mappingRepository, new MappingContextLoader, schemaRepository, Map(FhirPathUtilFunctionsFactory.defaultPrefix -> FhirPathUtilFunctionsFactory), sparkSession, Some(mappingJobScheduler))
-    fhirMappingJobManager.scheduleMappingJob(mappingJobExecution = FhirMappingJobExecution(mappingTasks = lMappingJob.mappings, job = lMappingJob), sourceSettings = lMappingJob.sourceSettings, sinkSettings = lMappingJob.sinkSettings.asInstanceOf[FhirRepositorySinkSettings].copy(fhirRepoUrl = onFhirClient.getBaseUrl()), schedulingSettings = lMappingJob.schedulingSettings.get)
-    scheduler.start() //job set to run every minute
-    Thread.sleep(61000) //wait for the job to be executed once
+    val fhirMappingJobManager = new FhirMappingJobManager(
+      mappingRepository,
+      new MappingContextLoader,
+      schemaRepository,
+      Map(FhirPathUtilFunctionsFactory.defaultPrefix -> FhirPathUtilFunctionsFactory),
+      sparkSession,
+      Some(mappingJobScheduler)
+    )
+    fhirMappingJobManager.scheduleMappingJob(
+      mappingJobExecution = FhirMappingJobExecution(mappingTasks = lMappingJob.mappings, job = lMappingJob),
+      sourceSettings = lMappingJob.sourceSettings,
+      sinkSettings =
+        lMappingJob.sinkSettings.asInstanceOf[FhirRepositorySinkSettings].copy(fhirRepoUrl = onFhirClient.getBaseUrl()),
+      schedulingSettings = lMappingJob.schedulingSettings.get
+    )
+    scheduler.start() // job set to run every minute
+    Thread.sleep(61000) // wait for the job to be executed once
     scheduler.stop()
 
     val directory = new File(toFhirDb.toUri)
     FileUtils.cleanDirectory(directory)
 
-    val searchTest = onFhirClient.read("Patient", FhirMappingUtility.getHashedId("Patient", "p8")).executeAndReturnResource() flatMap { p1Resource =>
-      FHIRUtil.extractIdFromResource(p1Resource) shouldBe FhirMappingUtility.getHashedId("Patient", "p8")
-      FHIRUtil.extractValue[String](p1Resource, "gender") shouldBe "female"
-      FHIRUtil.extractValue[String](p1Resource, "birthDate") shouldBe "2010-01-10"
+    val searchTest =
+      onFhirClient.read("Patient", FhirMappingUtility.getHashedId("Patient", "p8")).executeAndReturnResource() flatMap {
+        p1Resource =>
+          FHIRUtil.extractIdFromResource(p1Resource) shouldBe FhirMappingUtility.getHashedId("Patient", "p8")
+          FHIRUtil.extractValue[String](p1Resource, "gender") shouldBe "female"
+          FHIRUtil.extractValue[String](p1Resource, "birthDate") shouldBe "2010-01-10"
 
-      onFhirClient.search("Observation").where("code", "9269-2").executeAndReturnBundle() flatMap { observationBundle =>
-        //the Observation with the code 9269-2 matches our time range, others should not
-        observationBundle.searchResults.length shouldBe 1
-        (observationBundle.searchResults.head \ "subject" \ "reference").extract[String] shouldBe
-          FhirMappingUtility.getHashedReference("Patient", "p4")
-        //the Observation with the code 445619006, as an example, does not match our time range
-        onFhirClient.search("Observation").where("code", "445619006").executeAndReturnBundle() map { emptyObservationBundle =>
-          emptyObservationBundle.searchResults shouldBe empty
-        }
+          onFhirClient.search("Observation").where("code", "9269-2").executeAndReturnBundle() flatMap {
+            observationBundle =>
+              // the Observation with the code 9269-2 matches our time range, others should not
+              observationBundle.searchResults.length shouldBe 1
+              (observationBundle.searchResults.head \ "subject" \ "reference").extract[String] shouldBe
+                FhirMappingUtility.getHashedReference("Patient", "p4")
+              // the Observation with the code 445619006, as an example, does not match our time range
+              onFhirClient.search("Observation").where("code", "445619006").executeAndReturnBundle() map {
+                emptyObservationBundle =>
+                  emptyObservationBundle.searchResults shouldBe empty
+              }
+          }
       }
-    }
     Await.result(searchTest, Duration.Inf)
   }
 
 }
-

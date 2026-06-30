@@ -18,6 +18,7 @@ import scala.util.Using
  * @param majorFhirVersion FHIR version to initialize the underlying FHIR parser
  */
 class SchemaConverter(majorFhirVersion: String) {
+
   /**
    * Converts the FHIR schema as a [[Resource]] into Spark [[StructType]]
    *
@@ -38,15 +39,13 @@ class SchemaConverter(majorFhirVersion: String) {
    * @return
    */
   protected def convertToSparkSchema(profileRestrictions: ProfileRestrictions): StructType = {
-    val fields = profileRestrictions
-      .elementRestrictions
-      .map {
-        case (elName, eRestrictions) =>
-          StructField(
-            elName,
-            getSparkType(eRestrictions),
-            isNullable(eRestrictions)
-          )
+    val fields = profileRestrictions.elementRestrictions
+      .map { case (elName, eRestrictions) =>
+        StructField(
+          elName,
+          getSparkType(eRestrictions),
+          isNullable(eRestrictions)
+        )
       }
     StructType(fields)
   }
@@ -58,7 +57,8 @@ class SchemaConverter(majorFhirVersion: String) {
    * @return
    */
   private def isNullable(elementRestrictions: ElementRestrictions): Boolean = {
-    elementRestrictions.restrictions.get(ConstraintKeys.MIN)
+    elementRestrictions.restrictions
+      .get(ConstraintKeys.MIN)
       .forall(_.asInstanceOf[CardinalityMinRestriction].n == 0)
   }
 
@@ -76,8 +76,7 @@ class SchemaConverter(majorFhirVersion: String) {
     }
 
     val baseType =
-      elementRestrictions
-        .restrictions
+      elementRestrictions.restrictions
         .get(ConstraintKeys.DATATYPE)
         .map(_.asInstanceOf[TypeRestriction])
         .flatMap(_.dataTypesAndProfiles.headOption.map(_._1)) match {
@@ -85,7 +84,8 @@ class SchemaConverter(majorFhirVersion: String) {
         case Some(fhirType) =>
           fhirType match {
             case FHIR_DATA_TYPES.ID | FHIR_DATA_TYPES.URI | FHIR_DATA_TYPES.URL | FHIR_DATA_TYPES.CODE |
-                 FHIR_DATA_TYPES.STRING | FHIR_DATA_TYPES.OID | FHIR_DATA_TYPES.UUID | FHIR_DATA_TYPES.BASE64BINARY => StringType
+                FHIR_DATA_TYPES.STRING | FHIR_DATA_TYPES.OID | FHIR_DATA_TYPES.UUID | FHIR_DATA_TYPES.BASE64BINARY =>
+              StringType
             case FHIR_DATA_TYPES.DATE | FHIR_DATA_TYPES.TIME | FHIR_DATA_TYPES.DATETIME => StringType
             case FHIR_DATA_TYPES.DECIMAL => DoubleType
             case FHIR_DATA_TYPES.INTEGER | FHIR_DATA_TYPES.POSITIVEINT => IntegerType
@@ -122,20 +122,127 @@ class SchemaConverter(majorFhirVersion: String) {
     val (dataType, isArray, maxCardinality) = {
       def mapDataTypeToFhir(dataType: DataType): Option[Seq[DataTypeWithProfiles]] = {
         dataType match {
-          case DataTypes.ShortType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.INTEGER, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}")))))
-          case DataTypes.LongType => Some(Seq(DataTypeWithProfiles(dataType = "integer64", profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/integer64")))))
-          case DataTypes.StringType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))))
-          case DataTypes.IntegerType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.INTEGER, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}")))))
-          case DataTypes.ByteType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.INTEGER, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}")))))
-          case DataTypes.BinaryType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.BASE64BINARY, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BASE64BINARY}")))))
-          case DataTypes.BooleanType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.BOOLEAN, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BOOLEAN}")))))
-          case DataTypes.CalendarIntervalType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))))
-          case DataTypes.DateType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATE, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}")))))
-          case DataTypes.DoubleType | _: DecimalType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DECIMAL, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}")))))
-          case DataTypes.FloatType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DECIMAL, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}")))))
-          case DataTypes.NullType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.STRING, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}")))))
+          case DataTypes.ShortType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.INTEGER,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}"))
+                )
+              )
+            )
+          case DataTypes.LongType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = "integer64",
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/integer64"))
+                )
+              )
+            )
+          case DataTypes.StringType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.STRING,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+                )
+              )
+            )
+          case DataTypes.IntegerType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.INTEGER,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}"))
+                )
+              )
+            )
+          case DataTypes.ByteType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.INTEGER,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.INTEGER}"))
+                )
+              )
+            )
+          case DataTypes.BinaryType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.BASE64BINARY,
+                  profiles =
+                    Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BASE64BINARY}"))
+                )
+              )
+            )
+          case DataTypes.BooleanType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.BOOLEAN,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.BOOLEAN}"))
+                )
+              )
+            )
+          case DataTypes.CalendarIntervalType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.DATETIME,
+                  profiles =
+                    Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+                )
+              )
+            )
+          case DataTypes.DateType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.DATE,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATE}"))
+                )
+              )
+            )
+          case DataTypes.DoubleType | _: DecimalType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.DECIMAL,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}"))
+                )
+              )
+            )
+          case DataTypes.FloatType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.DECIMAL,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DECIMAL}"))
+                )
+              )
+            )
+          case DataTypes.NullType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.STRING,
+                  profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.STRING}"))
+                )
+              )
+            )
           // should we map TimestampType (Spark) to Instant (FHIR)? We map Instant to DateTime on line 91. This is a bit confusing.
-          case DataTypes.TimestampType => Some(Seq(DataTypeWithProfiles(dataType = FHIR_DATA_TYPES.DATETIME, profiles = Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}")))))
+          case DataTypes.TimestampType =>
+            Some(
+              Seq(
+                DataTypeWithProfiles(
+                  dataType = FHIR_DATA_TYPES.DATETIME,
+                  profiles =
+                    Some(Seq(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/StructureDefinition/${FHIR_DATA_TYPES.DATETIME}"))
+                )
+              )
+            )
           case _ => None
         }
       }
@@ -182,7 +289,13 @@ class SchemaConverter(majorFhirVersion: String) {
    * @param password
    * @return
    */
-  def getTableSchema(jdbcUrl: String, user: String, password: String, sqlOrTable: String, isQuery: Boolean): StructType = {
+  def getTableSchema(
+      jdbcUrl: String,
+      user: String,
+      password: String,
+      sqlOrTable: String,
+      isQuery: Boolean
+  ): StructType = {
 
     // Helper: splits a fully qualified table name into (schema, table)
     // If there's no dot, returns (null, tableName)
@@ -193,14 +306,15 @@ class SchemaConverter(majorFhirVersion: String) {
 
     try {
       Using.Manager { use =>
-        val connection = try {
-          use(DriverManager.getConnection(jdbcUrl, user, password))
-        } catch {
-          case e: SQLException =>
-            throw new RuntimeException(s"Failed to establish JDBC connection: ${e.getMessage}", e)
-          case e: Throwable =>
-            throw new RuntimeException(s"Unexpected error while establishing JDBC connection: ${e.getMessage}", e)
-        }
+        val connection =
+          try {
+            use(DriverManager.getConnection(jdbcUrl, user, password))
+          } catch {
+            case e: SQLException =>
+              throw new RuntimeException(s"Failed to establish JDBC connection: ${e.getMessage}", e)
+            case e: Throwable =>
+              throw new RuntimeException(s"Unexpected error while establishing JDBC connection: ${e.getMessage}", e)
+          }
         if (isQuery) {
           // For SQL queries, execute the query with a limit of zero rows
           val statement = use(connection.createStatement())
@@ -228,7 +342,8 @@ class SchemaConverter(majorFhirVersion: String) {
           // For a table name, use JDBC metadata to get the column definitions
           val metaData = connection.getMetaData
           val rs = use(metaData.getColumns(null, dbSchema, dbTableName, null))
-          val fields = Iterator.continually(rs)
+          val fields = Iterator
+            .continually(rs)
             .takeWhile(_.next())
             .map { rs =>
               val columnName = rs.getString("COLUMN_NAME")

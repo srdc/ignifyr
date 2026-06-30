@@ -26,16 +26,19 @@ import scala.util.{Failure, Success, Try}
  * @param fhirDefinitionsConfig fhir related configurations
  * @param redCapServiceConfig redcap service related configurations
  */
-class MetadataService(toFhirEngineConfig: ToFhirEngineConfig,
-                      webServerConfig: WebServerConfig,
-                      fhirDefinitionsConfig: FhirDefinitionsConfig,
-                      redCapServiceConfig: Option[RedCapServiceConfig]) {
+class MetadataService(
+    toFhirEngineConfig: ToFhirEngineConfig,
+    webServerConfig: WebServerConfig,
+    fhirDefinitionsConfig: FhirDefinitionsConfig,
+    redCapServiceConfig: Option[RedCapServiceConfig]
+) {
+
   /**
    * Use configurations to create a Metadata object along with the version set in pom.xml.
    * @return
    */
   def getMetadata: Metadata = {
-    val properties: Properties  = new Properties()
+    val properties: Properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("version.properties"))
     val toFhirRedCapVersion = getToFhirRedCapVersion
     // fetch the mapping executions' configurations
@@ -79,10 +82,12 @@ class MetadataService(toFhirEngineConfig: ToFhirEngineConfig,
       )
 
       val responseFuture: Future[HttpResponse] = Http().singleRequest(proxiedRequest)
-      val responseAsString = Try(Await.result(
-        responseFuture.flatMap(resp => Unmarshal(resp.entity).to[String]),
-        1.seconds // increasing this leads to increase initial loading time of the toFHIR frontend
-      ))
+      val responseAsString = Try(
+        Await.result(
+          responseFuture.flatMap(resp => Unmarshal(resp.entity).to[String]),
+          1.seconds // increasing this leads to increase initial loading time of the toFHIR frontend
+        )
+      )
 
       responseAsString match {
         case Success(res) => Some(res)
@@ -98,9 +103,23 @@ class MetadataService(toFhirEngineConfig: ToFhirEngineConfig,
    */
   private def getMappingExecutionConfigurations: Seq[MappingExecutionConfiguration] = {
     Seq(
-      MappingExecutionConfiguration(name = "Mapping Timeout", description = "Timeout for each mapping execution on an individual input record", value = toFhirEngineConfig.mappingTimeout.toString),
-      MappingExecutionConfiguration(name = "Maximum Chunk Size", description = "Max chunk size to execute for batch executions, if number of records exceed this, the source data will be divided into chunks", value = toFhirEngineConfig.maxChunkSizeForMappingJobs.getOrElse("Not Set").toString),
-      MappingExecutionConfiguration(name = "Batch Group Size", description = "The number of FHIR resources in the group while executing (create/update) a FHIR batch operation.", value = toFhirEngineConfig.fhirWriterBatchGroupSize.toString)
+      MappingExecutionConfiguration(
+        name = "Mapping Timeout",
+        description = "Timeout for each mapping execution on an individual input record",
+        value = toFhirEngineConfig.mappingTimeout.toString
+      ),
+      MappingExecutionConfiguration(
+        name = "Maximum Chunk Size",
+        description =
+          "Max chunk size to execute for batch executions, if number of records exceed this, the source data will be divided into chunks",
+        value = toFhirEngineConfig.maxChunkSizeForMappingJobs.getOrElse("Not Set").toString
+      ),
+      MappingExecutionConfiguration(
+        name = "Batch Group Size",
+        description =
+          "The number of FHIR resources in the group while executing (create/update) a FHIR batch operation.",
+        value = toFhirEngineConfig.fhirWriterBatchGroupSize.toString
+      )
     )
   }
 }
