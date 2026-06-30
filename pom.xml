@@ -214,6 +214,18 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- scalafmt: run `mvn scalafmt:format` to format all Scala sources (config in /.scalafmt.conf).
+                 Intentionally NOT bound to a lifecycle phase, so it never runs during compile/verify/CI. -->
+            <plugin>
+                <groupId>org.antipathy</groupId>
+                <artifactId>mvn-scalafmt_${scala.binary.version}</artifactId>
+                <version>1.1.1713302731.c3d0074</version>
+                <configuration>
+                    <configLocation>${maven.multiModuleProjectDirectory}/.scalafmt.conf</configLocation>
+                    <skipSources>false</skipSources>
+                    <skipTestSources>false</skipTestSources>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
