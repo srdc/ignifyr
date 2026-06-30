@@ -12,6 +12,9 @@ projects.json
 terminology-systems.json
 test-context-conf/
 
+# AI Support
+.claude
+
 # Spark
 checkpoint/
 
