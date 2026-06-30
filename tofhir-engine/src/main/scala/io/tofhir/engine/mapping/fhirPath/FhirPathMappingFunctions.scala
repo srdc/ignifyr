@@ -3,12 +3,16 @@ package io.tofhir.engine.mapping.fhirPath
 import io.onfhir.api.FHIR_DATA_TYPES
 import io.onfhir.api.util.FHIRUtil
 import io.onfhir.path._
-import io.onfhir.path.annotation.{FhirPathFunction, FhirPathFunctionDocumentation, FhirPathFunctionParameter, FhirPathFunctionReturn}
+import io.onfhir.path.annotation.{
+  FhirPathFunction,
+  FhirPathFunctionDocumentation,
+  FhirPathFunctionParameter,
+  FhirPathFunctionReturn
+}
 import io.onfhir.path.grammar.FhirPathExprParser.ExpressionContext
 import io.tofhir.engine.model.{ConceptMapContext, FhirMappingContext, UnitConversionContext}
 import io.tofhir.engine.util.FhirMappingUtility
 import org.json4s.{JObject, JString}
-
 
 /**
  * Function library for FHIR Path expressions that provide mapping utility functions
@@ -17,8 +21,12 @@ import org.json4s.{JObject, JString}
  * @param current        Current result to apply the function on
  * @param mappingContext Specific mapping context
  */
-class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPathResult], mappingContext: Map[String, FhirMappingContext])
-  extends AbstractFhirPathFunctionLibrary with Serializable {
+class FhirPathMappingFunctions(
+    context: FhirPathEnvironment,
+    current: Seq[FhirPathResult],
+    mappingContext: Map[String, FhirMappingContext]
+) extends AbstractFhirPathFunctionLibrary
+    with Serializable {
 
   /**
    * Get hash of a string to generate a
@@ -27,20 +35,23 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
    */
   @FhirPathFunction(
     documentation = FhirPathFunctionDocumentation(
-      detail = "Creates an ID using the hash of given string. Resource name should be quoted and ID should be string. It returns a string.",
+      detail =
+        "Creates an ID using the hash of given string. Resource name should be quoted and ID should be string. It returns a string.",
       usageWarnings = None,
-      parameters = Some(Seq(
-        FhirPathFunctionParameter(
-          name = "resourceType",
-          detail = "HL7 FHIR resource type to generate hashed ID for.",
-          examples = None
-        ),
-        FhirPathFunctionParameter(
-          name = "id",
-          detail = "A unique ID to generate a hash.",
-          examples = None
+      parameters = Some(
+        Seq(
+          FhirPathFunctionParameter(
+            name = "resourceType",
+            detail = "HL7 FHIR resource type to generate hashed ID for.",
+            examples = None
+          ),
+          FhirPathFunctionParameter(
+            name = "id",
+            detail = "A unique ID to generate a hash.",
+            examples = None
+          )
         )
-      )),
+      ),
       returnValue = FhirPathFunctionReturn(
         detail = None,
         examples = Seq(
@@ -58,9 +69,15 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     returnType = Seq(FHIR_DATA_TYPES.STRING),
     inputType = Seq()
   )
-  def getHashedId(resourceTypeExp:ExpressionContext, inputExpr:ExpressionContext):Seq[FhirPathResult] = {
-    val resourceType = getStringValueOfExpr(resourceTypeExp, s"Invalid function call 'getHashedId', given expression for keyExpr:${resourceTypeExp.getText} should return a string value!")
-    val input = getStringValueOfExpr(inputExpr, s"Invalid function call 'getHashedId', given expression for keyExpr:${inputExpr.getText} should return a string value!")
+  def getHashedId(resourceTypeExp: ExpressionContext, inputExpr: ExpressionContext): Seq[FhirPathResult] = {
+    val resourceType = getStringValueOfExpr(
+      resourceTypeExp,
+      s"Invalid function call 'getHashedId', given expression for keyExpr:${resourceTypeExp.getText} should return a string value!"
+    )
+    val input = getStringValueOfExpr(
+      inputExpr,
+      s"Invalid function call 'getHashedId', given expression for keyExpr:${inputExpr.getText} should return a string value!"
+    )
     Seq(FhirPathString(FhirMappingUtility.getHashedId(resourceType, input)))
   }
 
@@ -73,25 +90,28 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
    */
   @FhirPathFunction(
     documentation = FhirPathFunctionDocumentation(
-      detail = "Creates a deterministic integer hash of the given string value, bounded within the given inclusive range [rangeStart, rangeEnd]. The same input string always maps to the same integer. It returns an integer.",
+      detail =
+        "Creates a deterministic integer hash of the given string value, bounded within the given inclusive range [rangeStart, rangeEnd]. The same input string always maps to the same integer. It returns an integer.",
       usageWarnings = None,
-      parameters = Some(Seq(
-        FhirPathFunctionParameter(
-          name = "value",
-          detail = "The string value to generate a hashed integer for.",
-          examples = None
-        ),
-        FhirPathFunctionParameter(
-          name = "rangeStart",
-          detail = "The inclusive lower bound of the target integer range.",
-          examples = Some(Seq("0"))
-        ),
-        FhirPathFunctionParameter(
-          name = "rangeEnd",
-          detail = "The inclusive upper bound of the target integer range.",
-          examples = Some(Seq("999"))
+      parameters = Some(
+        Seq(
+          FhirPathFunctionParameter(
+            name = "value",
+            detail = "The string value to generate a hashed integer for.",
+            examples = None
+          ),
+          FhirPathFunctionParameter(
+            name = "rangeStart",
+            detail = "The inclusive lower bound of the target integer range.",
+            examples = Some(Seq("0"))
+          ),
+          FhirPathFunctionParameter(
+            name = "rangeEnd",
+            detail = "The inclusive upper bound of the target integer range.",
+            examples = Some(Seq("999"))
+          )
         )
-      )),
+      ),
       returnValue = FhirPathFunctionReturn(
         detail = None,
         examples = Seq("42")
@@ -107,10 +127,23 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     returnType = Seq(FHIR_DATA_TYPES.INTEGER),
     inputType = Seq()
   )
-  def getHashedIntId(valueExpr: ExpressionContext, rangeStartExpr: ExpressionContext, rangeEndExpr: ExpressionContext): Seq[FhirPathResult] = {
-    val value = getStringValueOfExpr(valueExpr, s"Invalid function call 'getHashedIntId', given expression for value:${valueExpr.getText} should return a string value!")
-    val rangeStart = getIntValueOfExpr(rangeStartExpr, s"Invalid function call 'getHashedIntId', given expression for rangeStart:${rangeStartExpr.getText} should return an integer value!")
-    val rangeEnd = getIntValueOfExpr(rangeEndExpr, s"Invalid function call 'getHashedIntId', given expression for rangeEnd:${rangeEndExpr.getText} should return an integer value!")
+  def getHashedIntId(
+      valueExpr: ExpressionContext,
+      rangeStartExpr: ExpressionContext,
+      rangeEndExpr: ExpressionContext
+  ): Seq[FhirPathResult] = {
+    val value = getStringValueOfExpr(
+      valueExpr,
+      s"Invalid function call 'getHashedIntId', given expression for value:${valueExpr.getText} should return a string value!"
+    )
+    val rangeStart = getIntValueOfExpr(
+      rangeStartExpr,
+      s"Invalid function call 'getHashedIntId', given expression for rangeStart:${rangeStartExpr.getText} should return an integer value!"
+    )
+    val rangeEnd = getIntValueOfExpr(
+      rangeEndExpr,
+      s"Invalid function call 'getHashedIntId', given expression for rangeEnd:${rangeEndExpr.getText} should return an integer value!"
+    )
     Seq(FhirPathNumber(FhirMappingUtility.getHashedIntId(value, rangeStart, rangeEnd)))
   }
 
@@ -121,14 +154,14 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     result.head.asInstanceOf[FhirPathNumber].v.toInt
   }
 
-  private def getStringValueOfExpr(expr:ExpressionContext, errorMsg:String):String = {
+  private def getStringValueOfExpr(expr: ExpressionContext, errorMsg: String): String = {
     val result = new FhirPathExpressionEvaluator(context, current).visit(expr)
     if (result.length != 1 || !result.head.isInstanceOf[FhirPathString])
       throw new FhirPathException(errorMsg)
     result.head.asInstanceOf[FhirPathString].s
   }
 
-  private def getStringValuesOfExpr(expr:ExpressionContext, errorMsg:String):Seq[String] = {
+  private def getStringValuesOfExpr(expr: ExpressionContext, errorMsg: String): Seq[String] = {
     val result = new FhirPathExpressionEvaluator(context, current).visit(expr)
     if (!result.forall(_.isInstanceOf[FhirPathString]))
       throw new FhirPathException(errorMsg)
@@ -143,20 +176,23 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
    */
   @FhirPathFunction(
     documentation = FhirPathFunctionDocumentation(
-      detail = "Creates a FHIR Reference object with a given resource type and hash of the given ID. Resource name should be quoted and ID should be string. It returns a FHIR Reference object.",
+      detail =
+        "Creates a FHIR Reference object with a given resource type and hash of the given ID. Resource name should be quoted and ID should be string. It returns a FHIR Reference object.",
       usageWarnings = None,
-      parameters = Some(Seq(
-        FhirPathFunctionParameter(
-          name = "resourceType",
-          detail = "HL7 FHIR resource type to generate hashed ID for.",
-          examples = None
-        ),
-        FhirPathFunctionParameter(
-          name = "id",
-          detail = "A unique ID to generate a hash.",
-          examples = None
+      parameters = Some(
+        Seq(
+          FhirPathFunctionParameter(
+            name = "resourceType",
+            detail = "HL7 FHIR resource type to generate hashed ID for.",
+            examples = None
+          ),
+          FhirPathFunctionParameter(
+            name = "id",
+            detail = "A unique ID to generate a hash.",
+            examples = None
+          )
         )
-      )),
+      ),
       returnValue = FhirPathFunctionReturn(
         detail = None,
         examples = Seq(
@@ -174,10 +210,21 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     returnType = Seq(),
     inputType = Seq()
   )
-  def createFhirReferenceWithHashedId(resourceTypeExp:ExpressionContext, inputExpr:ExpressionContext):Seq[FhirPathResult] = {
-    val resourceType = getStringValueOfExpr(resourceTypeExp, s"Invalid function call 'createFhirReferenceWithHashedId', given expression for keyExpr:${resourceTypeExp.getText} should return a string value!")
-    val input = getStringValuesOfExpr(inputExpr, s"Invalid function call 'createFhirReferenceWithHashedId', given expression for keyExpr:${inputExpr.getText} should return string value(s)!")
-    input.map(inp => FhirPathComplex(JObject("reference" -> JString(FhirMappingUtility.getHashedReference(resourceType, inp)))))
+  def createFhirReferenceWithHashedId(
+      resourceTypeExp: ExpressionContext,
+      inputExpr: ExpressionContext
+  ): Seq[FhirPathResult] = {
+    val resourceType = getStringValueOfExpr(
+      resourceTypeExp,
+      s"Invalid function call 'createFhirReferenceWithHashedId', given expression for keyExpr:${resourceTypeExp.getText} should return a string value!"
+    )
+    val input = getStringValuesOfExpr(
+      inputExpr,
+      s"Invalid function call 'createFhirReferenceWithHashedId', given expression for keyExpr:${inputExpr.getText} should return string value(s)!"
+    )
+    input.map(inp =>
+      FhirPathComplex(JObject("reference" -> JString(FhirMappingUtility.getHashedReference(resourceType, inp))))
+    )
   }
 
   /**
@@ -192,25 +239,28 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
    */
   @FhirPathFunction(
     documentation = FhirPathFunctionDocumentation(
-      detail = "Creates a sequence of indices between from-to integers and concatenates them with a prefix string to generate looped field names (i.e. prefix+from,...,prefix+to). After that, for each field, it checks whether it has a value or not and returns the list of field names which have values i.e. the non-empty ones.",
+      detail =
+        "Creates a sequence of indices between from-to integers and concatenates them with a prefix string to generate looped field names (i.e. prefix+from,...,prefix+to). After that, for each field, it checks whether it has a value or not and returns the list of field names which have values i.e. the non-empty ones.",
       usageWarnings = None,
-      parameters = Some(Seq(
-        FhirPathFunctionParameter(
-          name = "prefixExpr",
-          detail = "Prefix string to be used to generate field names.",
-          examples = None
-        ),
-        FhirPathFunctionParameter(
-          name = "fromExpr",
-          detail = "The start index (inclusive).",
-          examples = None
-        ),
-        FhirPathFunctionParameter(
-          name = "toExpr",
-          detail = "The end index (inclusive).",
-          examples = None
+      parameters = Some(
+        Seq(
+          FhirPathFunctionParameter(
+            name = "prefixExpr",
+            detail = "Prefix string to be used to generate field names.",
+            examples = None
+          ),
+          FhirPathFunctionParameter(
+            name = "fromExpr",
+            detail = "The start index (inclusive).",
+            examples = None
+          ),
+          FhirPathFunctionParameter(
+            name = "toExpr",
+            detail = "The end index (inclusive).",
+            examples = None
+          )
         )
-      )),
+      ),
       returnValue = FhirPathFunctionReturn(
         detail = None,
         examples = Seq(
@@ -228,31 +278,44 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     returnType = Seq(FHIR_DATA_TYPES.STRING),
     inputType = Seq()
   )
-  def nonEmptyLoopedFields(prefixExpr: ExpressionContext, fromExpr: ExpressionContext, toExpr: ExpressionContext): Seq[FhirPathResult] = {
+  def nonEmptyLoopedFields(
+      prefixExpr: ExpressionContext,
+      fromExpr: ExpressionContext,
+      toExpr: ExpressionContext
+  ): Seq[FhirPathResult] = {
     val prefix = new FhirPathExpressionEvaluator(context, current).visit(prefixExpr)
     if (prefix.length != 1 || !prefix.forall(_.isInstanceOf[FhirPathString]))
-      throw new FhirPathException(s"Invalid function call 'nonEmptyLoopedFields', 'prefix' expression should return a string value!")
+      throw new FhirPathException(
+        s"Invalid function call 'nonEmptyLoopedFields', 'prefix' expression should return a string value!"
+      )
 
     val from = new FhirPathExpressionEvaluator(context, current).visit(fromExpr)
     if (from.length != 1 || !from.forall(_.isInstanceOf[FhirPathNumber]))
-      throw new FhirPathException(s"Invalid function call 'nonEmptyLoopedFields', 'from' expression should return a integer value!")
+      throw new FhirPathException(
+        s"Invalid function call 'nonEmptyLoopedFields', 'from' expression should return a integer value!"
+      )
 
     val to = new FhirPathExpressionEvaluator(context, current).visit(toExpr)
     if (to.length != 1 || !to.forall(_.isInstanceOf[FhirPathNumber]))
-      throw new FhirPathException(s"Invalid function call 'nonEmptyLoopedFields', 'to' expression should return a integer value!")
+      throw new FhirPathException(
+        s"Invalid function call 'nonEmptyLoopedFields', 'to' expression should return a integer value!"
+      )
 
     current
       .map(_.asInstanceOf[FhirPathComplex])
       .flatMap(r => {
         val prefixString = prefix.head.asInstanceOf[FhirPathString].s
 
-        (from.head.asInstanceOf[FhirPathNumber].v.toInt to to.head.asInstanceOf[FhirPathNumber].v.toInt) // create indices
+        (from.head
+          .asInstanceOf[FhirPathNumber]
+          .v
+          .toInt to to.head.asInstanceOf[FhirPathNumber].v.toInt) // create indices
           .map(i => prefixString + i.toString) // concatenate prefix and index
           .filter(p => { // filter non-empty fields
             // all data types except boolean can be extracted as string
             val stringValue = FHIRUtil.extractValueOption[String](r.json, p)
 
-            if(stringValue.nonEmpty){
+            if (stringValue.nonEmpty) {
               // handle the empty string
               stringValue.get.nonEmpty
             } else {
@@ -274,20 +337,27 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
    */
   @FhirPathFunction(
     documentation = FhirPathFunctionDocumentation(
-      detail = "Get corresponding concept from the given concept map with the given key. If there are more than one target column, it returns them as a complex JSON object. Otherwise, returns the value of it as list of string.",
-      usageWarnings = Some(Seq("A mapping concept with specified reference <strong>must</strong> be registered to the mapping as a context to use this function.")),
-      parameters = Some(Seq(
-        FhirPathFunctionParameter(
-          name = "conceptMap",
-          detail = "A reference to the concept map context.",
-          examples = Some(Seq("%obsConceptMap"))
-        ),
-        FhirPathFunctionParameter(
-          name = "source_code",
-          detail = "Source code to perform lookup operation in the concept map.",
-          examples = Some(Seq("code"))
+      detail =
+        "Get corresponding concept from the given concept map with the given key. If there are more than one target column, it returns them as a complex JSON object. Otherwise, returns the value of it as list of string.",
+      usageWarnings = Some(
+        Seq(
+          "A mapping concept with specified reference <strong>must</strong> be registered to the mapping as a context to use this function."
         )
-      )),
+      ),
+      parameters = Some(
+        Seq(
+          FhirPathFunctionParameter(
+            name = "conceptMap",
+            detail = "A reference to the concept map context.",
+            examples = Some(Seq("%obsConceptMap"))
+          ),
+          FhirPathFunctionParameter(
+            name = "source_code",
+            detail = "Source code to perform lookup operation in the concept map.",
+            examples = Some(Seq("code"))
+          )
+        )
+      ),
       returnValue = FhirPathFunctionReturn(
         detail = None,
         examples = Seq(
@@ -314,13 +384,14 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     evaluator.visit(keyExpr) match {
       case Nil => Seq.empty
       case Seq(FhirPathString(conceptCode)) =>
-        conceptMapContext
-          .concepts
+        conceptMapContext.concepts
           .get(conceptCode)
           .map(mws => mws.map(res => FhirPathComplex(JObject(res.toList.map(i => i._1 -> JString(i._2))))))
           .getOrElse(Seq.empty)
       case _ =>
-        throw new FhirPathException(s"Invalid function call 'getConcept', given expression for keyExpr:${keyExpr.getText} for the concept code should return a string value!")
+        throw new FhirPathException(
+          s"Invalid function call 'getConcept', given expression for keyExpr:${keyExpr.getText} for the concept code should return a string value!"
+        )
     }
   }
 
@@ -335,7 +406,9 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
       mappingContext(name).asInstanceOf[ConceptMapContext]
     } catch {
       case e: Exception =>
-        throw new FhirPathException(s"Invalid function call 'getConcept', given expression for conceptMap:%$name should point to a valid map entry in the provided mapping context!")
+        throw new FhirPathException(
+          s"Invalid function call 'getConcept', given expression for conceptMap:%$name should point to a valid map entry in the provided mapping context!"
+        )
     }
 
   /**
@@ -350,25 +423,33 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
    */
   @FhirPathFunction(
     documentation = FhirPathFunctionDocumentation(
-      detail = "Get corresponding value from the given concept map with the given key and column name. If there is no concept found with given key (code), return empty. It returns a list of string.",
-      usageWarnings = Some(Seq("A mapping concept with specified reference <strong>must</strong> be registered to the mapping as a context to use this function.")),
-      parameters = Some(Seq(
-        FhirPathFunctionParameter(
-          name = "conceptMap",
-          detail = "A reference to the concept map context.",
-          examples = Some(Seq("%obsConceptMap"))
-        ),
-        FhirPathFunctionParameter(
-          name = "source_code",
-          detail = "Source code to perform lookup operation in the concept map.",
-          examples = Some(Seq("code"))
-        ),
-        FhirPathFunctionParameter(
-          name = "columnName",
-          detail = "FHIRPath string literal providing the name of the interested column from the concept map context.",
-          examples = None
+      detail =
+        "Get corresponding value from the given concept map with the given key and column name. If there is no concept found with given key (code), return empty. It returns a list of string.",
+      usageWarnings = Some(
+        Seq(
+          "A mapping concept with specified reference <strong>must</strong> be registered to the mapping as a context to use this function."
         )
-      )),
+      ),
+      parameters = Some(
+        Seq(
+          FhirPathFunctionParameter(
+            name = "conceptMap",
+            detail = "A reference to the concept map context.",
+            examples = Some(Seq("%obsConceptMap"))
+          ),
+          FhirPathFunctionParameter(
+            name = "source_code",
+            detail = "Source code to perform lookup operation in the concept map.",
+            examples = Some(Seq("code"))
+          ),
+          FhirPathFunctionParameter(
+            name = "columnName",
+            detail =
+              "FHIRPath string literal providing the name of the interested column from the concept map context.",
+            examples = None
+          )
+        )
+      ),
       returnValue = FhirPathFunctionReturn(
         detail = None,
         examples = Seq("""["target-column-value-1", ...]""")
@@ -384,24 +465,33 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     returnType = Seq(FHIR_DATA_TYPES.STRING),
     inputType = Seq()
   )
-  def getConcept(conceptMap: ExpressionContext, keyExpr: ExpressionContext, columnName: ExpressionContext): Seq[FhirPathResult] = {
+  def getConcept(
+      conceptMap: ExpressionContext,
+      keyExpr: ExpressionContext,
+      columnName: ExpressionContext
+  ): Seq[FhirPathResult] = {
     val mapName = conceptMap.getText.substring(1) // skip the leading % character
     val conceptMapContext = getConceptMap(mapName)
 
     val targetFieldResult = new FhirPathExpressionEvaluator(context, current).visit(columnName)
     if (targetFieldResult.length != 1 || !targetFieldResult.head.isInstanceOf[FhirPathString]) {
-      throw new FhirPathException(s"Invalid function call 'getConcept', given expression for columnName:${columnName.getText} for the target field should return a string value!")
+      throw new FhirPathException(
+        s"Invalid function call 'getConcept', given expression for columnName:${columnName.getText} for the target field should return a string value!"
+      )
     }
     val targetField = targetFieldResult.head.asInstanceOf[FhirPathString].s
 
-    val conceptCodeResult = new FhirPathExpressionEvaluator(context, current).visit(keyExpr) // Should return the code of the concept whose mapping is requested
+    val conceptCodeResult = new FhirPathExpressionEvaluator(context, current).visit(
+      keyExpr
+    ) // Should return the code of the concept whose mapping is requested
     if (conceptCodeResult.length > 1 || !conceptCodeResult.forall(_.isInstanceOf[FhirPathString])) {
-      throw new FhirPathException(s"Invalid function call 'getConcept', given expression for keyExpr:${keyExpr.getText} for the concept code should return a string value!")
+      throw new FhirPathException(
+        s"Invalid function call 'getConcept', given expression for keyExpr:${keyExpr.getText} for the concept code should return a string value!"
+      )
     }
-    //If conceptCode returns empty, also return empty, if there is no such key or target column is null also return empty
+    // If conceptCode returns empty, also return empty, if there is no such key or target column is null also return empty
     val result: Seq[FhirPathResult] =
-      conceptCodeResult
-        .headOption
+      conceptCodeResult.headOption
         .map(_.asInstanceOf[FhirPathString].s)
         .flatMap { conceptCode =>
           conceptMapContext.concepts.get(conceptCode).map { conceptMapEntries =>
@@ -410,7 +500,8 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
               .filter(_.nonEmpty)
               .map(mappedValue => FhirPathString(mappedValue))
           }
-      }.getOrElse(Seq.empty)
+        }
+        .getOrElse(Seq.empty)
     result
   }
 
@@ -426,30 +517,38 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
    */
   @FhirPathFunction(
     documentation = FhirPathFunctionDocumentation(
-      detail = "Convert the given value in given unit to the target unit specified in the context file with specified conversion function, return FHIR [Quantity](https://build.fhir.org/datatypes.html#Quantity). If there is no corresponding key (code) and unit in the unit conversion context, then return empty.",
-      usageWarnings = Some(Seq("An unit conversion context with specified reference <strong>must</strong> be registered to the mapping as a context to use this function.")),
-      parameters = Some(Seq(
-        FhirPathFunctionParameter(
-          name = "unitConversion",
-          detail = "Reference name to the unit conversion context used to register in the mapping.",
-          examples = Some(Seq("%labUnitConv"))
-        ),
-        FhirPathFunctionParameter(
-          name = "source_code",
-          detail = "Code to perform lookup operation together with source_unit.",
-          examples = Some(Seq("labCode"))
-        ),
-        FhirPathFunctionParameter(
-          name = "source_value",
-          detail = "The value in the source unit. This value will be applied to the found conversion function to get the value in target unit.",
-          examples = Some(Seq("labResultValue"))
-        ),
-        FhirPathFunctionParameter(
-          name = "source_unit",
-          detail = "The unit to be converted. It is used to perform lookup operation together with source_code",
-          examples = None
+      detail =
+        "Convert the given value in given unit to the target unit specified in the context file with specified conversion function, return FHIR [Quantity](https://build.fhir.org/datatypes.html#Quantity). If there is no corresponding key (code) and unit in the unit conversion context, then return empty.",
+      usageWarnings = Some(
+        Seq(
+          "An unit conversion context with specified reference <strong>must</strong> be registered to the mapping as a context to use this function."
         )
-      )),
+      ),
+      parameters = Some(
+        Seq(
+          FhirPathFunctionParameter(
+            name = "unitConversion",
+            detail = "Reference name to the unit conversion context used to register in the mapping.",
+            examples = Some(Seq("%labUnitConv"))
+          ),
+          FhirPathFunctionParameter(
+            name = "source_code",
+            detail = "Code to perform lookup operation together with source_unit.",
+            examples = Some(Seq("labCode"))
+          ),
+          FhirPathFunctionParameter(
+            name = "source_value",
+            detail =
+              "The value in the source unit. This value will be applied to the found conversion function to get the value in target unit.",
+            examples = Some(Seq("labResultValue"))
+          ),
+          FhirPathFunctionParameter(
+            name = "source_unit",
+            detail = "The unit to be converted. It is used to perform lookup operation together with source_code",
+            examples = None
+          )
+        )
+      ),
       returnValue = FhirPathFunctionReturn(
         detail = None,
         examples = Seq("""<JSON>{"value": "1.5","code": "mg/L","unit": "mg/L","system": "http://unitsofmeasure.org"}""")
@@ -465,65 +564,89 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     returnType = Seq(),
     inputType = Seq()
   )
-  def convertAndReturnQuantity(conversionFunctionsMap: ExpressionContext, keyExpr: ExpressionContext, valueExpr: ExpressionContext, unitExpr: ExpressionContext): Seq[FhirPathResult] = {
+  def convertAndReturnQuantity(
+      conversionFunctionsMap: ExpressionContext,
+      keyExpr: ExpressionContext,
+      valueExpr: ExpressionContext,
+      unitExpr: ExpressionContext
+  ): Seq[FhirPathResult] = {
     val mapName = conversionFunctionsMap.getText.substring(1) // skip the leading % character
-    val unitConversionContext: UnitConversionContext = try {
-      mappingContext(mapName) match {
-        case u: UnitConversionContext => u
-        case c: ConceptMapContext     => UnitConversionContext(c.conversionFunctions)
-        case _                        => throw new Exception()
+    val unitConversionContext: UnitConversionContext =
+      try {
+        mappingContext(mapName) match {
+          case u: UnitConversionContext => u
+          case c: ConceptMapContext => UnitConversionContext(c.conversionFunctions)
+          case _ => throw new Exception()
+        }
+      } catch {
+        case e: Exception =>
+          throw new FhirPathException(
+            s"Invalid function call 'convertAndReturnQuantity', given expression for conversionFunctionsMap:${conversionFunctionsMap.getText} should point to a valid map entry in the provided mapping context!"
+          )
       }
-    } catch {
-      case e: Exception => throw new FhirPathException(s"Invalid function call 'convertAndReturnQuantity', given expression for conversionFunctionsMap:${conversionFunctionsMap.getText} should point to a valid map entry in the provided mapping context!")
-    }
 
     val codeResult = new FhirPathExpressionEvaluator(context, current).visit(keyExpr)
     if (codeResult.length > 1 || !codeResult.head.isInstanceOf[FhirPathString]) {
-      throw new FhirPathException(s"Invalid function call 'convertAndReturnQuantity', given expression for keyExpr:${keyExpr.getText} for the source code should return a string value!")
+      throw new FhirPathException(
+        s"Invalid function call 'convertAndReturnQuantity', given expression for keyExpr:${keyExpr.getText} for the source code should return a string value!"
+      )
     }
-    //Handle value expression
+    // Handle value expression
     var valueResult = new FhirPathExpressionEvaluator(context, current).visit(valueExpr)
-    val valueAndComparator = new FhirPathExpressionEvaluator(context, valueResult).visit(FhirPathEvaluator.parse("utl:parseFhirQuantityExpression($this)"))
+    val valueAndComparator = new FhirPathExpressionEvaluator(context, valueResult).visit(
+      FhirPathEvaluator.parse("utl:parseFhirQuantityExpression($this)")
+    )
     valueResult = valueAndComparator.headOption.toSeq
     if (valueResult.length > 1 || !valueResult.head.isInstanceOf[FhirPathNumber]) {
-      throw new FhirPathException(s"Invalid function call 'convertAndReturnQuantity', given expression for valueExpr:${valueExpr.getText} for the value should return a numeric value!")
+      throw new FhirPathException(
+        s"Invalid function call 'convertAndReturnQuantity', given expression for valueExpr:${valueExpr.getText} for the value should return a numeric value!"
+      )
     }
     val comparator = valueAndComparator.drop(1).headOption.map(_.asInstanceOf[FhirPathString].s)
 
     val unitResult = new FhirPathExpressionEvaluator(context, current).visit(unitExpr)
     if (unitResult.length != 1 || !unitResult.head.isInstanceOf[FhirPathString]) {
-      throw new FhirPathException(s"Invalid function call 'convertAndReturnQuantity', given expression for unitExpr:${unitExpr.getText} for the source unit should return a string value!")
+      throw new FhirPathException(
+        s"Invalid function call 'convertAndReturnQuantity', given expression for unitExpr:${unitExpr.getText} for the source unit should return a string value!"
+      )
     }
     val unit = unitResult.head.asInstanceOf[FhirPathString].s
 
-    if(codeResult.isEmpty || valueResult.isEmpty)
+    if (codeResult.isEmpty || valueResult.isEmpty)
       Nil
     else {
       val code = codeResult.head.asInstanceOf[FhirPathString].s
-      unitConversionContext
-        .conversionFunctions
+      unitConversionContext.conversionFunctions
         .get(code -> unit)
-        .map {
-          case (targetUnit, conversionFunction) =>
-            val conversionFunctionExpressionContext = FhirPathEvaluator.parse(conversionFunction)
-            val functionResult = new FhirPathExpressionEvaluator(context, valueResult).visit(conversionFunctionExpressionContext)
-            if (functionResult.length != 1 || !functionResult.head.isInstanceOf[FhirPathNumber]) {
-              throw new FhirPathException(s"Invalid FHIR expression in the unit conversion context! The FHIR path expression:${conversionFunction} should evaluate to a single numeric value!")
-            }
-            FhirPathComplex(JObject(List(
-              "value" -> functionResult.head.toJson,
-              "system" -> JString("http://unitsofmeasure.org"),
-              "unit" -> JString(targetUnit),
-              "code" -> JString(targetUnit)
-            ) ++
-              comparator.map(c => "comparator" -> JString(c)).toList,
-            ))
-        }.toSeq
+        .map { case (targetUnit, conversionFunction) =>
+          val conversionFunctionExpressionContext = FhirPathEvaluator.parse(conversionFunction)
+          val functionResult =
+            new FhirPathExpressionEvaluator(context, valueResult).visit(conversionFunctionExpressionContext)
+          if (functionResult.length != 1 || !functionResult.head.isInstanceOf[FhirPathNumber]) {
+            throw new FhirPathException(
+              s"Invalid FHIR expression in the unit conversion context! The FHIR path expression:${conversionFunction} should evaluate to a single numeric value!"
+            )
+          }
+          FhirPathComplex(
+            JObject(
+              List(
+                "value" -> functionResult.head.toJson,
+                "system" -> JString("http://unitsofmeasure.org"),
+                "unit" -> JString(targetUnit),
+                "code" -> JString(targetUnit)
+              ) ++
+                comparator.map(c => "comparator" -> JString(c)).toList
+            )
+          )
+        }
+        .toSeq
     }
   }
 }
 
-class FhirMappingFunctionsFactory(mappingContext: Map[String, FhirMappingContext]) extends IFhirPathFunctionLibraryFactory with Serializable {
+class FhirMappingFunctionsFactory(mappingContext: Map[String, FhirMappingContext])
+    extends IFhirPathFunctionLibraryFactory
+    with Serializable {
   override def getLibrary(context: FhirPathEnvironment, current: Seq[FhirPathResult]): AbstractFhirPathFunctionLibrary =
     new FhirPathMappingFunctions(context, current, mappingContext)
 }

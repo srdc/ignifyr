@@ -42,6 +42,7 @@ trait ToFhirTestSpec extends Matchers with OptionValues with Inside with Inspect
     file.getParentFile.mkdirs()
     // create the file
     val fw = new FileWriter(file)
-    try fw.write(sourceData) finally fw.close()
+    try fw.write(sourceData)
+    finally fw.close()
   }
 }

@@ -1,6 +1,15 @@
 package io.tofhir.engine.env
 
-import io.tofhir.engine.model.{FhirMappingJob, FhirMappingTask, FhirRepositorySinkSettings, FhirSinkSettings, FileSystemSourceSettings, KafkaSource, KafkaSourceSettings, MappingJobSourceSettings}
+import io.tofhir.engine.model.{
+  FhirMappingJob,
+  FhirMappingTask,
+  FhirRepositorySinkSettings,
+  FhirSinkSettings,
+  FileSystemSourceSettings,
+  KafkaSource,
+  KafkaSourceSettings,
+  MappingJobSourceSettings
+}
 
 /**
  * Provide functions to find and resolve the environment variables used within FhirMappingJob definitions.
@@ -60,7 +69,9 @@ object EnvironmentVariableResolver {
    * @param sourceSettings A map of source settings.
    * @return The map with resolved settings.
    */
-  private def resolveSourceSettings(sourceSettings: Map[String, MappingJobSourceSettings]): Map[String, MappingJobSourceSettings] = {
+  private def resolveSourceSettings(
+      sourceSettings: Map[String, MappingJobSourceSettings]
+  ): Map[String, MappingJobSourceSettings] = {
     sourceSettings.map { case (key, value) =>
       key -> (value match {
         case fs: FileSystemSourceSettings =>
@@ -117,16 +128,23 @@ object EnvironmentVariableResolver {
   private def resolveEnvironmentVariables(value: String): String = {
     val pattern = """\$\{([A-Z_]+)\}""".r
 
-    pattern.replaceAllIn(value, m => {
-      val envVar = m.group(1)
-      if (EnvironmentVariable.values.exists(_.toString == envVar)) {
-        sys.env.getOrElse(envVar, {
-          throw new RuntimeException(s"Environment variable $envVar is not set.")
-        })
-      } else {
-        throw new RuntimeException(s"Environment variable $envVar is not recognized in EnvironmentVariable enumeration.")
+    pattern.replaceAllIn(
+      value,
+      m => {
+        val envVar = m.group(1)
+        if (EnvironmentVariable.values.exists(_.toString == envVar)) {
+          sys.env.getOrElse(
+            envVar, {
+              throw new RuntimeException(s"Environment variable $envVar is not set.")
+            }
+          )
+        } else {
+          throw new RuntimeException(
+            s"Environment variable $envVar is not recognized in EnvironmentVariable enumeration."
+          )
+        }
       }
-    })
+    )
   }
 
 }

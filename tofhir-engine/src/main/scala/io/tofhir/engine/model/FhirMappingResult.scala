@@ -78,16 +78,16 @@ trait BaseFhirMappingResult {
  * @param mappedFhirResource The mapped FHIR Resource
  */
 case class FhirMappingResult(
-                              jobId: String,
-                              mappingTaskName: String,
-                              timestamp: Timestamp,
-                              source: String,
-                              error: Option[FhirMappingError] = None,
-                              executionId: Option[String] = None,
-                              projectId: Option[String] = None,
-                              resourceType: Option[String] = None,
-                              mappedFhirResource: Option[MappedFhirResource] = None
-                            ) extends BaseFhirMappingResult {
+    jobId: String,
+    mappingTaskName: String,
+    timestamp: Timestamp,
+    source: String,
+    error: Option[FhirMappingError] = None,
+    executionId: Option[String] = None,
+    projectId: Option[String] = None,
+    resourceType: Option[String] = None,
+    mappedFhirResource: Option[MappedFhirResource] = None
+) extends BaseFhirMappingResult {
   final val eventId: String = "MAPPING_RESULT"
 
   override def toString: String = {
@@ -145,15 +145,15 @@ case class FhirMappingResult(
  * @param mappedFhirResources List of mapped FHIR resources. This is used to group mapped resources by input row.
  */
 case class FhirMappingResultsForInput(
-                                       jobId: String,
-                                       mappingTaskName: String,
-                                       timestamp: Timestamp,
-                                       source: String,
-                                       error: Option[FhirMappingError] = None,
-                                       executionId: Option[String] = None,
-                                       projectId: Option[String] = None,
-                                       mappedFhirResources: Seq[MappedFhirResource] = Seq.empty
-                                     ) extends BaseFhirMappingResult
+    jobId: String,
+    mappingTaskName: String,
+    timestamp: Timestamp,
+    source: String,
+    error: Option[FhirMappingError] = None,
+    executionId: Option[String] = None,
+    projectId: Option[String] = None,
+    mappedFhirResources: Seq[MappedFhirResource] = Seq.empty
+) extends BaseFhirMappingResult
 
 /**
  * Description of the error occurred during the mapping process
@@ -168,7 +168,7 @@ case class FhirMappingError(code: String, description: String, expression: Optio
  * List of error codes in the mapping process
  */
 object FhirMappingErrorCodes {
-  //If the input data is invalid (not conforming to given schema)
+  // If the input data is invalid (not conforming to given schema)
   final val INVALID_INPUT = "invalid_input"
   // If the mapping process is timed out
   final val MAPPING_TIMEOUT = "mapping_timeout"
@@ -191,9 +191,11 @@ object FhirMappingErrorCodes {
  * @param mappedResource  JSON serialization of the FHIR resource generated via the mapping
  * @param fhirInteraction FHIR interaction details
  */
-case class MappedFhirResource(mappingExpr: Option[String] = None,
-                              mappedResource: Option[String] = None,
-                              fhirInteraction: Option[FhirInteraction] = None)
+case class MappedFhirResource(
+    mappingExpr: Option[String] = None,
+    mappedResource: Option[String] = None,
+    fhirInteraction: Option[FhirInteraction] = None
+)
 
 object FhirMappingResultConverter {
 
@@ -206,7 +208,10 @@ object FhirMappingResultConverter {
    * @return A FhirMappingResultsForInput containing the aggregated results.
    * @throws IllegalArgumentException if the iterator is empty.
    */
-  def convertToFhirMappingResultsForInput(source: String, iter: Iterator[FhirMappingResult]): FhirMappingResultsForInput = {
+  def convertToFhirMappingResultsForInput(
+      source: String,
+      iter: Iterator[FhirMappingResult]
+  ): FhirMappingResultsForInput = {
     // Convert the iterator to a sequence
     val results: Seq[FhirMappingResult] = iter.toSeq
 

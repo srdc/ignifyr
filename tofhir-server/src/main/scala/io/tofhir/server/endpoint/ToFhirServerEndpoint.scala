@@ -28,7 +28,13 @@ import java.util.UUID
  * Encapsulates all services and directives
  * Main Endpoint for toFHIR server
  */
-class ToFhirServerEndpoint(toFhirEngineConfig: ToFhirEngineConfig, webServerConfig: WebServerConfig, fhirDefinitionsConfig: FhirDefinitionsConfig, redCapServiceConfig: Option[RedCapServiceConfig]) extends ICORSHandler with IErrorHandler {
+class ToFhirServerEndpoint(
+    toFhirEngineConfig: ToFhirEngineConfig,
+    webServerConfig: WebServerConfig,
+    fhirDefinitionsConfig: FhirDefinitionsConfig,
+    redCapServiceConfig: Option[RedCapServiceConfig]
+) extends ICORSHandler
+    with IErrorHandler {
 
   private val repositoryManager: IRepositoryManager = new FolderRepositoryManager(toFhirEngineConfig)
   // Initialize repositories by reading the resources available in the file system
@@ -58,11 +64,12 @@ class ToFhirServerEndpoint(toFhirEngineConfig: ToFhirEngineConfig, webServerConf
         .getOrElse(Seq.empty)
   val fhirPathFunctionsEndpoint = new FhirPathFunctionsEndpoint(functionLibraryPackages)
 
-  val redcapEndpoint =  redCapServiceConfig.map(config => new RedCapEndpoint(config))
+  val redcapEndpoint = redCapServiceConfig.map(config => new RedCapEndpoint(config))
   val fileSystemTreeStructureEndpoint = new FileSystemTreeStructureEndpoint()
-  val metadataEndpoint = new MetadataEndpoint(toFhirEngineConfig, webServerConfig, fhirDefinitionsConfig, redCapServiceConfig)
+  val metadataEndpoint =
+    new MetadataEndpoint(toFhirEngineConfig, webServerConfig, fhirDefinitionsConfig, redCapServiceConfig)
 
-  val reloadEndpoint= new ReloadEndpoint(repositoryManager)
+  val reloadEndpoint = new ReloadEndpoint(repositoryManager)
 
   // Custom rejection handler to send proper messages to user
   val toFhirRejectionHandler: RejectionHandler = ToFhirRejectionHandler.getRejectionHandler()
@@ -75,7 +82,12 @@ class ToFhirServerEndpoint(toFhirEngineConfig: ToFhirEngineConfig, webServerConf
             extractUri { requestUri: Uri =>
               extractRequestEntity { requestEntity =>
                 optionalHeaderValueByName("X-Correlation-Id") { correlationId =>
-                  val restCall = new ToFhirRestCall(method = httpMethod, uri = requestUri, requestId = correlationId.getOrElse(UUID.randomUUID().toString), requestEntity = requestEntity)
+                  val restCall = new ToFhirRestCall(
+                    method = httpMethod,
+                    uri = requestUri,
+                    requestId = correlationId.getOrElse(UUID.randomUUID().toString),
+                    requestEntity = requestEntity
+                  )
                   handleRejections(toFhirRejectionHandler) {
                     handleExceptions(exceptionHandler(restCall)) { // Handle exceptions
                       // RedCap Endpoint is optional, so it will be handled separately
@@ -86,7 +98,7 @@ class ToFhirServerEndpoint(toFhirEngineConfig: ToFhirEngineConfig, webServerConf
                         fhirPathFunctionsEndpoint.route(),
                         fileSystemTreeStructureEndpoint.route(restCall),
                         metadataEndpoint.route(restCall),
-                        reloadEndpoint.route(restCall),
+                        reloadEndpoint.route(restCall)
                       ) ++ redcapEndpoint.map(_.route(restCall))
 
                       concat(routes: _*)

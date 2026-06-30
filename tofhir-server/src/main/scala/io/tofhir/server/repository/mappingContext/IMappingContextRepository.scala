@@ -60,7 +60,13 @@ trait IMappingContextRepository extends ICachedRepository with IProjectList[Stri
    * @param content mapping context content to save
    * @return
    */
-  def saveMappingContextContent(projectId: String, id: String, content: Source[ByteString, Any], pageNumber: Int, pageSize: Int): Future[Long]
+  def saveMappingContextContent(
+      projectId: String,
+      id: String,
+      content: Source[ByteString, Any],
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[Long]
 
   /**
    * Get the mapping context content by its id
@@ -68,7 +74,12 @@ trait IMappingContextRepository extends ICachedRepository with IProjectList[Stri
    * @param id mapping context id
    * @return
    */
-  def getMappingContextContent(projectId: String, id: String, pageNumber: Int, pageSize: Int): Future[(Source[ByteString, Any], Long)]
+  def getMappingContextContent(
+      projectId: String,
+      id: String,
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[(Source[ByteString, Any], Long)]
 
   /**
    * Upload the mapping context content to the repository

@@ -14,11 +14,13 @@ import org.json4s.JsonAST.JString
 
 import scala.concurrent.Future
 
-class ProjectService(projectRepository: IProjectRepository,
-                     jobRepository: IJobRepository,
-                     mappingRepository: IMappingRepository,
-                     mappingContextRepository: IMappingContextRepository,
-                     schemaRepository: ISchemaRepository) extends LazyLogging {
+class ProjectService(
+    projectRepository: IProjectRepository,
+    jobRepository: IJobRepository,
+    mappingRepository: IMappingRepository,
+    mappingContextRepository: IMappingContextRepository,
+    schemaRepository: ISchemaRepository
+) extends LazyLogging {
 
   /**
    * Retrieve all Projects
@@ -69,7 +71,8 @@ class ProjectService(projectRepository: IProjectRepository,
    */
   def removeProject(projectId: String): Future[Unit] = {
     // first delete the project from repository
-    projectRepository.deleteProject(projectId)
+    projectRepository
+      .deleteProject(projectId)
       // if project deletion is failed throw the error
       .recover { case e: Throwable => throw e }
       // else delete jobs, mappings, mapping contexts and schemas as well

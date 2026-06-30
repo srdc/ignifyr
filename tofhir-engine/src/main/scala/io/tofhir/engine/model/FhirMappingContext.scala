@@ -37,7 +37,10 @@ trait FhirMappingContext {
  *
  *
  */
-case class ConceptMapContext(concepts: Map[String, Seq[Map[String, String]]], conversionFunctions: Map[(String, String), (String, String)] = Map.empty) extends FhirMappingContext {
+case class ConceptMapContext(
+    concepts: Map[String, Seq[Map[String, String]]],
+    conversionFunctions: Map[(String, String), (String, String)] = Map.empty
+) extends FhirMappingContext {
   override def toContextObject: JObject = JObject()
 }
 
@@ -47,7 +50,8 @@ case class ConceptMapContext(concepts: Map[String, Seq[Map[String, String]]], co
  * @param conversionFunctions (code of the observation, source unit) -> FHIR Path expression to convert the value to given unit
  *                            e.g. Converting Hemoglogbin to g/dL;   (718-7, g/L) -> ($this * 0.1, g/dL)
  */
-case class UnitConversionContext(conversionFunctions: Map[(String, String), (String, String)]) extends FhirMappingContext {
+case class UnitConversionContext(conversionFunctions: Map[(String, String), (String, String)])
+    extends FhirMappingContext {
   override def toContextObject: JObject = JObject()
 }
 

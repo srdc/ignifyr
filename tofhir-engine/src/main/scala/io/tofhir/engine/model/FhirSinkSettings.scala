@@ -26,12 +26,14 @@ trait FhirSinkSettings
  *                                Applicable only when data is partitioned by resource type (via "partitionByResourceType").
  *                                Supported content types: {@link SinkContentTypes.PARQUET} and {@link SinkContentTypes.DELTA_LAKE}
  */
-case class FileSystemSinkSettings(path: String,
-                                  contentType: String,
-                                  numOfPartitions: Int = 1,
-                                  options: Map[String, String] = Map.empty[String, String],
-                                  partitionByResourceType: Boolean = false,
-                                  partitioningColumns: Map[String, List[String]] = Map.empty[String, List[String]]) extends FhirSinkSettings {
+case class FileSystemSinkSettings(
+    path: String,
+    contentType: String,
+    numOfPartitions: Int = 1,
+    options: Map[String, String] = Map.empty[String, String],
+    partitionByResourceType: Boolean = false,
+    partitioningColumns: Map[String, List[String]] = Map.empty[String, List[String]]
+) extends FhirSinkSettings {
 
   /**
    * Retrieves the partition columns for a given resource type.
@@ -53,14 +55,20 @@ case class FileSystemSinkSettings(path: String,
  *                         resources into the FHIR Repository. If this header is added, the response does not return the
  *                         body which improves the performance.
  */
-case class FhirRepositorySinkSettings(fhirRepoUrl: String,
-                                      securitySettings: Option[IFhirRepositorySecuritySettings] = None,
-                                      returnMinimal: Boolean = true) extends FhirSinkSettings with IdentityServiceSettings with TerminologyServiceSettings {
+case class FhirRepositorySinkSettings(
+    fhirRepoUrl: String,
+    securitySettings: Option[IFhirRepositorySecuritySettings] = None,
+    returnMinimal: Boolean = true
+) extends FhirSinkSettings
+    with IdentityServiceSettings
+    with TerminologyServiceSettings {
+
   /**
    * Create an OnFhir client
    *
    * @param actorSystem
    * @return
    */
-  def createOnFhirClient(implicit actorSystem: ActorSystem): OnFhirNetworkClient = FhirClientUtil.createOnFhirClient(fhirRepoUrl, securitySettings)
+  def createOnFhirClient(implicit actorSystem: ActorSystem): OnFhirNetworkClient =
+    FhirClientUtil.createOnFhirClient(fhirRepoUrl, securitySettings)
 }

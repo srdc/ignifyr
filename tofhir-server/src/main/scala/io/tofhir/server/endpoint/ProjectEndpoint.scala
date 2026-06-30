@@ -22,14 +22,18 @@ import scala.concurrent.Future
 /**
  * Endpoints to manage projects.
  * */
-class ProjectEndpoint(schemaRepository: ISchemaRepository,
-                      mappingRepository: IMappingRepository,
-                      jobRepository: IJobRepository,
-                      mappingContextRepository: IMappingContextRepository,
-                      projectRepository: IProjectRepository) extends LazyLogging {
+class ProjectEndpoint(
+    schemaRepository: ISchemaRepository,
+    mappingRepository: IMappingRepository,
+    jobRepository: IJobRepository,
+    mappingContextRepository: IMappingContextRepository,
+    projectRepository: IProjectRepository
+) extends LazyLogging {
 
-  val service: ProjectService = new ProjectService(projectRepository, jobRepository, mappingRepository, mappingContextRepository, schemaRepository)
-  val schemaDefinitionEndpoint: SchemaDefinitionEndpoint = new SchemaDefinitionEndpoint(schemaRepository, mappingRepository)
+  val service: ProjectService =
+    new ProjectService(projectRepository, jobRepository, mappingRepository, mappingContextRepository, schemaRepository)
+  val schemaDefinitionEndpoint: SchemaDefinitionEndpoint =
+    new SchemaDefinitionEndpoint(schemaRepository, mappingRepository)
   val mappingEndpoint: MappingEndpoint = new MappingEndpoint(mappingRepository, jobRepository)
   val jobEndpoint: JobEndpoint = new JobEndpoint(jobRepository, mappingRepository, schemaRepository)
   val mappingContextEndpoint: MappingContextEndpoint = new MappingContextEndpoint(mappingContextRepository)
@@ -44,14 +48,17 @@ class ProjectEndpoint(schemaRepository: ISchemaRepository,
           getProjectRoute(projectId) ~ patchProjectRoute(projectId) ~ deleteProjectRoute(projectId) ~ {
             val projectExists: Future[Option[Project]] = service.getProject(projectId)
             onSuccess(projectExists) {
-              case None => complete {
-                StatusCodes.NotFound -> {
-                  throw ResourceNotFound("Project not found", s"Project with id $projectId not found")
+              case None =>
+                complete {
+                  StatusCodes.NotFound -> {
+                    throw ResourceNotFound("Project not found", s"Project with id $projectId not found")
+                  }
                 }
-              }
               case Some(_) => {
                 request.projectId = Some(projectId)
-                schemaDefinitionEndpoint.route(request) ~ mappingEndpoint.route(request) ~ jobEndpoint.route(request) ~ mappingContextEndpoint.route(request)
+                schemaDefinitionEndpoint.route(request) ~ mappingEndpoint.route(request) ~ jobEndpoint.route(
+                  request
+                ) ~ mappingContextEndpoint.route(request)
               }
             }
           }
@@ -101,9 +108,10 @@ class ProjectEndpoint(schemaRepository: ISchemaRepository,
         complete {
           service.getProject(projectId) map {
             case Some(project) => StatusCodes.OK -> project
-            case None => StatusCodes.NotFound -> {
-              throw ResourceNotFound("Project not found", s"Project with id $projectId not found")
-            }
+            case None =>
+              StatusCodes.NotFound -> {
+                throw ResourceNotFound("Project not found", s"Project with id $projectId not found")
+              }
           }
         }
       }
@@ -150,6 +158,3 @@ class ProjectEndpoint(schemaRepository: ISchemaRepository,
 object ProjectEndpoint {
   val SEGMENT_PROJECTS = "projects"
 }
-
-
-

@@ -13,7 +13,9 @@ class FileSystemTreeStructureEndpointTest extends BaseEndpointTest {
   "File system tree structure endpoint" should {
 
     "retrieve all folders (only directories) under the given base path" in {
-      Get(s"/${webServerConfig.baseUri}/${FileSystemTreeStructureEndpoint.SEGMENT_FILE_SYSTEM_PATH}?${FileSystemTreeStructureEndpoint.QUERY_PARAM_BASE_PATH}=.&${FileSystemTreeStructureEndpoint.QUERY_PARAM_INCLUDE_FILES}=false") ~> route ~> check {
+      Get(
+        s"/${webServerConfig.baseUri}/${FileSystemTreeStructureEndpoint.SEGMENT_FILE_SYSTEM_PATH}?${FileSystemTreeStructureEndpoint.QUERY_PARAM_BASE_PATH}=.&${FileSystemTreeStructureEndpoint.QUERY_PARAM_INCLUDE_FILES}=false"
+      ) ~> route ~> check {
         status shouldEqual StatusCodes.OK
         val fileNode = JsonMethods.parse(responseAs[String]).extract[FilePathNode]
         fileNode.isFolder shouldEqual true
@@ -24,7 +26,9 @@ class FileSystemTreeStructureEndpointTest extends BaseEndpointTest {
     }
 
     "retrieve all folders including all files under the given base path" in {
-      Get(s"/${webServerConfig.baseUri}/${FileSystemTreeStructureEndpoint.SEGMENT_FILE_SYSTEM_PATH}?${FileSystemTreeStructureEndpoint.QUERY_PARAM_BASE_PATH}=.&${FileSystemTreeStructureEndpoint.QUERY_PARAM_INCLUDE_FILES}=true") ~> route ~> check {
+      Get(
+        s"/${webServerConfig.baseUri}/${FileSystemTreeStructureEndpoint.SEGMENT_FILE_SYSTEM_PATH}?${FileSystemTreeStructureEndpoint.QUERY_PARAM_BASE_PATH}=.&${FileSystemTreeStructureEndpoint.QUERY_PARAM_INCLUDE_FILES}=true"
+      ) ~> route ~> check {
         status shouldEqual StatusCodes.OK
         val fileNode = JsonMethods.parse(responseAs[String]).extract[FilePathNode]
         fileNode.isFolder shouldEqual true

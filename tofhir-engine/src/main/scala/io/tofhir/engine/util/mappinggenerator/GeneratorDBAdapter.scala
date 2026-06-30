@@ -41,8 +41,7 @@ class GeneratorDBAdapter {
       statement.setString(1, vocabularyId)
       statement.setString(2, conceptDomain)
       getOmopConcepts(statement.executeQuery())
-    }
-    finally {
+    } finally {
       statement.close()
     }
   }
@@ -91,9 +90,9 @@ class GeneratorDBAdapter {
 
   private def prepareRelationshipStatement(relationships: Set[String]): PreparedStatement = {
     val relationshipCriteria: String = relationships.map(_ => s"cr.relationship_id = ?").mkString(" AND ")
-    val statement: PreparedStatement = connection.prepareStatement(s"$getConceptRelationships AND $relationshipCriteria")
-    relationships
-      .zipWithIndex
+    val statement: PreparedStatement =
+      connection.prepareStatement(s"$getConceptRelationships AND $relationshipCriteria")
+    relationships.zipWithIndex
       .foreach(r => statement.setString(r._2 + 1, r._1))
     statement
   }

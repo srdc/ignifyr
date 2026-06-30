@@ -7,5 +7,4 @@ package io.tofhir.engine.model.exception
  * @param cause
  */
 final case class FhirMappingJobStoppedException(private val reason: String, private val cause: Throwable = None.orNull)
-  extends Exception(reason: String, cause: Throwable) {
-}
+    extends Exception(reason: String, cause: Throwable) {}

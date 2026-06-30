@@ -127,29 +127,30 @@ class ConceptMapEndpoint(conceptMapRepository: IConceptMapRepository) extends La
    * @return
    */
   private def getOrSaveConceptMapContentRoute(terminologyId: String, conceptMapId: String): Route = {
+
     /**
      * POST request to update part of the concept map content
      * byteSource contains the CSV content to be updated
      * Returns empty body with a total records header in case of success
      */
     post {
-      fileUpload(ATTACHMENT) {
-        case (fileInfo, byteSource) =>
-          parameterMap { queryParams =>
-            complete {
-              val pageNumber = queryParams.getOrElse("page", "1").toInt
-              val pageSize = queryParams.getOrElse("size", "10").toInt
-              service.saveConceptMapContent(terminologyId, conceptMapId, byteSource, pageNumber, pageSize) map { totalRecords =>
+      fileUpload(ATTACHMENT) { case (fileInfo, byteSource) =>
+        parameterMap { queryParams =>
+          complete {
+            val pageNumber = queryParams.getOrElse("page", "1").toInt
+            val pageSize = queryParams.getOrElse("size", "10").toInt
+            service.saveConceptMapContent(terminologyId, conceptMapId, byteSource, pageNumber, pageSize) map {
+              totalRecords =>
                 HttpResponse(
                   StatusCodes.OK,
-                  headers = List(RawHeader("X-Total-Count", totalRecords.toString)),
+                  headers = List(RawHeader("X-Total-Count", totalRecords.toString))
                 )
-              }
             }
           }
+        }
       }
 
-    /**
+      /**
      * GET request to get a paginated concept map content
      * Returns the paginated CSV content with a total records header
      */
@@ -182,13 +183,12 @@ class ConceptMapEndpoint(conceptMapRepository: IConceptMapRepository) extends La
    */
   private def uploadDownloadConceptMapFileRoute(terminologyId: String, conceptMapId: String): Route = {
     post {
-      fileUpload(ATTACHMENT) {
-        case (fileInfo, byteSource) =>
-          complete {
-            service.uploadConceptMapFile(terminologyId, conceptMapId, byteSource) map {
-              _ => StatusCodes.OK
-            }
+      fileUpload(ATTACHMENT) { case (fileInfo, byteSource) =>
+        complete {
+          service.uploadConceptMapFile(terminologyId, conceptMapId, byteSource) map { _ =>
+            StatusCodes.OK
           }
+        }
       }
     } ~ get {
       complete {

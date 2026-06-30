@@ -18,7 +18,9 @@ object ToFhirHttpServer extends LazyLogging {
   def start(route: Route, webServerConfig: WebServerConfig)(implicit actorSystem: ActorSystem): Unit = {
     implicit val executionContext: ExecutionContext = actorSystem.dispatcher
 
-    val serverBindingFuture = Http().newServerAt(webServerConfig.serverHost, webServerConfig.serverPort).bind(route)
+    val serverBindingFuture = Http()
+      .newServerAt(webServerConfig.serverHost, webServerConfig.serverPort)
+      .bind(route)
       .map(serverBinding => {
         serverBinding.addToCoordinatedShutdown(hardTerminationDeadline = FiniteDuration(10, TimeUnit.SECONDS))
         serverBinding.whenTerminated onComplete {
@@ -42,7 +44,7 @@ object ToFhirHttpServer extends LazyLogging {
         actorSystem.terminate()
     }
 
-    //Wait for a shutdown signal
+    // Wait for a shutdown signal
     Await.ready(waitForShutdownSignal(), Duration.Inf)
     serverBinding.get.terminate(FiniteDuration.apply(10L, TimeUnit.SECONDS))
   }

@@ -9,7 +9,7 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import java.time.LocalDateTime
 
 object SourceHandler {
-  //Column name to append to the source data frame, to indicate whether input is valid or not
+  // Column name to append to the source data frame, to indicate whether input is valid or not
   final val INPUT_VALIDITY_ERROR = "__validationError"
 
   /**
@@ -30,45 +30,55 @@ object SourceHandler {
    * @return
    */
   def readSource[T <: MappingSourceBinding, S <: MappingJobSourceSettings](
-                                                                            alias: String,
-                                                                            spark: SparkSession,
-                                                                            mappingSource: T,
-                                                                            mappingJobSourceSettings: S,
-                                                                            schema: Option[StructType],
-                                                                            timeRange: Option[(LocalDateTime, LocalDateTime)] = Option.empty,
-                                                                            jobId: Option[String] = Option.empty
-                                                                          ): DataFrame = {
-    val reader = try {
-      DataSourceReaderFactory
-        .apply(spark, mappingSource, mappingJobSourceSettings)
-    }
-    catch {
-      case e: Throwable => throw FhirMappingException(s"Failed to construct reader for mapping source: $mappingSource source settings: $mappingJobSourceSettings.", e)
-    }
-
-    val sourceData = try {
-      reader
-        .read(mappingSource, mappingJobSourceSettings, schema, timeRange, jobId = jobId)
-    } catch {
-      case e: Throwable => throw FhirMappingException(s"Source cannot be read for mapping source: $mappingSource source settings: $mappingJobSourceSettings.", e)
-    }
-
-    val finalSourceData = try {
-      //If there is some preprocessing SQL defined, apply it
-      mappingSource.preprocessSql match {
-        case Some(sql) =>
-          sourceData.createOrReplaceTempView(alias)
-          spark.sql(sql)
-        case None =>
-          sourceData
+      alias: String,
+      spark: SparkSession,
+      mappingSource: T,
+      mappingJobSourceSettings: S,
+      schema: Option[StructType],
+      timeRange: Option[(LocalDateTime, LocalDateTime)] = Option.empty,
+      jobId: Option[String] = Option.empty
+  ): DataFrame = {
+    val reader =
+      try {
+        DataSourceReaderFactory
+          .apply(spark, mappingSource, mappingJobSourceSettings)
+      } catch {
+        case e: Throwable =>
+          throw FhirMappingException(
+            s"Failed to construct reader for mapping source: $mappingSource source settings: $mappingJobSourceSettings.",
+            e
+          )
       }
-    } catch {
-      case e: Throwable => throw FhirMappingException(s"Erroneous Preprocess SQL: ${mappingSource.preprocessSql}", e)
-    }
+
+    val sourceData =
+      try {
+        reader
+          .read(mappingSource, mappingJobSourceSettings, schema, timeRange, jobId = jobId)
+      } catch {
+        case e: Throwable =>
+          throw FhirMappingException(
+            s"Source cannot be read for mapping source: $mappingSource source settings: $mappingJobSourceSettings.",
+            e
+          )
+      }
+
+    val finalSourceData =
+      try {
+        // If there is some preprocessing SQL defined, apply it
+        mappingSource.preprocessSql match {
+          case Some(sql) =>
+            sourceData.createOrReplaceTempView(alias)
+            spark.sql(sql)
+          case None =>
+            sourceData
+        }
+      } catch {
+        case e: Throwable => throw FhirMappingException(s"Erroneous Preprocess SQL: ${mappingSource.preprocessSql}", e)
+      }
     schema match {
-      //If there is a schema and also need validation
+      // If there is a schema and also need validation
       case Some(sc) if reader.needTypeValidation || reader.needCardinalityValidation =>
-        //TODO handle type validation
+        // TODO handle type validation
 
         // Find the required fields
         // Create a mutable set to store the names of required fields.
@@ -92,21 +102,27 @@ object SourceHandler {
           // Check required columns
           val nullChecksWithFields = requiredFields.map(f => (f, col(f).isNull))
 
-          val errorMessageColumn = concat_ws(", ",
+          val errorMessageColumn = concat_ws(
+            ", ",
             nullChecksWithFields.map { case (field, isNullCheck) =>
               when(isNullCheck, lit(field)) // Include field name if null
             }.toSeq: _* // Convert to Seq and expand as varargs to pass them to concat_ws
           )
 
           finalSourceData
-            .withColumn(INPUT_VALIDITY_ERROR,
+            .withColumn(
+              INPUT_VALIDITY_ERROR,
               when(
-                nullChecksWithFields.map(_._2).reduce(_ || _), // Adds a new column with an error message only if any one of the required field is null.
+                nullChecksWithFields
+                  .map(_._2)
+                  .reduce(
+                    _ || _
+                  ), // Adds a new column with an error message only if any one of the required field is null.
                 concat(lit("The following required columns are missing or null: "), errorMessageColumn)
               ).otherwise(lit(null).cast(DataTypes.StringType))
             )
         }
-      //If there is no schema or readers don't need validation, we assume all rows are valid
+      // If there is no schema or readers don't need validation, we assume all rows are valid
       case _ =>
         finalSourceData.withColumn(INPUT_VALIDITY_ERROR, lit(null).cast(DataTypes.StringType))
     }

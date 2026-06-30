@@ -4,7 +4,13 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, StatusC
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import io.tofhir.server.common.interceptor.ICORSHandler
-import io.tofhir.server.common.model.{BadRequest, MethodForbidden, RequestTimeout, ResourceNotFound, UnsupportedMediaType}
+import io.tofhir.server.common.model.{
+  BadRequest,
+  MethodForbidden,
+  RequestTimeout,
+  ResourceNotFound,
+  UnsupportedMediaType
+}
 
 object ToFhirRejectionHandler extends ICORSHandler {
 
@@ -12,14 +18,19 @@ object ToFhirRejectionHandler extends ICORSHandler {
    * Custom rejection handler to send proper error message to front-end on rejections.
    */
   private val rejectionHandler: RejectionHandler =
-    RejectionHandler.newBuilder()
+    RejectionHandler
+      .newBuilder()
 
       /**
        * Handles the cases where the type of the request data is wrong. Ex: String instead of a terminology system model.
        */
-      .handle {
-        case UnsupportedRequestContentTypeRejection(supportedTypes) =>
-          complete(StatusCodes.UnsupportedMediaType -> UnsupportedMediaType("Unsupported payload format", s"Server refuses to accept the request because the type of the request data is not in a supported format").toString)
+      .handle { case UnsupportedRequestContentTypeRejection(supportedTypes) =>
+        complete(
+          StatusCodes.UnsupportedMediaType -> UnsupportedMediaType(
+            "Unsupported payload format",
+            s"Server refuses to accept the request because the type of the request data is not in a supported format"
+          ).toString
+        )
       }
 
       /**
@@ -41,7 +52,12 @@ object ToFhirRejectionHandler extends ICORSHandler {
       .handleAll[MethodRejection] { methodRejections =>
         // supportedMethods are the applicable methods on the given URL
         val supportedMethods = methodRejections.map(_.supported.name)
-        complete(StatusCodes.MethodNotAllowed -> MethodForbidden("Method not allowed", s"Server refuses to accept the request because request method is not allowed in this URL. Supported methods: ${supportedMethods.mkString(", ")}.").toString)
+        complete(
+          StatusCodes.MethodNotAllowed -> MethodForbidden(
+            "Method not allowed",
+            s"Server refuses to accept the request because request method is not allowed in this URL. Supported methods: ${supportedMethods.mkString(", ")}."
+          ).toString
+        )
       }
 
       /**
@@ -49,8 +65,13 @@ object ToFhirRejectionHandler extends ICORSHandler {
        * This case has a special representation as handleNotFound
        */
       .handleNotFound {
-        extractUri { requestUrl  =>
-          complete(StatusCodes.NotFound -> ResourceNotFound("Url not found", s"${requestUrl} does not exist in this API.").toString)
+        extractUri { requestUrl =>
+          complete(
+            StatusCodes.NotFound -> ResourceNotFound(
+              "Url not found",
+              s"${requestUrl} does not exist in this API."
+            ).toString
+          )
         }
       }
 

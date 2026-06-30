@@ -4,6 +4,7 @@ import java.time.{Instant, ZoneOffset}
 import java.time.format.DateTimeFormatter
 
 object TimeUtil {
+
   /**
    * Retrieves the current system time and formats it to ISO 8601 format in UTC.
    *

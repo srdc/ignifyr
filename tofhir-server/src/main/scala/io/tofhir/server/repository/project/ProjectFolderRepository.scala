@@ -16,7 +16,6 @@ import java.io.FileWriter
 import scala.collection.mutable
 import scala.concurrent.Future
 
-
 /**
  * Folder/Directory based project repository implementation.
  *
@@ -61,10 +60,16 @@ class ProjectFolderRepository(config: ToFhirEngineConfig) extends IProjectReposi
     Future {
       // validate that there is no project with the given id and name
       if (projects.contains(project.id)) {
-        throw AlreadyExists("Project already exists.", s"Project with id ${project.id} already exists in the repository.")
+        throw AlreadyExists(
+          "Project already exists.",
+          s"Project with id ${project.id} already exists in the repository."
+        )
       }
       if (projects.values.exists(p => p.name.contentEquals(project.name))) {
-        throw AlreadyExists("Project already exists.", s"Project with name ${project.name} already exists in the repository.")
+        throw AlreadyExists(
+          "Project already exists.",
+          s"Project with name ${project.name} already exists in the repository."
+        )
       }
 
       // add project to the cache
@@ -105,7 +110,11 @@ class ProjectFolderRepository(config: ToFhirEngineConfig) extends IProjectReposi
       val newDescription = (patch \ ProjectEditableFields.DESCRIPTION).extractOpt[String]
       val newSchemaUrlPrefix = (patch \ ProjectEditableFields.SCHEMA_URL_PREFIX).extractOpt[String]
       val newMappingUrlPrefix = (patch \ ProjectEditableFields.MAPPING_URL_PREFIX).extractOpt[String]
-      val updatedProject = projects(id).copy(description = newDescription, schemaUrlPrefix = newSchemaUrlPrefix, mappingUrlPrefix = newMappingUrlPrefix)
+      val updatedProject = projects(id).copy(
+        description = newDescription,
+        schemaUrlPrefix = newSchemaUrlPrefix,
+        mappingUrlPrefix = newMappingUrlPrefix
+      )
       projects.put(id, updatedProject)
 
       // update the projects metadata
@@ -315,7 +324,10 @@ class ProjectFolderRepository(config: ToFhirEngineConfig) extends IProjectReposi
         case Some(project) =>
           mappingContextId match {
             case Some(id) =>
-              projects.put(projectId, project.copy(mappingContexts = project.mappingContexts.filterNot(m => m.equals(id))))
+              projects.put(
+                projectId,
+                project.copy(mappingContexts = project.mappingContexts.filterNot(m => m.equals(id)))
+              )
             case None =>
               projects.put(projectId, project.copy(mappingContexts = Seq.empty))
           }
@@ -337,7 +349,8 @@ class ProjectFolderRepository(config: ToFhirEngineConfig) extends IProjectReposi
     }
     // write projects to the file. Only the metadata of the internal resources are written to the file
     val fw = new FileWriter(file)
-    try fw.write(Serialization.writePretty(projects.values.map(_.getMetadata()).toList)) finally fw.close()
+    try fw.write(Serialization.writePretty(projects.values.map(_.getMetadata()).toList))
+    finally fw.close()
   }
 
   /**

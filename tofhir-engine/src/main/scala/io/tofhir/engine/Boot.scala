@@ -18,7 +18,7 @@ object Boot extends App {
 
   def init(args: Array[String]): Unit = {
     val options = CommandLineInterface.nextArg(Map(), args.toList)
-    //Interactive command line interface
+    // Interactive command line interface
     if (options.isEmpty || !options.contains("command") || options("command").asInstanceOf[String] == "cli") {
       val toFhirEngine = new ToFhirEngine()
       CommandLineInterface.start(toFhirEngine, ToFhirConfig.engineConfig.initialMappingJobFilePath)
@@ -30,11 +30,12 @@ object Boot extends App {
       val dataDictionary = options.get("data-dictionary").map(_.asInstanceOf[String])
       val definitionRootUrl = options.get("definition-root-url").map(_.asInstanceOf[String])
       val encoding = options.get("encoding").map(_.asInstanceOf[String])
-      val commandArgs: Seq[String] = Seq(dataDictionary, definitionRootUrl, encoding).filter(arg => arg.nonEmpty).map(arg => arg.get)
+      val commandArgs: Seq[String] =
+        Seq(dataDictionary, definitionRootUrl, encoding).filter(arg => arg.nonEmpty).map(arg => arg.get)
       // run command
       CommandFactory.apply("extract-redcap-schemas").execute(commandArgs, CommandExecutionContext(toFhirEngine))
     }
-    //Run as batch job
+    // Run as batch job
     else if (options("command").asInstanceOf[String] == "run") {
       val toFhirEngine = new ToFhirEngine()
       val mappingJobFilePath =

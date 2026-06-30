@@ -18,14 +18,24 @@ import io.tofhir.server.repository.terminology.conceptmap.ConceptMapFolderReposi
 class FolderRepositoryManager(toFhirEngineConfig: ToFhirEngineConfig) extends IRepositoryManager {
 
   override val projectRepository: ProjectFolderRepository = new ProjectFolderRepository(toFhirEngineConfig)
-  override val mappingRepository: ProjectMappingFolderRepository = new ProjectMappingFolderRepository(toFhirEngineConfig.mappingRepositoryFolderPath, projectRepository)
-  override val schemaRepository: SchemaFolderRepository = new SchemaFolderRepository(toFhirEngineConfig.schemaRepositoryFolderPath, projectRepository)
-  override val mappingJobRepository: JobFolderRepository = new JobFolderRepository(toFhirEngineConfig.jobRepositoryFolderPath, projectRepository)
-  override val mappingContextRepository: MappingContextFolderRepository = new MappingContextFolderRepository(toFhirEngineConfig.mappingContextRepositoryFolderPath, projectRepository)
+  override val mappingRepository: ProjectMappingFolderRepository =
+    new ProjectMappingFolderRepository(toFhirEngineConfig.mappingRepositoryFolderPath, projectRepository)
+  override val schemaRepository: SchemaFolderRepository =
+    new SchemaFolderRepository(toFhirEngineConfig.schemaRepositoryFolderPath, projectRepository)
+  override val mappingJobRepository: JobFolderRepository =
+    new JobFolderRepository(toFhirEngineConfig.jobRepositoryFolderPath, projectRepository)
+  override val mappingContextRepository: MappingContextFolderRepository =
+    new MappingContextFolderRepository(toFhirEngineConfig.mappingContextRepositoryFolderPath, projectRepository)
 
-  override val terminologySystemRepository: TerminologySystemFolderRepository = new TerminologySystemFolderRepository(toFhirEngineConfig.terminologySystemFolderPath)
-  override val conceptMapRepository: ConceptMapFolderRepository = new ConceptMapFolderRepository(toFhirEngineConfig.terminologySystemFolderPath)
-  override val codeSystemRepository: CodeSystemFolderRepository = new CodeSystemFolderRepository(toFhirEngineConfig.terminologySystemFolderPath)
+  override val terminologySystemRepository: TerminologySystemFolderRepository = new TerminologySystemFolderRepository(
+    toFhirEngineConfig.terminologySystemFolderPath
+  )
+  override val conceptMapRepository: ConceptMapFolderRepository = new ConceptMapFolderRepository(
+    toFhirEngineConfig.terminologySystemFolderPath
+  )
+  override val codeSystemRepository: CodeSystemFolderRepository = new CodeSystemFolderRepository(
+    toFhirEngineConfig.terminologySystemFolderPath
+  )
 
   private val folderDBInitializer = new FolderDBInitializer(
     projectRepository,

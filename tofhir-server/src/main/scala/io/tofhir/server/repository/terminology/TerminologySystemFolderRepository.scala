@@ -15,10 +15,13 @@ import scala.concurrent.Future
 /**
  * Folder/Directory based terminology system repository implementation.
  */
-class TerminologySystemFolderRepository(terminologySystemsFolderPath: String) extends ITerminologySystemRepository with ICachedRepository {
+class TerminologySystemFolderRepository(terminologySystemsFolderPath: String)
+    extends ITerminologySystemRepository
+    with ICachedRepository {
 
   // terminology system id -> TerminologySystem
-  private val terminologySystemMap: mutable.Map[String, TerminologySystem] = mutable.Map.empty[String, TerminologySystem]
+  private val terminologySystemMap: mutable.Map[String, TerminologySystem] =
+    mutable.Map.empty[String, TerminologySystem]
   // Initialize the map for the first time
   initMap()
 
@@ -78,9 +81,12 @@ class TerminologySystemFolderRepository(terminologySystemsFolderPath: String) ex
    * @return updated TerminologySystem
    */
   override def updateTerminologySystem(id: String, terminologySystem: TerminologySystem): Future[TerminologySystem] = {
-    //cross check ids
+    // cross check ids
     if (id != terminologySystem.id) {
-      throw BadRequest("Terminology System IDs do not match.", s"Id $id does not match with the id in the body ${terminologySystem.id}.")
+      throw BadRequest(
+        "Terminology System IDs do not match.",
+        s"Id $id does not match with the id in the body ${terminologySystem.id}."
+      )
     }
     this.validate(terminologySystem)
     // find the terminology system
@@ -116,12 +122,13 @@ class TerminologySystemFolderRepository(terminologySystemsFolderPath: String) ex
           // delete the terminology metadata
           val updatedTerminologies = this.terminologySystemMap.values.toSeq.filterNot(_.id == id)
           this.updateTerminologySystemsDBFile(updatedTerminologies)
-          //delete the terminology folder
+          // delete the terminology folder
           val terminologyFolder = FileUtils.getPath(terminologySystemsFolderPath, foundTerminology.id).toFile
           org.apache.commons.io.FileUtils.deleteDirectory(terminologyFolder)
           // remove the terminology from the map
           this.terminologySystemMap.remove(id)
-        case None => throw ResourceNotFound("Terminology system not found.", s"Terminology system with id $id not found.")
+        case None =>
+          throw ResourceNotFound("Terminology system not found.", s"Terminology system with id $id not found.")
       }
     }
   }
@@ -152,7 +159,10 @@ class TerminologySystemFolderRepository(terminologySystemsFolderPath: String) ex
    * @param newTerminologySystem
    * @return
    */
-  private def updateConceptMapAndCodeSystemFiles(existingTerminologySystem: TerminologySystem, newTerminologySystem: TerminologySystem): Future[Unit] = {
+  private def updateConceptMapAndCodeSystemFiles(
+      existingTerminologySystem: TerminologySystem,
+      newTerminologySystem: TerminologySystem
+  ): Future[Unit] = {
     Future {
       // find intersection ids of concept map and code system in local terminologies
       val currentConceptMapIds = existingTerminologySystem.conceptMaps.map(_.id)
@@ -201,7 +211,8 @@ class TerminologySystemFolderRepository(terminologySystemsFolderPath: String) ex
     if (!terminologySystemsFolder.exists()) {
       terminologySystemsFolder.mkdirs()
     }
-    val terminologySystemsJsonFile = FileUtils.getPath(getTerminologySystemsJsonPath(terminologySystemsFolderPath)).toFile
+    val terminologySystemsJsonFile =
+      FileUtils.getPath(getTerminologySystemsJsonPath(terminologySystemsFolderPath)).toFile
     if (!terminologySystemsJsonFile.exists()) {
       terminologySystemsJsonFile.createNewFile()
       FileOperations.writeJsonContent(terminologySystemsJsonFile, Seq.empty[TerminologySystem])
@@ -244,7 +255,10 @@ class TerminologySystemFolderRepository(terminologySystemsFolderPath: String) ex
     // combine and check if concept map/code system name is unique
     val names = terminologySystem.conceptMaps.map(_.name) ++ terminologySystem.codeSystems.map(_.name)
     if (names.distinct.length != names.length) {
-      throw BadRequest("A name cannot be used more than once across concept maps and code systems within a TerminologySystem", s"TerminologySystem id: ${terminologySystem.id}.")
+      throw BadRequest(
+        "A name cannot be used more than once across concept maps and code systems within a TerminologySystem",
+        s"TerminologySystem id: ${terminologySystem.id}."
+      )
     }
   }
 

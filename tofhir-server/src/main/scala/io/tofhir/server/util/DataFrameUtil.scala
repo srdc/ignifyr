@@ -4,6 +4,7 @@ import io.tofhir.server.model.{ResourceFilter, RowSelectionOrder}
 import org.apache.spark.sql.DataFrame
 
 object DataFrameUtil {
+
   /**
    * Apply the row selection to the dataframe
    *

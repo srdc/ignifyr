@@ -40,7 +40,10 @@ object FhirMappingUtility {
    * @return an integer within [rangeStart, rangeEnd]
    */
   def getHashedIntId(id: String, rangeStart: Int, rangeEnd: Int): Int = {
-    require(rangeEnd >= rangeStart, s"Invalid range for getHashedIntId: rangeEnd ($rangeEnd) must be greater than or equal to rangeStart ($rangeStart)!")
+    require(
+      rangeEnd >= rangeStart,
+      s"Invalid range for getHashedIntId: rangeEnd ($rangeEnd) must be greater than or equal to rangeStart ($rangeStart)!"
+    )
     val rangeSize: Long = rangeEnd.toLong - rangeStart.toLong + 1L
     val digest = MessageDigest.getInstance("SHA-256").digest(id.getBytes(StandardCharsets.UTF_8))
     val hashLong = ByteBuffer.wrap(digest, 0, java.lang.Long.BYTES).getLong

@@ -38,7 +38,9 @@ object FileOperations {
    */
   def readJsonContent[K](f: File)(implicit ev: scala.reflect.Manifest[K]): Seq[K] = {
     val source = Source.fromFile(f, StandardCharsets.UTF_8.name())
-    val fileContent = try source.mkString finally source.close()
+    val fileContent =
+      try source.mkString
+      finally source.close()
     val parsed = parse(fileContent).extract[Seq[K]]
     parsed
   }
@@ -51,7 +53,9 @@ object FileOperations {
    */
   def readFileIntoJson(f: File): JValue = {
     val source = Source.fromFile(f, StandardCharsets.UTF_8.name())
-    val fileContent = try source.mkString finally source.close()
+    val fileContent =
+      try source.mkString
+      finally source.close()
     parse(fileContent)
   }
 
@@ -81,11 +85,12 @@ object FileOperations {
    */
   def readJsonContentAsObject[K](f: File)(implicit ev: scala.reflect.Manifest[K]): K = {
     val source = Source.fromFile(f, StandardCharsets.UTF_8.name())
-    val fileContent = try source.mkString finally source.close()
+    val fileContent =
+      try source.mkString
+      finally source.close()
     val parsed = parse(fileContent).extract[K]
     parsed
   }
-
 
   /**
    * Checks whether the given CSV file is a unit conversion file. A CSV file is a unit conversion file
@@ -96,7 +101,9 @@ object FileOperations {
    * */
   def isUnitConversionFile(f: File): Boolean = {
     val source = Source.fromFile(f, StandardCharsets.UTF_8.name())
-    val firstLine = try source.getLines().toSeq.head finally source.close()
+    val firstLine =
+      try source.getLines().toSeq.head
+      finally source.close()
     firstLine.contains("conversion_function")
   }
 
@@ -125,7 +132,9 @@ object FileOperations {
    */
   def checkFileNameMatchesEntityId(entityId: String, file: File, entityType: String): Boolean = {
     if (!entityId.equals(IOUtil.removeFileExtension(file.getName))) {
-      logger.warn(s"Discarding $entityType definition with id $entityId as it does not match with the file name ${file.getName}")
+      logger.warn(
+        s"Discarding $entityType definition with id $entityId as it does not match with the file name ${file.getName}"
+      )
       false
     } else {
       true
@@ -142,6 +151,7 @@ object FileOperations {
    * @return A Future containing a sequence of `Resource` objects extracted from the ZIP file.
    */
   def processZipFile(zipFilePath: Path): Future[Seq[Resource]] = Future {
+
     /**
      * Parses a JSON resource from the provided reader.
      *
@@ -158,8 +168,7 @@ object FileOperations {
       if (path.endsWith(".json"))
         try {
           JsonMethods.parse(reader).asInstanceOf[JObject]
-        }
-        catch {
+        } catch {
           case e: Exception =>
             throw InternalError("JSON parsing problem", s"Cannot parse resource from path $path!", Some(e))
         }
@@ -209,4 +218,3 @@ object FileOperations {
     file
   }
 }
-

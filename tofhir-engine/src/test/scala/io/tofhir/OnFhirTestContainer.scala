@@ -26,7 +26,8 @@ object OnFhirTestContainer {
       .withNetworkAliases("mongoDB")
       .start()
     // Create a generic container for onFHIR
-    val container: GenericContainer[Nothing] = new GenericContainer(DockerImageName.parse("srdc/onfhir:r5")).withExposedPorts(ONFHIR_TESTCONTAINER_PORT)
+    val container: GenericContainer[Nothing] =
+      new GenericContainer(DockerImageName.parse("srdc/onfhir:r5")).withExposedPorts(ONFHIR_TESTCONTAINER_PORT)
     container.withNetwork(network) // attach the onFHIR container to the same network
     container.withNetworkAliases("onFhir")
     container.addEnv("DB_EMBEDDED", "false") // disable embedded database
@@ -35,7 +36,9 @@ object OnFhirTestContainer {
     container.addEnv("SERVER_BASE_URI", "fhir")
     container.addEnv("FHIR_ROOT_URL", s"http://${container.getHost}:$ONFHIR_TESTCONTAINER_PORT/fhir")
     container.withReuse(true)
-    container.waitingFor(Wait.forHttp("/fhir/metadata").forStatusCode(200).withStartupTimeout(Duration.ofSeconds(TIMEOUT_SECONDS)))
+    container.waitingFor(
+      Wait.forHttp("/fhir/metadata").forStatusCode(200).withStartupTimeout(Duration.ofSeconds(TIMEOUT_SECONDS))
+    )
     container.start()
     container
   }

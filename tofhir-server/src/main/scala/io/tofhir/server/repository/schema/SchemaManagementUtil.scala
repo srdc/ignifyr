@@ -16,7 +16,12 @@ object SchemaManagementUtil {
    * @param newProfileRestrictions The new ProfileRestrictions to be put into the map.
    * @return
    */
-  def updateProfileRestrictionsMap(profileRestrictionsMap: Map[String, Map[String, ProfileRestrictions]], schemaUrl: String, schemaVersion: String, newProfileRestrictions: ProfileRestrictions): Map[String, Map[String, ProfileRestrictions]] = {
+  def updateProfileRestrictionsMap(
+      profileRestrictionsMap: Map[String, Map[String, ProfileRestrictions]],
+      schemaUrl: String,
+      schemaVersion: String,
+      newProfileRestrictions: ProfileRestrictions
+  ): Map[String, Map[String, ProfileRestrictions]] = {
     profileRestrictionsMap.updated(
       schemaUrl,
       profileRestrictionsMap.get(schemaUrl) match {

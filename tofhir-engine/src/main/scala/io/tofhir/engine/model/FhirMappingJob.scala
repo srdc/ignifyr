@@ -22,18 +22,20 @@ import javax.ws.rs.BadRequestException
  * @param useFhirSinkAsIdentityService If true it means the FHIR repository to write the mapped resources where the configuration
  *                                     is given in sink settings will be used as identity service (Override identityServiceSettings if given)
  */
-case class FhirMappingJob(id: String = UUID.randomUUID().toString,
-                          name: Option[String] = None,
-                          description: Option[String] = None,
-                          sourceSettings: Map[String, MappingJobSourceSettings],
-                          sinkSettings: FhirSinkSettings,
-                          terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
-                          identityServiceSettings: Option[IdentityServiceSettings] = None,
-                          mappings: Seq[FhirMappingTask],
-                          schedulingSettings: Option[BaseSchedulingSettings] = None,
-                          dataProcessingSettings: DataProcessingSettings = DataProcessingSettings(),
-                          useFhirSinkAsIdentityService: Boolean = false
-                         ) {
+case class FhirMappingJob(
+    id: String = UUID.randomUUID().toString,
+    name: Option[String] = None,
+    description: Option[String] = None,
+    sourceSettings: Map[String, MappingJobSourceSettings],
+    sinkSettings: FhirSinkSettings,
+    terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
+    identityServiceSettings: Option[IdentityServiceSettings] = None,
+    mappings: Seq[FhirMappingTask],
+    schedulingSettings: Option[BaseSchedulingSettings] = None,
+    dataProcessingSettings: DataProcessingSettings = DataProcessingSettings(),
+    useFhirSinkAsIdentityService: Boolean = false
+) {
+
   /**
    * Validates the mapping job
    *
@@ -48,14 +50,18 @@ case class FhirMappingJob(id: String = UUID.randomUUID().toString,
     // Check names of the mappingTasks, if a duplicate name is found, throw an error
     val duplicateMappingTasks = FhirMappingJobFormatter.findDuplicateMappingTaskNames(mappings)
     if (duplicateMappingTasks.nonEmpty) {
-      throw new BadRequestException(s"Duplicate MappingTask name(s) found: ${duplicateMappingTasks.mkString(", ")}. Each MappingTask must have a unique name.")
+      throw new BadRequestException(
+        s"Duplicate MappingTask name(s) found: ${duplicateMappingTasks.mkString(", ")}. Each MappingTask must have a unique name."
+      )
     }
 
     // Check mapping tasks of the job, if a data source of a mapping task is missing, throw an error
     mappings.foreach(mappingTask => {
       mappingTask.sourceBinding.foreach(sourceBinding => {
         if (sourceBinding._2.sourceRef.nonEmpty && !sourceSettings.contains(sourceBinding._2.sourceRef.get)) {
-          throw new BadRequestException(s"The data source referenced by source name '${sourceBinding._2.sourceRef.get}' in the mapping task '${mappingTask.name}' is not found in the source settings of the job.")
+          throw new BadRequestException(
+            s"The data source referenced by source name '${sourceBinding._2.sourceRef.get}' in the mapping task '${mappingTask.name}' is not found in the source settings of the job."
+          )
         }
       })
     })
@@ -90,6 +96,7 @@ case class FhirMappingJob(id: String = UUID.randomUUID().toString,
  * Interface defining scheduling settings for mapping jobs.
  */
 trait BaseSchedulingSettings {
+
   /**
    * Specifies a UNIX crontab-like pattern split into five space-separated parts.
    * For more details, refer to: https://www.sauronsoftware.it/projects/cron4j/

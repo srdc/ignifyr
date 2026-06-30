@@ -6,6 +6,7 @@ package io.tofhir.engine.model.exception
  * @param reason A description of the reason for the exception.
  * @param cause  The cause of this exception, if any.
  */
-final case class InvalidFhirRepositoryUrlException(private val reason: String, private val cause: Throwable = None.orNull)
-  extends Exception(reason: String, cause: Throwable) {
-}
+final case class InvalidFhirRepositoryUrlException(
+    private val reason: String,
+    private val cause: Throwable = None.orNull
+) extends Exception(reason: String, cause: Throwable) {}

@@ -60,7 +60,8 @@ object SparkUtil {
     val source = Source.fromFile(sourceFile)
 
     // Iterate through the lines in the file
-    val sourceFiles: Seq[File] = source.getLines()
+    val sourceFiles: Seq[File] = source
+      .getLines()
       .flatMap(line => {
         // Some lines do not contain the desired information
         try {
@@ -98,10 +99,12 @@ object SparkUtil {
    * @return An RDD where each row represents a line from the files within the given zip file
    */
   def readZip(path: String, spark: SparkSession): Dataset[String] = {
-    val fileContentRDD = spark.sparkContext.binaryFiles(path)
+    val fileContentRDD = spark.sparkContext
+      .binaryFiles(path)
       .flatMap { case (name: String, content: PortableDataStream) =>
         val zis = new ZipInputStream(content.open) // We only deal with the content of the file, not with its name
-        LazyList.continually(zis.getNextEntry)
+        LazyList
+          .continually(zis.getNextEntry)
           .takeWhile {
             case null => zis.close(); false
             case _ => true
@@ -112,6 +115,7 @@ object SparkUtil {
           }
       }
     import spark.implicits._
-    fileContentRDD.toDS() // Convert from RDD to Dataframe. Use the implicit conversions because we only have one column whose type is String
+    fileContentRDD
+      .toDS() // Convert from RDD to Dataframe. Use the implicit conversions because we only have one column whose type is String
   }
 }

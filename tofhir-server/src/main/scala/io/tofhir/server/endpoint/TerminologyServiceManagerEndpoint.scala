@@ -17,12 +17,15 @@ import io.tofhir.server.service.terminology.TerminologySystemService
 
 import scala.concurrent.Future
 
-class TerminologyServiceManagerEndpoint(terminologySystemRepository: ITerminologySystemRepository,
-                                        conceptMapRepository: IConceptMapRepository,
-                                        codeSystemRepository: ICodeSystemRepository,
-                                        mappingJobRepository: IJobRepository) extends LazyLogging {
+class TerminologyServiceManagerEndpoint(
+    terminologySystemRepository: ITerminologySystemRepository,
+    conceptMapRepository: IConceptMapRepository,
+    codeSystemRepository: ICodeSystemRepository,
+    mappingJobRepository: IJobRepository
+) extends LazyLogging {
 
-  private val terminologySystemService: TerminologySystemService = new TerminologySystemService(terminologySystemRepository, mappingJobRepository)
+  private val terminologySystemService: TerminologySystemService =
+    new TerminologySystemService(terminologySystemRepository, mappingJobRepository)
 
   private val conceptMapEndpoint: ConceptMapEndpoint = new ConceptMapEndpoint(conceptMapRepository)
   private val codeSystemEndpoint: CodeSystemEndpoint = new CodeSystemEndpoint(codeSystemRepository)
@@ -35,15 +38,22 @@ class TerminologyServiceManagerEndpoint(terminologySystemRepository: ITerminolog
       } ~ // operations on individual terminology systems
         pathPrefix(Segment) { terminologySystemId: String =>
           pathEndOrSingleSlash {
-            getTerminologySystemRoute(terminologySystemId) ~ putTerminologySystemRoute(terminologySystemId) ~ deleteTerminologySystemRoute(terminologySystemId)
+            getTerminologySystemRoute(terminologySystemId) ~ putTerminologySystemRoute(
+              terminologySystemId
+            ) ~ deleteTerminologySystemRoute(terminologySystemId)
           } ~ {
-            val terminologyExists: Future[Option[TerminologySystem]] = terminologySystemService.getTerminologySystem(terminologySystemId)
+            val terminologyExists: Future[Option[TerminologySystem]] =
+              terminologySystemService.getTerminologySystem(terminologySystemId)
             onSuccess(terminologyExists) {
-              case None => complete {
-                StatusCodes.NotFound -> {
-                  throw ResourceNotFound("Terminology system not found", s"TerminologySystem with id $terminologySystemId not found")
+              case None =>
+                complete {
+                  StatusCodes.NotFound -> {
+                    throw ResourceNotFound(
+                      "Terminology system not found",
+                      s"TerminologySystem with id $terminologySystemId not found"
+                    )
+                  }
                 }
-              }
               case Some(_) => {
                 request.terminologyId = Some(terminologySystemId)
                 conceptMapEndpoint.route(request) ~ codeSystemEndpoint.route(request)
@@ -95,9 +105,13 @@ class TerminologyServiceManagerEndpoint(terminologySystemRepository: ITerminolog
       complete {
         terminologySystemService.getTerminologySystem(terminologySystemId) map {
           case Some(terminologySystem) => StatusCodes.OK -> terminologySystem
-          case None => StatusCodes.NotFound -> {
-            throw ResourceNotFound("Terminology system not found", s"TerminologySystem with id $terminologySystemId not found.")
-          }
+          case None =>
+            StatusCodes.NotFound -> {
+              throw ResourceNotFound(
+                "Terminology system not found",
+                s"TerminologySystem with id $terminologySystemId not found."
+              )
+            }
         }
       }
     }
@@ -113,8 +127,9 @@ class TerminologyServiceManagerEndpoint(terminologySystemRepository: ITerminolog
     put {
       entity(as[TerminologySystem]) { newTerminologySystem =>
         complete {
-          terminologySystemService.updateTerminologySystem(terminologySystemId, newTerminologySystem) map { updatedTerminologySystem =>
-            StatusCodes.OK -> updatedTerminologySystem
+          terminologySystemService.updateTerminologySystem(terminologySystemId, newTerminologySystem) map {
+            updatedTerminologySystem =>
+              StatusCodes.OK -> updatedTerminologySystem
           }
         }
       }
@@ -130,8 +145,8 @@ class TerminologyServiceManagerEndpoint(terminologySystemRepository: ITerminolog
   private def deleteTerminologySystemRoute(terminologySystemId: String): Route = {
     delete {
       complete {
-        terminologySystemService.deleteTerminologySystem(terminologySystemId) map {
-          _ => StatusCodes.NoContent
+        terminologySystemService.deleteTerminologySystem(terminologySystemId) map { _ =>
+          StatusCodes.NoContent
         }
       }
     }

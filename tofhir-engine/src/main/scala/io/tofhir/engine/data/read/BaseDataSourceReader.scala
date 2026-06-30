@@ -21,7 +21,13 @@ abstract class BaseDataSourceReader[T <: MappingSourceBinding, S <: MappingJobSo
    * @param jobId                    The identifier of mapping job which executes the mapping
    * @return
    */
-  def read(mappingSourceBinding: T, mappingJobSourceSettings: S, schema: Option[StructType], timeRange: Option[(LocalDateTime, LocalDateTime)], jobId: Option[String]): DataFrame
+  def read(
+      mappingSourceBinding: T,
+      mappingJobSourceSettings: S,
+      schema: Option[StructType],
+      timeRange: Option[(LocalDateTime, LocalDateTime)],
+      jobId: Option[String]
+  ): DataFrame
 
   /**
    * Whether this reader needs a data type validation for columns after reading the source
@@ -34,5 +40,3 @@ abstract class BaseDataSourceReader[T <: MappingSourceBinding, S <: MappingJobSo
   val needCardinalityValidation: Boolean = true
 
 }
-
-

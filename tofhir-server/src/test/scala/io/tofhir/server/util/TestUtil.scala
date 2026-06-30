@@ -14,6 +14,8 @@ object TestUtil {
    * @return
    */
   def getProjectJsonFile(engineConfig: ToFhirEngineConfig): JArray = {
-    FileOperations.readFileIntoJson(FileUtils.getPath(ProjectFolderRepository.PROJECTS_JSON).toFile).asInstanceOf[JArray]
+    FileOperations
+      .readFileIntoJson(FileUtils.getPath(ProjectFolderRepository.PROJECTS_JSON).toFile)
+      .asInstanceOf[JArray]
   }
 }

@@ -20,13 +20,15 @@ import scala.collection.mutable
 import scala.concurrent.Future
 import scala.io.Source
 
-class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IProjectRepository) extends IJobRepository {
+class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IProjectRepository)
+    extends IJobRepository {
 
   private val logger: Logger = Logger(this.getClass)
 
   // In-memory cache to maintain the job definitions.
   // project id -> mapping job id -> mapping job
-  private val jobDefinitions: mutable.Map[String, mutable.Map[String, FhirMappingJob]] = mutable.Map.empty[String, mutable.Map[String, FhirMappingJob]]
+  private val jobDefinitions: mutable.Map[String, mutable.Map[String, FhirMappingJob]] =
+    mutable.Map.empty[String, mutable.Map[String, FhirMappingJob]]
 
   // Initialize the map for the first time
   initMap(jobRepositoryFolderPath)
@@ -39,7 +41,8 @@ class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IP
    */
   override def getAllJobs(projectId: String): Future[Seq[FhirMappingJob]] = {
     Future {
-      jobDefinitions.get(projectId)
+      jobDefinitions
+        .get(projectId)
         .map(_.values.toSeq) // If such a project exists, return the jobs as a sequence
         .getOrElse(Seq.empty[FhirMappingJob]) // Else, return an empty list
     }
@@ -54,7 +57,10 @@ class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IP
    */
   override def saveJob(projectId: String, job: FhirMappingJob): Future[FhirMappingJob] = {
     jobDefinitions.get(projectId).flatMap(_.get(job.id)).foreach { _ =>
-      throw AlreadyExists("Fhir mapping job already exists.", s"A job definition with id ${job.id} already exists in the job repository at ${FileUtils.getPath(jobRepositoryFolderPath).toAbsolutePath.toString}")
+      throw AlreadyExists(
+        "Fhir mapping job already exists.",
+        s"A job definition with id ${job.id} already exists in the job repository at ${FileUtils.getPath(jobRepositoryFolderPath).toAbsolutePath.toString}"
+      )
     }
     // Write to the repository as a new file
     getFileForJob(projectId, job.id).flatMap(file => {
@@ -93,7 +99,10 @@ class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IP
    */
   override def updateJob(projectId: String, jobId: String, job: FhirMappingJob): Future[FhirMappingJob] = {
     if (!jobDefinitions.get(projectId).exists(_.contains(jobId))) {
-      throw ResourceNotFound("Mapping job does not exists.", s"A mapping job with id $jobId does not exists in the mapping job repository at ${FileUtils.getPath(jobRepositoryFolderPath).toAbsolutePath.toString}")
+      throw ResourceNotFound(
+        "Mapping job does not exists.",
+        s"A mapping job with id $jobId does not exists in the mapping job repository at ${FileUtils.getPath(jobRepositoryFolderPath).toAbsolutePath.toString}"
+      )
     }
     // update the job in the repository
     getFileForJob(projectId, job.id).flatMap(file => {
@@ -118,7 +127,10 @@ class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IP
    */
   override def deleteJob(projectId: String, jobId: String): Future[Unit] = {
     if (!jobDefinitions.get(projectId).exists(_.contains(jobId))) {
-      throw ResourceNotFound("Mapping job does not exists.", s"A mapping job with id $jobId does not exists in the mapping job repository at ${FileUtils.getPath(jobRepositoryFolderPath).toAbsolutePath.toString}")
+      throw ResourceNotFound(
+        "Mapping job does not exists.",
+        s"A mapping job with id $jobId does not exists in the mapping job repository at ${FileUtils.getPath(jobRepositoryFolderPath).toAbsolutePath.toString}"
+      )
     }
 
     // delete the mapping job from the repository
@@ -170,7 +182,10 @@ class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IP
    */
   private def getFileForJob(projectId: String, jobId: String): Future[File] = {
     projectRepository.getProject(projectId) map { project =>
-      if (project.isEmpty) throw new IllegalStateException(s"This should not be possible. ProjectId: $projectId does not exist in the project folder repository.")
+      if (project.isEmpty)
+        throw new IllegalStateException(
+          s"This should not be possible. ProjectId: $projectId does not exist in the project folder repository."
+        )
       FileOperations.getFileForEntityWithinProject(jobRepositoryFolderPath, project.get.id, jobId)
     }
   }
@@ -192,17 +207,26 @@ class JobFolderRepository(jobRepositoryFolderPath: String, projectRepository: IP
     projectDirectories.foreach { projectDirectory =>
       // job-id -> FhirMappingJob
       val fhirJobMap: mutable.Map[String, FhirMappingJob] = mutable.Map.empty
-      val files = IOUtil.getFilesFromFolder(projectDirectory, recursively = true, ignoreHidden = true, withExtension = Some(FileExtensions.JSON.toString))
+      val files = IOUtil.getFilesFromFolder(
+        projectDirectory,
+        recursively = true,
+        ignoreHidden = true,
+        withExtension = Some(FileExtensions.JSON.toString)
+      )
       files.map { file =>
         val source = Source.fromFile(file, StandardCharsets.UTF_8.name()) // read the JSON file
-        val fileContent = try source.mkString finally source.close()
+        val fileContent =
+          try source.mkString
+          finally source.close()
         // Try to parse the file content as FhirMappingJob
         try {
           val job = JsonMethods.parse(fileContent).extract[FhirMappingJob]
           // check there are no duplicate name on mappingTasks of the job
           val duplicateMappingTasks = FhirMappingJobFormatter.findDuplicateMappingTaskNames(job.mappings)
           if (duplicateMappingTasks.nonEmpty) {
-            throw new MappingException(s"Duplicate 'name' fields detected in the MappingTasks of job '${job.id}': ${duplicateMappingTasks.mkString(", ")}. Please ensure that each MappingTask has a unique name.")
+            throw new MappingException(
+              s"Duplicate 'name' fields detected in the MappingTasks of job '${job.id}': ${duplicateMappingTasks.mkString(", ")}. Please ensure that each MappingTask has a unique name."
+            )
           }
           // discard if the job id and file name not match
           if (FileOperations.checkFileNameMatchesEntityId(job.id, file, "job")) {

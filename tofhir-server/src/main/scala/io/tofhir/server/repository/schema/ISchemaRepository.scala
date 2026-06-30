@@ -82,7 +82,6 @@ trait ISchemaRepository extends IFhirSchemaLoader with ICachedRepository with IP
    */
   def getSchemaAsStructureDefinition(projectId: String, schemaId: String): Future[Option[Resource]]
 
-
   /**
    * Saves the schemas by using their Structure Definition resources.
    *
@@ -90,6 +89,9 @@ trait ISchemaRepository extends IFhirSchemaLoader with ICachedRepository with IP
    * @param structureDefinitionResources A sequence of resources representing the structure definitions to be saved.
    * @return A Future containing a sequence of SchemaDefinition objects for the created schemas.
    */
-  def saveSchemaByStructureDefinition(projectId: String, structureDefinitionResources: Seq[Resource]): Future[Seq[SchemaDefinition]]
+  def saveSchemaByStructureDefinition(
+      projectId: String,
+      structureDefinitionResources: Seq[Resource]
+  ): Future[Seq[SchemaDefinition]]
 
 }

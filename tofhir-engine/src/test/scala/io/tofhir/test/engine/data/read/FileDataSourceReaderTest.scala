@@ -24,14 +24,18 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
    * SparkSession used for the test cases.
    */
   val sparkSession: SparkSession = ToFhirConfig.sparkSession
+
   /**
    * Path to the directory containing test data for FileDataSourceReader.
    */
-  val testDataFolderPath: String = Paths.get(getClass.getResource("/file-data-source-reader-test-data").toURI).toAbsolutePath.toString
+  val testDataFolderPath: String =
+    Paths.get(getClass.getResource("/file-data-source-reader-test-data").toURI).toAbsolutePath.toString
+
   /**
    * Instance of FileDataSourceReader used to read data files during tests.
    */
   val fileDataSourceReader = new FileDataSourceReader(sparkSession)
+
   /**
    * Date format used for parsing and formatting date values in test cases.
    */
@@ -70,11 +74,18 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     // Test case 1: Verify that providing a file path instead of a directory throws an IllegalArgumentException
     val fileName: String = "patients.csv"
     val illegalArgumentSourceBinding = FileSystemSource(path = fileName, contentType = SourceContentTypes.CSV)
-    val streamJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest0", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath), asStream = true)
+    val streamJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest0",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath),
+      asStream = true
+    )
     val exception = intercept[IllegalArgumentException] {
       fileDataSourceReader.read(illegalArgumentSourceBinding, streamJobSourceSettings, Option.empty)
     }
-    exception.getMessage should include(s"${fileName} is not a directory. For streaming job, you should provide a directory.")
+    exception.getMessage should include(
+      s"${fileName} is not a directory. For streaming job, you should provide a directory."
+    )
 
     // Test case 2: Verify that unsupported content types throw a NotImplementedError
     val unsupportedContentTypeSourceBinding = FileSystemSource(path = fileName, contentType = "UNSUPPORTED")
@@ -139,7 +150,11 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Loop through each source binding configuration to run the test
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest1", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest1",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
     sourceBindingConfigurations.foreach { case (fileName, contentType) =>
       // Read the data using the reader and the defined settings
       val mappingSourceBinding = FileSystemSource(path = fileName, contentType = contentType, options = sparkOptions)
@@ -166,9 +181,15 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
       "comment" -> "!"
     )
 
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest1", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
-    val mappingSourceBinding = FileSystemSource(path = "patients.csv", contentType = SourceContentTypes.CSV, options = sparkOptions)
-    val limitedResult: DataFrame = fileDataSourceReader.read(mappingSourceBinding, mappingJobSourceSettings, schema = Option.empty).limit(4)
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest1",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
+    val mappingSourceBinding =
+      FileSystemSource(path = "patients.csv", contentType = SourceContentTypes.CSV, options = sparkOptions)
+    val limitedResult: DataFrame =
+      fileDataSourceReader.read(mappingSourceBinding, mappingJobSourceSettings, schema = Option.empty).limit(4)
     limitedResult.count() shouldBe 4
     limitedResult.first() shouldBe expectedFirstRow
   }
@@ -227,7 +248,11 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Loop through each source binding configuration to run the test
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest2", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest2",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
     sourceBindingConfigurations.foreach { case (folderName, contentType) =>
       // Read the data using the reader and the defined settings
       val mappingSourceBinding = FileSystemSource(path = folderName, contentType = contentType, options = sparkOptions)
@@ -291,7 +316,11 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Loop through each source binding configuration to run the test
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = s"FileDataSourceReaderTest3", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = s"FileDataSourceReaderTest3",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
     sourceBindingConfigurations.foreach { case (fileName, contentType) =>
       // Define the source binding and settings for reading the file
       val mappingSourceBinding = FileSystemSource(path = fileName, contentType = contentType, options = sparkOptions)
@@ -356,7 +385,11 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Loop through each source binding configuration to run the test
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest4", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest4",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
     sourceBindingConfigurations.foreach { case (folderName, contentType) =>
       // Read the data using the reader and the defined settings
       val mappingSourceBinding = FileSystemSource(path = folderName, contentType = contentType)
@@ -412,7 +445,11 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Loop through each source binding configuration to run the test
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = s"FileDataSourceReaderTest5", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = s"FileDataSourceReaderTest5",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
     sourceBindingConfigurations.foreach { case (fileName, contentType) =>
       // Define the source binding and settings for reading the file
       val mappingSourceBinding = FileSystemSource(path = fileName, contentType = contentType)
@@ -473,7 +510,11 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Loop through each source binding configuration to run the test
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest6", sourceUri = "test-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest6",
+      sourceUri = "test-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
     sourceBindingConfigurations.foreach { case (folderName, contentType) =>
       // Read the data using the reader and the defined settings
       val mappingSourceBinding = FileSystemSource(path = folderName, contentType = contentType)
@@ -539,7 +580,11 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Test the reading from the zip file using the source configurations
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest7", sourceUri = "zip-file-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest7",
+      sourceUri = "zip-file-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
     sourceBindingConfigurations.foreach { case (zipFileName, contentType) =>
       // Read the data using the reader and the defined settings
       val mappingSourceBinding = FileSystemSource(path = zipFileName, contentType = contentType, options = sparkOptions)
@@ -605,10 +650,13 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
     )
 
     // Loop through each zip file and perform the test
-    val mappingJobSourceSettings = FileSystemSourceSettings(name = "FileDataSourceReaderTest8", sourceUri = "zip-uri", dataFolderPath = testDataFolderPath.concat(folderPath))
+    val mappingJobSourceSettings = FileSystemSourceSettings(
+      name = "FileDataSourceReaderTest8",
+      sourceUri = "zip-uri",
+      dataFolderPath = testDataFolderPath.concat(folderPath)
+    )
 
     sourceBindingConfigurations.foreach { case (zipFileName, contentType) =>
-
       // Define the source binding and read the data from the zip file
       val mappingSourceBinding = FileSystemSource(path = zipFileName, contentType = contentType, options = sparkOptions)
       val result: DataFrame = fileDataSourceReader.read(mappingSourceBinding, mappingJobSourceSettings, Option.empty)

@@ -10,27 +10,40 @@ import akka.http.scaladsl.server.{Directive0, Directives, Route}
  * Cors Handler for webserver modules
  */
 trait ICORSHandler extends BasicDirectives {
+
   /**
    * Fixed CORS Response headers
    */
   private val corsResponseHeaders = List(
     `Access-Control-Allow-Origin`.*,
     `Access-Control-Allow-Credentials`(true),
-    `Access-Control-Allow-Headers`("Origin, X-Requested-With, X-Correlation-Id, Content-Type, Accept, Accept-Encoding, Accept-Language, Authorization, Host, Referer, User-Agent, Link"),
+    `Access-Control-Allow-Headers`(
+      "Origin, X-Requested-With, X-Correlation-Id, Content-Type, Accept, Accept-Encoding, Accept-Language, Authorization, Host, Referer, User-Agent, Link"
+    ),
     `Access-Control-Max-Age`(1728000),
     `Access-Control-Expose-Headers`("Location", "Link", ICORSHandler.X_TOTAL_COUNT_HEADER)
   )
 
-  //this directive adds access control headers to normal responses
+  // this directive adds access control headers to normal responses
   private def addAccessControlHeaders(): Directive0 = {
     Directives.respondWithHeaders(corsResponseHeaders)
   }
 
-  //this handles preflight OPTIONS requests.
+  // this handles preflight OPTIONS requests.
   private def preflightRequestHandler: Route = options {
     complete(
       HttpResponse(StatusCodes.OK)
-        .withHeaders(`Access-Control-Allow-Methods`(HttpMethods.OPTIONS, HttpMethods.HEAD, HttpMethods.POST, HttpMethods.PUT, HttpMethods.GET, HttpMethods.DELETE, HttpMethods.PATCH))
+        .withHeaders(
+          `Access-Control-Allow-Methods`(
+            HttpMethods.OPTIONS,
+            HttpMethods.HEAD,
+            HttpMethods.POST,
+            HttpMethods.PUT,
+            HttpMethods.GET,
+            HttpMethods.DELETE,
+            HttpMethods.PATCH
+          )
+        )
     )
   }
 

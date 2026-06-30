@@ -37,7 +37,11 @@ trait IConceptMapRepository {
    * @param conceptMap TerminologyConceptMap to update
    * @return updated TerminologyConceptMap
    */
-  def updateConceptMap(terminologyId: String, conceptMapId: String, conceptMap: TerminologyConceptMap): Future[TerminologyConceptMap]
+  def updateConceptMap(
+      terminologyId: String,
+      conceptMapId: String,
+      conceptMap: TerminologyConceptMap
+  ): Future[TerminologyConceptMap]
 
   /**
    * Remove a concept map within a terminology
@@ -63,7 +67,13 @@ trait IConceptMapRepository {
    * @param content       content of the csv file
    * @return
    */
-  def saveConceptMapContent(terminologyId: String, conceptMapId: String, content: Source[ByteString, Any], pageNumber: Int, pageSize: Int): Future[Long]
+  def saveConceptMapContent(
+      terminologyId: String,
+      conceptMapId: String,
+      content: Source[ByteString, Any],
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[Long]
 
   /**
    * Retrieve the content of a concept map csv file within a terminology
@@ -71,7 +81,12 @@ trait IConceptMapRepository {
    * @param conceptMapId id of the concept map
    * @return content of the csv file
    */
-  def getConceptMapContent(terminologyId: String, conceptMapId: String, pageNumber: Int, pageSize: Int): Future[(Source[ByteString, Any], Long)]
+  def getConceptMapContent(
+      terminologyId: String,
+      conceptMapId: String,
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[(Source[ByteString, Any], Long)]
 
   /**
    * Upload the concept map to the repository

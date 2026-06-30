@@ -34,25 +34,38 @@ class FhirMappingFolderRepository(folderUri: URI) extends IFhirMappingRepository
     val folder = new File(folderUri)
     var files = Seq.empty[File]
     try {
-      files = IOUtil.getFilesFromFolder(folder, recursively = true, ignoreHidden = true, withExtension = Some(FileExtensions.JSON.toString))
+      files = IOUtil.getFilesFromFolder(
+        folder,
+        recursively = true,
+        ignoreHidden = true,
+        withExtension = Some(FileExtensions.JSON.toString)
+      )
     } catch {
       case e: Throwable => throw FhirMappingException(s"Given folder for the mapping repository is not valid.", e)
     }
-    files.map { f =>
+    files
+      .map { f =>
         val source = Source.fromFile(f, StandardCharsets.UTF_8.name()) // read the JSON file
-        val fileContent = try source.mkString finally source.close()
-        val fhirMapping = try {
-          JsonMethods.parse(fileContent).removeField { // Remove any fields starting with @ from the JSON.
-            case JField(fieldName, _) if fieldName.startsWith("@") => true
-            case _ => false
-          }.extractOpt[FhirMapping]
-        } catch {
-          case e: Exception =>
-            logger.error(s"Cannot parse the mapping file ${f.getAbsolutePath}.")
-            Option.empty[FhirMapping]
-        }
+        val fileContent =
+          try source.mkString
+          finally source.close()
+        val fhirMapping =
+          try {
+            JsonMethods
+              .parse(fileContent)
+              .removeField { // Remove any fields starting with @ from the JSON.
+                case JField(fieldName, _) if fieldName.startsWith("@") => true
+                case _ => false
+              }
+              .extractOpt[FhirMapping]
+          } catch {
+            case e: Exception =>
+              logger.error(s"Cannot parse the mapping file ${f.getAbsolutePath}.")
+              Option.empty[FhirMapping]
+          }
         fhirMapping -> f
-      }.filter(_._1.nonEmpty) // Remove the elements from the list if they are not valid FhirMapping JSONs
+      }
+      .filter(_._1.nonEmpty) // Remove the elements from the list if they are not valid FhirMapping JSONs
       .map { case (fm, file) => fm.get -> file } // Get rid of the Option
   }
 
@@ -62,8 +75,9 @@ class FhirMappingFolderRepository(folderUri: URI) extends IFhirMappingRepository
    * @return
    */
   protected def loadMappings(folderUri: URI): Map[String, FhirMapping] = {
-    //logger.debug("Loading all mappings from folder:{}", folderUri)
-    val mappings = MappingContextLoader.normalizeContextURLs(readFhirMappingsFromFolder(folderUri))
+    // logger.debug("Loading all mappings from folder:{}", folderUri)
+    val mappings = MappingContextLoader
+      .normalizeContextURLs(readFhirMappingsFromFolder(folderUri))
       .foldLeft(Map[String, FhirMapping]()) { (map, fhirMapping) =>
         if (map.contains(fhirMapping.url)) {
           val msg = s"Multiple mapping definitions with the same URL: ${fhirMapping.url}. URLs must be unique."
@@ -72,8 +86,8 @@ class FhirMappingFolderRepository(folderUri: URI) extends IFhirMappingRepository
         }
         map + (fhirMapping.url -> fhirMapping)
       }
-    //logger.debug("{} mappings were loaded from the mapping folder:{}", mappings.size, folderUri)
-    //logger.debug("Loaded mappings are:{}{}", System.lineSeparator(), mappings.keySet.mkString(System.lineSeparator()))
+    // logger.debug("{} mappings were loaded from the mapping folder:{}", mappings.size, folderUri)
+    // logger.debug("Loaded mappings are:{}{}", System.lineSeparator(), mappings.keySet.mkString(System.lineSeparator()))
     mappings
   }
 
@@ -94,8 +108,13 @@ class FhirMappingFolderRepository(folderUri: URI) extends IFhirMappingRepository
     try {
       fhirMappings(mappingUrl)
     } catch {
-      case e: NoSuchElementException => throw FhirMappingException(s"FhirMapping with url $mappingUrl cannot be found in folder $folderUri", e)
-      case e: Throwable => throw FhirMappingException(s"Unknown exception while retrieving the FhirMapping with url $mappingUrl from folder $folderUri", e)
+      case e: NoSuchElementException =>
+        throw FhirMappingException(s"FhirMapping with url $mappingUrl cannot be found in folder $folderUri", e)
+      case e: Throwable =>
+        throw FhirMappingException(
+          s"Unknown exception while retrieving the FhirMapping with url $mappingUrl from folder $folderUri",
+          e
+        )
     }
   }
 

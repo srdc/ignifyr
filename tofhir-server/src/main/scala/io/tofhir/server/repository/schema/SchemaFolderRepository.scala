@@ -36,14 +36,16 @@ import scala.language.postfixOps
  * @param schemaRepositoryFolderPath
  * @param projectRepository
  */
-class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectRepository: IProjectRepository) extends AbstractSchemaRepository {
+class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectRepository: IProjectRepository)
+    extends AbstractSchemaRepository {
 
   private val logger: Logger = Logger(this.getClass)
   private var baseFhirConfig: BaseFhirConfig = initBaseFhirConfig()
   private var simpleStructureDefinitionService = new SimpleStructureDefinitionService(baseFhirConfig)
 
   // Schema definition cache: project id -> schema id -> schema definition
-  private val schemaDefinitions: mutable.Map[String, mutable.Map[String, SchemaDefinition]] = mutable.Map.empty[String, mutable.Map[String, SchemaDefinition]]
+  private val schemaDefinitions: mutable.Map[String, mutable.Map[String, SchemaDefinition]] =
+    mutable.Map.empty[String, mutable.Map[String, SchemaDefinition]]
   // Initialize the map for the first time
   initMap(schemaRepositoryFolderPath)
 
@@ -54,7 +56,8 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    */
   override def getAllSchemas(projectId: String): Future[Seq[SchemaDefinition]] = {
     Future {
-      schemaDefinitions.get(projectId)
+      schemaDefinitions
+        .get(projectId)
         .map(_.values.toSeq) // If such a project exists, return the schema definitions as a sequence
         .getOrElse(Seq.empty[SchemaDefinition]) // Else, return an empty list
     }
@@ -94,22 +97,42 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
     // Validate the given schema
     var structureDefinitionResource: Resource = null
     try {
-      structureDefinitionResource = SchemaUtil.convertToStructureDefinitionResource(schemaDefinition, ToFhirConfig.engineConfig.schemaRepositoryFhirVersion)
+      structureDefinitionResource = SchemaUtil.convertToStructureDefinitionResource(
+        schemaDefinition,
+        ToFhirConfig.engineConfig.schemaRepositoryFhirVersion
+      )
     } catch {
-      case _: IllegalArgumentException => throw BadRequest("Missing data type.", s"A field definition must have at least one data type. Element rootPath: ${schemaDefinition.`type`}")
+      case _: IllegalArgumentException =>
+        throw BadRequest(
+          "Missing data type.",
+          s"A field definition must have at least one data type. Element rootPath: ${schemaDefinition.`type`}"
+        )
     }
     try {
-      fhirConfigurator.validateGivenInfrastructureResources(baseFhirConfig, api.FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION, Seq(structureDefinitionResource))
+      fhirConfigurator.validateGivenInfrastructureResources(
+        baseFhirConfig,
+        api.FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION,
+        Seq(structureDefinitionResource)
+      )
     } catch {
       case e: Exception =>
-        throw BadRequest("Schema definition is not valid.", s"Schema definition cannot be validated: ${schemaDefinition.url}", Some(e))
+        throw BadRequest(
+          "Schema definition is not valid.",
+          s"Schema definition cannot be validated: ${schemaDefinition.url}",
+          Some(e)
+        )
     }
 
     // Ensure that both the ID and "URL|version" (the canonical URL) of the schema is unique/
     // At this point, also ensure that the name of the schema is unique
     // If id field is not provided within the schema object, the schemaID will be unique
     //  because in its constructor we put the MD5 hash of the URL into the id field for new schema creations.
-    checkIfSchemaIsUnique(projectId, schemaDefinition.id, s"${schemaDefinition.url}|${schemaDefinition.version}", Some(schemaDefinition.name))
+    checkIfSchemaIsUnique(
+      projectId,
+      schemaDefinition.id,
+      s"${schemaDefinition.url}|${schemaDefinition.version}",
+      Some(schemaDefinition.name)
+    )
 
     // Check SchemaDefinition type is valid (It must start with an uppercase letter)
     validateSchemaDefinitionType(schemaDefinition)
@@ -126,23 +149,45 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    * @param schemaDefinition Schema definition
    * @return
    */
-  override def updateSchema(projectId: String, schemaId: String, schemaDefinition: SchemaDefinition): Future[SchemaDefinition] = {
+  override def updateSchema(
+      projectId: String,
+      schemaId: String,
+      schemaDefinition: SchemaDefinition
+  ): Future[SchemaDefinition] = {
     if (!schemaDefinitions.contains(projectId) || !schemaDefinitions(projectId).contains(schemaId)) {
-      throw ResourceNotFound("Schema does not exists.", s"A schema definition with id $schemaId does not exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}")
+      throw ResourceNotFound(
+        "Schema does not exists.",
+        s"A schema definition with id $schemaId does not exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}"
+      )
     }
 
     // Validate the given schema
     var structureDefinitionResource: Resource = null
     try {
-      structureDefinitionResource = SchemaUtil.convertToStructureDefinitionResource(schemaDefinition, ToFhirConfig.engineConfig.schemaRepositoryFhirVersion)
+      structureDefinitionResource = SchemaUtil.convertToStructureDefinitionResource(
+        schemaDefinition,
+        ToFhirConfig.engineConfig.schemaRepositoryFhirVersion
+      )
     } catch {
-      case _: IllegalArgumentException => throw BadRequest("Missing data type.", s"A field definition must have at least one data type. Element rootPath: ${schemaDefinition.`type`}")
+      case _: IllegalArgumentException =>
+        throw BadRequest(
+          "Missing data type.",
+          s"A field definition must have at least one data type. Element rootPath: ${schemaDefinition.`type`}"
+        )
     }
     try {
-      fhirConfigurator.validateGivenInfrastructureResources(baseFhirConfig, api.FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION, Seq(structureDefinitionResource))
+      fhirConfigurator.validateGivenInfrastructureResources(
+        baseFhirConfig,
+        api.FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION,
+        Seq(structureDefinitionResource)
+      )
     } catch {
       case e: Exception =>
-        throw BadRequest("Schema definition is not valid.", s"Schema definition cannot be validated: ${schemaDefinition.url}", Some(e))
+        throw BadRequest(
+          "Schema definition is not valid.",
+          s"Schema definition cannot be validated: ${schemaDefinition.url}",
+          Some(e)
+        )
     }
 
     // Update the file
@@ -152,8 +197,15 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
       fw.close()
 
       // Update cache
-      baseFhirConfig.profileRestrictions =
-        SchemaManagementUtil.updateProfileRestrictionsMap(baseFhirConfig.profileRestrictions, schemaDefinition.url, schemaDefinition.version, fhirFoundationResourceParser.parseStructureDefinition(structureDefinitionResource, includeElementMetadata = true))
+      baseFhirConfig.profileRestrictions = SchemaManagementUtil.updateProfileRestrictionsMap(
+        baseFhirConfig.profileRestrictions,
+        schemaDefinition.url,
+        schemaDefinition.version,
+        fhirFoundationResourceParser.parseStructureDefinition(
+          structureDefinitionResource,
+          includeElementMetadata = true
+        )
+      )
       schemaDefinitions(projectId).put(schemaId, schemaDefinition)
 
       // Update the project
@@ -172,7 +224,10 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    */
   override def deleteSchema(projectId: String, schemaId: String): Future[Unit] = {
     if (!schemaDefinitions(projectId).contains(schemaId)) {
-      throw ResourceNotFound("Schema does not exists.", s"A schema with id $schemaId does not exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}")
+      throw ResourceNotFound(
+        "Schema does not exists.",
+        s"A schema with id $schemaId does not exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}"
+      )
     }
 
     // delete schema file from repository
@@ -198,9 +253,8 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
       // delete schema definitions for the project
       org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(schemaRepositoryFolderPath, projectId).toFile)
       // remove profile restrictions of project schemas
-      val schemaUrls: Set[String] = schemaDefinitions.getOrElse(projectId, mutable.Map.empty)
-        .values.map(definition => definition.url)
-        .toSet
+      val schemaUrls: Set[String] =
+        schemaDefinitions.getOrElse(projectId, mutable.Map.empty).values.map(definition => definition.url).toSet
       baseFhirConfig.profileRestrictions --= schemaUrls
       // remove project from the cache
       schemaDefinitions.remove(projectId)
@@ -219,7 +273,10 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    */
   private def getFileForSchema(projectId: String, schemaId: String): Future[File] = {
     projectRepository.getProject(projectId) map { project =>
-      if (project.isEmpty) throw new IllegalStateException(s"This should not be possible. ProjectId: $projectId does not exist in the project folder repository.")
+      if (project.isEmpty)
+        throw new IllegalStateException(
+          s"This should not be possible. ProjectId: $projectId does not exist in the project folder repository."
+        )
       FileOperations.getFileForEntityWithinProject(schemaRepositoryFolderPath, project.get.id, schemaId)
     }
   }
@@ -237,44 +294,63 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
       schemaFolder.mkdirs()
     }
     // We may need to give a warning if there are non-directories inside the scheme repository folder.
-    schemaFolder.listFiles().foreach(projectFolder => {
-      var schemaFiles = Seq.empty[File]
-      try {
-        // We may need to give a warning if there are non-json files or other directories inside the project folders.
-        schemaFiles = IOUtil.getFilesFromFolder(projectFolder, recursively = true, ignoreHidden = true, withExtension = Some(FileExtensions.JSON.toString))
-      } catch {
-        case e: Throwable => throw FhirMappingException(s"Given folder for the schema repository is not valid at path ${projectFolder.getAbsolutePath}", e)
-      }
-
-      // Read each file containing ProfileRestrictions and convert them to SchemaDefinitions
-      val projectSchemas: mutable.Map[String, SchemaDefinition] = mutable.Map.empty
-      schemaFiles.foreach { schemaFile =>
-        val source = Source.fromFile(schemaFile, StandardCharsets.UTF_8.name()) // read the JSON file
-        val fileContent = try source.mkString finally source.close()
+    schemaFolder
+      .listFiles()
+      .foreach(projectFolder => {
+        var schemaFiles = Seq.empty[File]
         try {
-          val profileRestrictions: ProfileRestrictions = fhirFoundationResourceParser.parseStructureDefinition(fileContent.parseJson)
-
-          // We send the filename (stripped from its .json extension) as an id to the SchemaDefinition constructor because at this point we know that the file name is unique within the projectFolder
-          // It is not possible to have two files with the same name within a folder.
-          val schema: SchemaDefinition = simpleStructureDefinitionService.convertToSchemaDefinition(profileRestrictions.id.getOrElse(IOUtil.removeFileExtension(schemaFile.getName)), profileRestrictions)
-          // validate the 'type' field of schema definition
-          validateSchemaDefinitionType(schema)
-          if (FileOperations.checkFileNameMatchesEntityId(schema.id, schemaFile, "schema")) {
-            projectSchemas.put(schema.id, schema)
-          } // else case is logged within FileOperations.checkFileNameMatchesEntityId
+          // We may need to give a warning if there are non-json files or other directories inside the project folders.
+          schemaFiles = IOUtil.getFilesFromFolder(
+            projectFolder,
+            recursively = true,
+            ignoreHidden = true,
+            withExtension = Some(FileExtensions.JSON.toString)
+          )
         } catch {
           case e: Throwable =>
-            logger.error(s"Failed to parse schema definition at ${schemaFile.getPath}", e)
-            System.exit(1)
+            throw FhirMappingException(
+              s"Given folder for the schema repository is not valid at path ${projectFolder.getAbsolutePath}",
+              e
+            )
         }
-      }
-      if (projectSchemas.isEmpty) {
-        // No processable schema files under projectFolder
-        logger.warn(s"There are no processable schema files under ${projectFolder.getAbsolutePath}. Skipping ${projectFolder.getName}.")
-      } else {
-        this.schemaDefinitions.put(projectFolder.getName, projectSchemas)
-      }
-    })
+
+        // Read each file containing ProfileRestrictions and convert them to SchemaDefinitions
+        val projectSchemas: mutable.Map[String, SchemaDefinition] = mutable.Map.empty
+        schemaFiles.foreach { schemaFile =>
+          val source = Source.fromFile(schemaFile, StandardCharsets.UTF_8.name()) // read the JSON file
+          val fileContent =
+            try source.mkString
+            finally source.close()
+          try {
+            val profileRestrictions: ProfileRestrictions =
+              fhirFoundationResourceParser.parseStructureDefinition(fileContent.parseJson)
+
+            // We send the filename (stripped from its .json extension) as an id to the SchemaDefinition constructor because at this point we know that the file name is unique within the projectFolder
+            // It is not possible to have two files with the same name within a folder.
+            val schema: SchemaDefinition = simpleStructureDefinitionService.convertToSchemaDefinition(
+              profileRestrictions.id.getOrElse(IOUtil.removeFileExtension(schemaFile.getName)),
+              profileRestrictions
+            )
+            // validate the 'type' field of schema definition
+            validateSchemaDefinitionType(schema)
+            if (FileOperations.checkFileNameMatchesEntityId(schema.id, schemaFile, "schema")) {
+              projectSchemas.put(schema.id, schema)
+            } // else case is logged within FileOperations.checkFileNameMatchesEntityId
+          } catch {
+            case e: Throwable =>
+              logger.error(s"Failed to parse schema definition at ${schemaFile.getPath}", e)
+              System.exit(1)
+          }
+        }
+        if (projectSchemas.isEmpty) {
+          // No processable schema files under projectFolder
+          logger.warn(
+            s"There are no processable schema files under ${projectFolder.getAbsolutePath}. Skipping ${projectFolder.getName}."
+          )
+        } else {
+          this.schemaDefinitions.put(projectFolder.getName, projectSchemas)
+        }
+      })
   }
 
   /**
@@ -299,8 +375,12 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
       .flatMap(_.values) // Flatten all the schemas managed for all projects
       .find(_.url.contentEquals(schemaUrl)) // Find the desired url
       .map(s => {
-        val decomposedSchema: Resource = SchemaUtil.convertToStructureDefinitionResource(s, ToFhirConfig.engineConfig.schemaRepositoryFhirVersion) // Schema definition in the FHIR Resource representation
-        new SchemaConverter(FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion)).convertSchema(decomposedSchema)
+        val decomposedSchema: Resource = SchemaUtil.convertToStructureDefinitionResource(
+          s,
+          ToFhirConfig.engineConfig.schemaRepositoryFhirVersion
+        ) // Schema definition in the FHIR Resource representation
+        new SchemaConverter(FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion))
+          .convertSchema(decomposedSchema)
       })
   }
 
@@ -313,7 +393,8 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
     // BaseFhirConfig will act as a validator for the schema definitions by holding the ProfileDefinitions in memory
     val fhirConfigReader: IFhirConfigReader = new FSConfigReader(
       fhirVersion = FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion),
-      profilesPath = Some(FileUtils.getPath(schemaRepositoryFolderPath).toString))
+      profilesPath = Some(FileUtils.getPath(schemaRepositoryFolderPath).toString)
+    )
 
     val folder = FileUtils.getPath(schemaRepositoryFolderPath).toFile
     if (!folder.exists()) {
@@ -340,7 +421,12 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
   override def getSchemaAsStructureDefinition(projectId: String, schemaId: String): Future[Option[Resource]] = {
     getSchema(projectId, schemaId).map {
       case Some(schemaStructureDefinition) =>
-        Some(SchemaUtil.convertToStructureDefinitionResource(schemaStructureDefinition, ToFhirConfig.engineConfig.schemaRepositoryFhirVersion))
+        Some(
+          SchemaUtil.convertToStructureDefinitionResource(
+            schemaStructureDefinition,
+            ToFhirConfig.engineConfig.schemaRepositoryFhirVersion
+          )
+        )
       case None =>
         None
     }
@@ -360,7 +446,10 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    * @param structureDefinitionResources A sequence of structure definition resources for the schemas.
    * @return A Future containing a sequence of SchemaDefinition objects representing the created schemas.
    */
-  override def saveSchemaByStructureDefinition(projectId: String, structureDefinitionResources: Seq[Resource]): Future[Seq[SchemaDefinition]] = {
+  override def saveSchemaByStructureDefinition(
+      projectId: String,
+      structureDefinitionResources: Seq[Resource]
+  ): Future[Seq[SchemaDefinition]] = {
     // Extract the URLs of the schemas that are about to be saved. These URLs will be used later to validate
     // any referenced schemas within the current schema, ensuring they exist either as base FHIR definitions,
     // already present schemas, or as part of this batch.
@@ -369,7 +458,11 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
     val schemaDefinitions: Seq[SchemaDefinition] = structureDefinitionResources.map(structureDefinitionResource => {
       // Validate the resource
       try {
-        fhirConfigurator.validateGivenInfrastructureResources(baseFhirConfig, api.FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION, Seq(structureDefinitionResource))
+        fhirConfigurator.validateGivenInfrastructureResources(
+          baseFhirConfig,
+          api.FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION,
+          Seq(structureDefinitionResource)
+        )
       } catch {
         case e: Exception =>
           throw BadRequest("Schema resource is not valid.", s"Schema resource cannot be validated.", Some(e))
@@ -378,15 +471,24 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
       validateReferencedSchemas(projectId, structureDefinitionResource, schemaUrls)
 
       // Create structureDefinition from the resource
-      val structureDefinition: ProfileRestrictions = fhirFoundationResourceParser.parseStructureDefinition(structureDefinitionResource, includeElementMetadata = true)
+      val structureDefinition: ProfileRestrictions = fhirFoundationResourceParser.parseStructureDefinition(
+        structureDefinitionResource,
+        includeElementMetadata = true
+      )
       // Generate an Id if id is missing
       val schemaId = structureDefinition.id.getOrElse(HashUtil.md5Hash(structureDefinition.url))
-      val version = structureDefinition.version.getOrElse(SchemaDefinition.VERSION_LATEST) // We always use the "latest" version if there is no version!
+      val version = structureDefinition.version.getOrElse(
+        SchemaDefinition.VERSION_LATEST
+      ) // We always use the "latest" version if there is no version!
       checkIfSchemaIsUnique(projectId, schemaId, s"${structureDefinition.url}|$version", None)
 
       // To use convertToSchemaDefinition, profileRestrictions sequence must include the structure definition. Add it before conversion
-      baseFhirConfig.profileRestrictions =
-        SchemaManagementUtil.updateProfileRestrictionsMap(baseFhirConfig.profileRestrictions, structureDefinition.url, version, structureDefinition)
+      baseFhirConfig.profileRestrictions = SchemaManagementUtil.updateProfileRestrictionsMap(
+        baseFhirConfig.profileRestrictions,
+        structureDefinition.url,
+        version,
+        structureDefinition
+      )
       // This part is a little ugly because we update baseFhirConfig.profileRestrictions with the version that we evaluate above and then
       //   let concertToSchemaDefinition put a version to the created schemaDefinition. We rely on that both our above version assignment
       //   and convertToSchema uses the same method to evaluate the value for the version.
@@ -399,9 +501,8 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
       schemaDefinition
     })
     // write the schemas to the repository as a new file and update caches
-    val futures: Seq[Future[SchemaDefinition]] = schemaDefinitions.zipWithIndex.map {
-      case (schemaDefinition, index) =>
-        writeSchemaAndUpdateCaches(projectId, structureDefinitionResources.lift(index).get, schemaDefinition)
+    val futures: Seq[Future[SchemaDefinition]] = schemaDefinitions.zipWithIndex.map { case (schemaDefinition, index) =>
+      writeSchemaAndUpdateCaches(projectId, structureDefinitionResources.lift(index).get, schemaDefinition)
     }
     Future.sequence(futures)
   }
@@ -416,23 +517,38 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    * @param schemaCanonicalUrl Canonical Url of the schema with its version
    * @param schemaName         Name of the schema. If provided its uniqueness is checked within the given projectId.
    */
-  private def checkIfSchemaIsUnique(projectId: String, schemaId: String, schemaUrl: String, schemaName: Option[String]): Unit = {
+  private def checkIfSchemaIsUnique(
+      projectId: String,
+      schemaId: String,
+      schemaUrl: String,
+      schemaName: Option[String]
+  ): Unit = {
     // Check the uniqueness of the schemaId
     schemaDefinitions.get(projectId).flatMap(_.get(schemaId)).foreach { _ =>
-      throw AlreadyExists("Schema already exists.", s"A schema definition with id $schemaId already exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}")
+      throw AlreadyExists(
+        "Schema already exists.",
+        s"A schema definition with id $schemaId already exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}"
+      )
     }
 
     // Collect the Canonical URLs of all schema definitions and check the uniqueness of the schemaUrl
-    val schemaCanonicalUrls: Map[String, String] = schemaDefinitions.values.flatMap(_.values).map(schema => s"${schema.url}|${schema.version}" -> schema.name).toMap
+    val schemaCanonicalUrls: Map[String, String] =
+      schemaDefinitions.values.flatMap(_.values).map(schema => s"${schema.url}|${schema.version}" -> schema.name).toMap
     schemaCanonicalUrls.get(schemaUrl).foreach { schemaName =>
-      throw AlreadyExists("Schema already exists.", s"A schema definition with url $schemaUrl already exists. Check the schema '$schemaName'")
+      throw AlreadyExists(
+        "Schema already exists.",
+        s"A schema definition with url $schemaUrl already exists. Check the schema '$schemaName'"
+      )
     }
 
     // If a schemaName exists, check the uniqueness of the schemaName
     schemaName.foreach { name =>
       schemaDefinitions.get(projectId).foreach { schemas =>
         if (schemas.values.exists(_.name == name)) {
-          throw AlreadyExists("Schema already exists.", s"A schema definition with name $name already exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}")
+          throw AlreadyExists(
+            "Schema already exists.",
+            s"A schema definition with name $name already exists in the schema repository at ${FileUtils.getPath(schemaRepositoryFolderPath).toAbsolutePath.toString}"
+          )
         }
       }
     }
@@ -447,15 +563,26 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    * @param schemaDefinition            Definition of the schema
    * @return
    */
-  private def writeSchemaAndUpdateCaches(projectId: String, structureDefinitionResource: Resource, schemaDefinition: SchemaDefinition): Future[SchemaDefinition] = {
+  private def writeSchemaAndUpdateCaches(
+      projectId: String,
+      structureDefinitionResource: Resource,
+      schemaDefinition: SchemaDefinition
+  ): Future[SchemaDefinition] = {
     getFileForSchema(projectId, schemaDefinition.id).flatMap(newFile => {
       val fw = new FileWriter(newFile)
       fw.write(structureDefinitionResource.toPrettyJson)
       fw.close()
 
       // Update the caches with the new schema
-      baseFhirConfig.profileRestrictions =
-        SchemaManagementUtil.updateProfileRestrictionsMap(baseFhirConfig.profileRestrictions, schemaDefinition.url, schemaDefinition.version, fhirFoundationResourceParser.parseStructureDefinition(structureDefinitionResource, includeElementMetadata = true))
+      baseFhirConfig.profileRestrictions = SchemaManagementUtil.updateProfileRestrictionsMap(
+        baseFhirConfig.profileRestrictions,
+        schemaDefinition.url,
+        schemaDefinition.version,
+        fhirFoundationResourceParser.parseStructureDefinition(
+          structureDefinitionResource,
+          includeElementMetadata = true
+        )
+      )
       schemaDefinitions.getOrElseUpdate(projectId, mutable.Map.empty).put(schemaDefinition.id, schemaDefinition)
 
       // Update the project with the schema
@@ -474,7 +601,10 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
   private def validateSchemaDefinitionType(schemaDefinition: SchemaDefinition): Unit = {
     val schemaDefinitionType: String = schemaDefinition.`type`
     if (schemaDefinitionType.isEmpty || schemaDefinitionType.apply(0).isLower) {
-      throw BadRequest("Schema definition is not valid.", s"Schema definition type must start with an uppercase letter!")
+      throw BadRequest(
+        "Schema definition is not valid.",
+        s"Schema definition type must start with an uppercase letter!"
+      )
     }
   }
 
@@ -488,6 +618,7 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
    * @throws BadRequest if any referenced profile is missing.
    */
   private def validateReferencedSchemas(projectId: String, schemaResource: Resource, schemaUrls: Seq[String]): Unit = {
+
     /**
      * Validates a single profile URL to ensure it either exists as a base FHIR definition,
      * is already present in the system, or is included in the provided schema URLs list.
@@ -497,10 +628,15 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
      * @throws BadRequest if the profile is missing.
      */
     def validateProfile(profile: String, schemaUrl: String): Unit = {
-      if (!profile.startsWith(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/${FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION}") &&
+      if (
+        !profile.startsWith(s"$FHIR_ROOT_URL_FOR_DEFINITIONS/${FHIR_FOUNDATION_RESOURCES.FHIR_STRUCTURE_DEFINITION}") &&
         !schemaUrls.contains(profile) &&
-        !schemaDefinitions(projectId).values.exists(s => s.url.contentEquals(profile))) {
-        throw BadRequest("Invalid Schema Reference !", s"The schema with URL '$schemaUrl' references a non-existent schema: '$profile'. Ensure all referenced schemas exist.")
+        !schemaDefinitions(projectId).values.exists(s => s.url.contentEquals(profile))
+      ) {
+        throw BadRequest(
+          "Invalid Schema Reference !",
+          s"The schema with URL '$schemaUrl' references a non-existent schema: '$profile'. Ensure all referenced schemas exist."
+        )
       }
     }
 
@@ -545,4 +681,3 @@ class SchemaFolderRepository(schemaRepositoryFolderPath: String, projectReposito
     }.toMap
   }
 }
-

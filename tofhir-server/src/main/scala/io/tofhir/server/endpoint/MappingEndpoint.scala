@@ -54,9 +54,10 @@ class MappingEndpoint(mappingRepository: IMappingRepository, jobRepository: IJob
       complete {
         service.getMapping(projectId, mappingId) map {
           case Some(fhirMapping) => StatusCodes.OK -> fhirMapping
-          case None => StatusCodes.NotFound -> {
-            throw ResourceNotFound("Mapping not found", s"Mapping with name $mappingId not found")
-          }
+          case None =>
+            StatusCodes.NotFound -> {
+              throw ResourceNotFound("Mapping not found", s"Mapping with name $mappingId not found")
+            }
         }
       }
     }
@@ -89,6 +90,3 @@ class MappingEndpoint(mappingRepository: IMappingRepository, jobRepository: IJob
 object MappingEndpoint {
   val SEGMENT_MAPPINGS = "mappings"
 }
-
-
-

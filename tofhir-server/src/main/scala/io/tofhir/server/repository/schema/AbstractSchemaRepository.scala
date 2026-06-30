@@ -16,18 +16,20 @@ abstract class AbstractSchemaRepository extends ISchemaRepository {
   /**
    * So that its validation function can be used when a new schema needs to be validated.
    */
-  protected val fhirConfigurator: IFhirVersionConfigurator = FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion) match {
-    case MajorFhirVersion.R4 => new FhirR4Configurator()
-    case MajorFhirVersion.R5 => new FhirR5Configurator()
-    case _ => throw new NotImplementedError()
-  }
+  protected val fhirConfigurator: IFhirVersionConfigurator =
+    FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion) match {
+      case MajorFhirVersion.R4 => new FhirR4Configurator()
+      case MajorFhirVersion.R5 => new FhirR5Configurator()
+      case _ => throw new NotImplementedError()
+    }
 
   /**
    * So that a StructureDefinition resource can be parsed into ProfileRestrictions
    */
-  protected val fhirFoundationResourceParser: IFhirFoundationResourceParser = FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion) match {
-    case MajorFhirVersion.R4 => new R4Parser()
-    case MajorFhirVersion.R5 => new R4Parser()
-    case _ => throw new NotImplementedError()
-  }
+  protected val fhirFoundationResourceParser: IFhirFoundationResourceParser =
+    FhirVersionUtil.getMajorFhirVersion(ToFhirConfig.engineConfig.schemaRepositoryFhirVersion) match {
+      case MajorFhirVersion.R4 => new R4Parser()
+      case MajorFhirVersion.R5 => new R4Parser()
+      case _ => throw new NotImplementedError()
+    }
 }

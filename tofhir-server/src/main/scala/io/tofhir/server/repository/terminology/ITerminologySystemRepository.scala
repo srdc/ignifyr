@@ -9,7 +9,7 @@ import scala.concurrent.Future
  * Interface to save and load TerminologySystem so that the client applications can manage the TerminologySystem
  * through CRUD operations
  */
-trait ITerminologySystemRepository extends ICachedRepository{
+trait ITerminologySystemRepository extends ICachedRepository {
 
   /**
    * Retrieve the metadata of all TerminologySystems

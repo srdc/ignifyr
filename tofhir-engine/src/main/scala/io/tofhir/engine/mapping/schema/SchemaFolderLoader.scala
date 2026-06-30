@@ -39,7 +39,9 @@ class SchemaFolderLoader(folderUri: URI, majorFhirVersion: String = MajorFhirVer
       .flatMap(f =>
         try {
           val source = Source.fromFile(f, StandardCharsets.UTF_8.name()) // read the JSON file
-          val fileContent = try source.mkString finally source.close()
+          val fileContent =
+            try source.mkString
+            finally source.close()
           val resource = fileContent.parseJson
           val url = FHIRUtil.extractValue[String](resource, "url")
           Some(url -> resource)
@@ -48,7 +50,8 @@ class SchemaFolderLoader(folderUri: URI, majorFhirVersion: String = MajorFhirVer
             logger.error(s"Problem while reading schema file ${f.getName} from schema folder, skipping!", e)
             None
         }
-      ).toMap
+      )
+      .toMap
   }
 
   /**
@@ -59,11 +62,15 @@ class SchemaFolderLoader(folderUri: URI, majorFhirVersion: String = MajorFhirVer
   private def getListOfSchemas: Seq[File] = {
     val folder = new File(folderUri)
     try {
-      IOUtil.getFilesFromFolder(folder, recursively = true, ignoreHidden = true, withExtension = Some(FileExtensions.JSON.toString))
+      IOUtil.getFilesFromFolder(
+        folder,
+        recursively = true,
+        ignoreHidden = true,
+        withExtension = Some(FileExtensions.JSON.toString)
+      )
     } catch {
       case e: Throwable => throw FhirMappingException(s"Given folder for the schema repository is not valid.", e)
     }
   }
-
 
 }

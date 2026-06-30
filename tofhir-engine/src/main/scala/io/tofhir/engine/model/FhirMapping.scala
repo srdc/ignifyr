@@ -19,17 +19,18 @@ import java.util.UUID
  * @param variable   Common variables calculated from source data to use in the mappings
  * @param mapping     Mapping scripts
  */
-case class FhirMapping(id: String,
-                       url: String,
-                       name: String,
-                       title: Option[String] = None,
-                       isDraft: Boolean = false,
-                       description: Option[String] = None,
-                       source: Seq[FhirMappingSource],
-                       context: Map[String, FhirMappingContextDefinition] = Map.empty,
-                       variable:Seq[FhirExpression] = Nil,
-                       mapping: Seq[FhirMappingExpression]
-                      ) {
+case class FhirMapping(
+    id: String,
+    url: String,
+    name: String,
+    title: Option[String] = None,
+    isDraft: Boolean = false,
+    description: Option[String] = None,
+    source: Seq[FhirMappingSource],
+    context: Map[String, FhirMappingContextDefinition] = Map.empty,
+    variable: Seq[FhirExpression] = Nil,
+    mapping: Seq[FhirMappingExpression]
+) {
   def withContext(newContext: Map[String, FhirMappingContextDefinition]): FhirMapping = {
     this.copy(context = newContext)
   }
@@ -61,13 +62,11 @@ case class FhirMapping(id: String,
    * @return
    */
   def removeSliceNames(): FhirMapping = {
-    val atRemovedMappings = this.mapping.map(
-      me => {
-        val expressionValue = me.expression.value.get.removeField(f => f._1.startsWith("@"))
-        val newMappingExpression = me.copy(expression = me.expression.copy(value = Some(expressionValue)))
-        newMappingExpression
-      }
-    )
+    val atRemovedMappings = this.mapping.map(me => {
+      val expressionValue = me.expression.value.get.removeField(f => f._1.startsWith("@"))
+      val newMappingExpression = me.copy(expression = me.expression.copy(value = Some(expressionValue)))
+      newMappingExpression
+    })
     this.copy(mapping = atRemovedMappings)
   }
 }
@@ -80,11 +79,7 @@ case class FhirMapping(id: String,
  * @param description Description of the source
  * @param joinOn      Columns to use from this source data while joining the multiple sources
  */
-case class FhirMappingSource(alias: String,
-                             url: String,
-                             description: Option[String] = None,
-                             joinOn:Seq[String] = Nil
-                            )
+case class FhirMappingSource(alias: String, url: String, description: Option[String] = None, joinOn: Seq[String] = Nil)
 
 /**
  * Context information for mapping evaluation
@@ -94,7 +89,12 @@ case class FhirMappingSource(alias: String,
  * @param value       If context data will be supplied as JSON content
  * @param description Description of the context data
  */
-case class FhirMappingContextDefinition(category: String, url: Option[String], value: Option[JObject], description: Option[String] = None) {
+case class FhirMappingContextDefinition(
+    category: String,
+    url: Option[String],
+    value: Option[JObject],
+    description: Option[String] = None
+) {
   def withURL(newURL: String): FhirMappingContextDefinition = {
     this.copy(url = Some(newURL))
   }
@@ -128,7 +128,7 @@ object FhirMappingContextUrlPlaceHolder {
  *
  *                    e.g. Appending a new language to Patient resource --> language:not=en
  */
-case class FhirInteraction(`type`:String, rid:Option[String] = None, condition:Option[String] = None)
+case class FhirInteraction(`type`: String, rid: Option[String] = None, condition: Option[String] = None)
 
 /**
  * Mapping expression
@@ -140,8 +140,9 @@ case class FhirInteraction(`type`:String, rid:Option[String] = None, condition:O
  * @param description     An optional description of the mapping expression. This can be used to provide additional
  *                        context or documentation for the mapping.
  */
-case class FhirMappingExpression(description: Option[String] = None,
-                                 precondition: Option[FhirExpression] = None,
-                                 fhirInteraction: Option[FhirInteraction] = None,
-                                 expression: FhirExpression
-                                )
+case class FhirMappingExpression(
+    description: Option[String] = None,
+    precondition: Option[FhirExpression] = None,
+    fhirInteraction: Option[FhirInteraction] = None,
+    expression: FhirExpression
+)

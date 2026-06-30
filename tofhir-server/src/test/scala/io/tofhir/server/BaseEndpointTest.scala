@@ -47,9 +47,13 @@ trait BaseEndpointTest extends AnyWordSpec with Matchers with ScalatestRouteTest
    * Creates a test project whose identifier is stored in [[projectId]].
    * */
   def createProject(id: Option[String] = None): Unit = {
-    val project1: Project = Project(id = id.getOrElse(UUID.randomUUID().toString), name = "example", description = Some("example project"))
+    val project1: Project =
+      Project(id = id.getOrElse(UUID.randomUUID().toString), name = "example", description = Some("example project"))
     // create a project
-    Post(s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}", HttpEntity(ContentTypes.`application/json`, writePretty(project1))) ~> route ~> check {
+    Post(
+      s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}",
+      HttpEntity(ContentTypes.`application/json`, writePretty(project1))
+    ) ~> route ~> check {
       status shouldEqual StatusCodes.Created
       val project: Project = JsonMethods.parse(responseAs[String]).extract[Project]
       // set the created project
@@ -73,7 +77,8 @@ trait BaseEndpointTest extends AnyWordSpec with Matchers with ScalatestRouteTest
     FileUtils.getPath(fhirDefinitionsConfig.codesystemsPath.get).toFile.mkdirs()
     FileUtils.getPath(fhirDefinitionsConfig.valuesetsPath.get).toFile.mkdirs()
     // initialize endpoint and route
-    val endpoint = new ToFhirServerEndpoint(toFhirEngineConfig, webServerConfig, fhirDefinitionsConfig, Some(redCapServiceConfig))
+    val endpoint =
+      new ToFhirServerEndpoint(toFhirEngineConfig, webServerConfig, fhirDefinitionsConfig, Some(redCapServiceConfig))
     route = endpoint.toFHIRRoute
   }
 
@@ -87,14 +92,19 @@ trait BaseEndpointTest extends AnyWordSpec with Matchers with ScalatestRouteTest
   private def cleanFolders(): Unit = {
     // delete projects metadata file if exists
     val projectsJson: File = FileUtils.getPath(ProjectFolderRepository.PROJECTS_JSON).toFile
-    if(projectsJson.exists()) {
+    if (projectsJson.exists()) {
       org.apache.commons.io.FileUtils.delete(projectsJson)
     }
-    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(toFhirEngineConfig.terminologySystemFolderPath).toFile)
-    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(toFhirEngineConfig.schemaRepositoryFolderPath).toFile)
-    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(toFhirEngineConfig.jobRepositoryFolderPath).toFile)
-    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(toFhirEngineConfig.mappingRepositoryFolderPath).toFile)
-    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(toFhirEngineConfig.mappingContextRepositoryFolderPath).toFile)
+    org.apache.commons.io.FileUtils
+      .deleteDirectory(FileUtils.getPath(toFhirEngineConfig.terminologySystemFolderPath).toFile)
+    org.apache.commons.io.FileUtils
+      .deleteDirectory(FileUtils.getPath(toFhirEngineConfig.schemaRepositoryFolderPath).toFile)
+    org.apache.commons.io.FileUtils
+      .deleteDirectory(FileUtils.getPath(toFhirEngineConfig.jobRepositoryFolderPath).toFile)
+    org.apache.commons.io.FileUtils
+      .deleteDirectory(FileUtils.getPath(toFhirEngineConfig.mappingRepositoryFolderPath).toFile)
+    org.apache.commons.io.FileUtils
+      .deleteDirectory(FileUtils.getPath(toFhirEngineConfig.mappingContextRepositoryFolderPath).toFile)
     org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(fhirDefinitionsConfig.profilesPath.get).toFile)
     org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(fhirDefinitionsConfig.codesystemsPath.get).toFile)
     org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(fhirDefinitionsConfig.valuesetsPath.get).toFile)

@@ -24,23 +24,40 @@ object ErroneousRecordWriter {
    * @param mappingErrors         data sources that got error because of the mapping definition
    * @param invalidInputs         data sources that got error because of invalid input
    */
-  def saveErroneousRecords(spark: SparkSession,
-                           mappingJobExecution: FhirMappingJobExecution,
-                           mappingTaskName: String,
-                           notWrittenResources: util.List[FhirMappingResult],
-                           mappingErrors: Dataset[FhirMappingResult],
-                           invalidInputs: Dataset[FhirMappingResult]): Unit = {
+  def saveErroneousRecords(
+      spark: SparkSession,
+      mappingJobExecution: FhirMappingJobExecution,
+      mappingTaskName: String,
+      notWrittenResources: util.List[FhirMappingResult],
+      mappingErrors: Dataset[FhirMappingResult],
+      invalidInputs: Dataset[FhirMappingResult]
+  ): Unit = {
     if (mappingJobExecution.saveErroneousRecords) {
       if (!invalidInputs.isEmpty) {
-        this.writeErroneousDataset(mappingJobExecution, invalidInputs, mappingTaskName, FhirMappingErrorCodes.INVALID_INPUT)
+        this.writeErroneousDataset(
+          mappingJobExecution,
+          invalidInputs,
+          mappingTaskName,
+          FhirMappingErrorCodes.INVALID_INPUT
+        )
       }
       if (!mappingErrors.isEmpty) {
-        this.writeErroneousDataset(mappingJobExecution, mappingErrors, mappingTaskName, FhirMappingErrorCodes.MAPPING_ERROR)
+        this.writeErroneousDataset(
+          mappingJobExecution,
+          mappingErrors,
+          mappingTaskName,
+          FhirMappingErrorCodes.MAPPING_ERROR
+        )
       }
       if (!notWrittenResources.isEmpty) {
         import spark.implicits._
         val notWrittenResourcesDs = spark.createDataset[FhirMappingResult](notWrittenResources)
-        this.writeErroneousDataset(mappingJobExecution, notWrittenResourcesDs, mappingTaskName, FhirMappingErrorCodes.INVALID_RESOURCE)
+        this.writeErroneousDataset(
+          mappingJobExecution,
+          notWrittenResourcesDs,
+          mappingTaskName,
+          FhirMappingErrorCodes.INVALID_RESOURCE
+        )
       }
     }
   }
@@ -57,10 +74,12 @@ object ErroneousRecordWriter {
    * @param mappingTaskName     The name of the mapping task, used to create a directory for each mapping within the job execution.
    * @param errorType           The type of error (e.g., invalid_input, mapping_error, invalid_resource).
    */
-  private def writeErroneousDataset(mappingJobExecution: FhirMappingJobExecution,
-                                    dataset: Dataset[FhirMappingResult],
-                                    mappingTaskName: String,
-                                    errorType: String): Unit = {
+  private def writeErroneousDataset(
+      mappingJobExecution: FhirMappingJobExecution,
+      dataset: Dataset[FhirMappingResult],
+      mappingTaskName: String,
+      errorType: String
+  ): Unit = {
     val outputPath = mappingJobExecution.getErrorOutputDirectory(mappingTaskName, errorType)
     val schema = schema_of_json(dataset.rdd.takeSample(withReplacement = false, num = 1).head.source)
 
@@ -68,7 +87,9 @@ object ErroneousRecordWriter {
     val jsonColumns: Array[String] = dataset
       .select("source")
       .rdd
-      .flatMap(row => row.getAs[String]("source").parseJson.values.keys) // parse JSON and get all keys from the "source" map
+      .flatMap(row =>
+        row.getAs[String]("source").parseJson.values.keys
+      ) // parse JSON and get all keys from the "source" map
       .distinct() // remove duplicate source names
       .collect()
 
@@ -100,7 +121,8 @@ object ErroneousRecordWriter {
   private def deleteNonCsvFiles(dir: File): Unit = {
     if (dir.exists() && dir.isDirectory) {
       // get a list of files to delete, excluding CSV files
-      val filesToDelete =  dir.listFiles()
+      val filesToDelete = dir
+        .listFiles()
         .filterNot(f => f.getPath.endsWith(FileExtensions.CSV.toString))
       // process each file in the current directory
       filesToDelete.foreach(file => {

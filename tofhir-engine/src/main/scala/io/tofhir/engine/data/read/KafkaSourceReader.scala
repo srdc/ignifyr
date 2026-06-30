@@ -28,8 +28,13 @@ class KafkaSourceReader(spark: SparkSession) extends BaseDataSourceReader[KafkaS
    * @param jobId                    The identifier of mapping job which executes the mapping
    * @return
    */
-  override def read(mappingSourceBinding: KafkaSource, mappingJobSourceSettings: KafkaSourceSettings, schema: Option[StructType] = Option.empty,
-                    timeRange: Option[(LocalDateTime, LocalDateTime)] = Option.empty, jobId: Option[String] = Option.empty): DataFrame = {
+  override def read(
+      mappingSourceBinding: KafkaSource,
+      mappingJobSourceSettings: KafkaSourceSettings,
+      schema: Option[StructType] = Option.empty,
+      timeRange: Option[(LocalDateTime, LocalDateTime)] = Option.empty,
+      jobId: Option[String] = Option.empty
+  ): DataFrame = {
     import spark.implicits._
 
     if (schema.isEmpty) {
@@ -42,94 +47,105 @@ class KafkaSourceReader(spark: SparkSession) extends BaseDataSourceReader[KafkaS
         try { // try-catch block needed to handle unparseable json
           message.parseJson
         } catch {
-          case e: JsonParseException => throw new InternalServerErrorException("Kafka message is an unparseable JSON", e)
+          case e: JsonParseException =>
+            throw new InternalServerErrorException("Kafka message is an unparseable JSON", e)
         }
 
       // process each field so that string values are acceptable (if they are parseable of course) for some data types such as double and integer
-      json.mapField(field => {
-        schema.get.fields.find(p => p.name.contentEquals(field._1)).map(fieldType => { // get field type from the schema
-          fieldType.dataType match {
-            case _: DoubleType =>
-              try {
-                field._1 -> {
-                  // performs the following conversions:
-                  //  JString(v) => JDouble(v)
-                  //  JDouble(v) => JDouble(v)
-                  //  JString() => JNull
-                  field._2.extract[String] match {
-                    case str if str.nonEmpty => JDouble(str.toDouble)
-                    case _ => JNull
-                  }
-                }
-              } catch {
-                case e: NumberFormatException => throw new InternalServerErrorException(s"${field._2} is not a parsable `Double`", e)
-              }
-            case _: IntegerType =>
-              try {
-                field._1 -> {
-                  // performs the following conversions:
-                  //  JString(v) => JInt(v)
-                  //  JInt(v) => JInt(v)
-                  //  JString() => JNull
-                  field._2.extract[String] match {
-                    case str if str.nonEmpty => JInt(str.toInt)
-                    case _ => JNull
-                  }
-                }
-              } catch {
-                case e: NumberFormatException => throw new InternalServerErrorException(s"${field._2} is not a parsable `Integer`", e)
-              }
-            case _: LongType =>
-              try {
-                field._1 -> {
-                  // performs the following conversions:
-                  //  JString(v) => JLong(v)
-                  //  JLong(v) => JLong(v)
-                  //  JString() => JNull
-                  field._2.extract[String] match {
-                    case str if str.nonEmpty => JLong(str.toLong)
-                    case _ => JNull
-                  }
-                }
-              } catch {
-                case e: NumberFormatException => throw new InternalServerErrorException(s"${field._2} is not a parsable `Long`", e)
-              }
-            case _: BooleanType =>
-              try {
-                field._1 -> {
-                  // performs the following conversions:
-                  //  JString(v) => JBool(v)
-                  //  JString("0") => JBool(false)
-                  //  JString("1") => JBool(true)
-                  //  JBool(v) => JBool(v)
-                  //  JString() => JNull
-                  val bool = field._2.extractOpt[Boolean] // try to extract as boolean
-                  bool match {
-                    // matches JBool(v)
-                    case Some(value) => JBool(value)
-                    // try to extract as string
-                    case None => field._2.extractOpt[String] match {
-                      // matches JString("0") or matches JString("1")
-                      case Some(value) if value.contentEquals("0") || value.contentEquals("1") => JBool(if (value.contentEquals("0")) false else true)
-                      // matches JString(v)
-                      case Some(value) if value.nonEmpty => JBool(value.toBoolean)
-                      // matches JString()
-                      case _ => JNull
+      json
+        .mapField(field => {
+          schema.get.fields
+            .find(p => p.name.contentEquals(field._1))
+            .map(fieldType => { // get field type from the schema
+              fieldType.dataType match {
+                case _: DoubleType =>
+                  try {
+                    field._1 -> {
+                      // performs the following conversions:
+                      //  JString(v) => JDouble(v)
+                      //  JDouble(v) => JDouble(v)
+                      //  JString() => JNull
+                      field._2.extract[String] match {
+                        case str if str.nonEmpty => JDouble(str.toDouble)
+                        case _ => JNull
+                      }
                     }
+                  } catch {
+                    case e: NumberFormatException =>
+                      throw new InternalServerErrorException(s"${field._2} is not a parsable `Double`", e)
                   }
-                }
-              } catch {
-                case e: IllegalArgumentException => throw new InternalServerErrorException(s"${field._2} is not a parsable `Boolean`", e)
+                case _: IntegerType =>
+                  try {
+                    field._1 -> {
+                      // performs the following conversions:
+                      //  JString(v) => JInt(v)
+                      //  JInt(v) => JInt(v)
+                      //  JString() => JNull
+                      field._2.extract[String] match {
+                        case str if str.nonEmpty => JInt(str.toInt)
+                        case _ => JNull
+                      }
+                    }
+                  } catch {
+                    case e: NumberFormatException =>
+                      throw new InternalServerErrorException(s"${field._2} is not a parsable `Integer`", e)
+                  }
+                case _: LongType =>
+                  try {
+                    field._1 -> {
+                      // performs the following conversions:
+                      //  JString(v) => JLong(v)
+                      //  JLong(v) => JLong(v)
+                      //  JString() => JNull
+                      field._2.extract[String] match {
+                        case str if str.nonEmpty => JLong(str.toLong)
+                        case _ => JNull
+                      }
+                    }
+                  } catch {
+                    case e: NumberFormatException =>
+                      throw new InternalServerErrorException(s"${field._2} is not a parsable `Long`", e)
+                  }
+                case _: BooleanType =>
+                  try {
+                    field._1 -> {
+                      // performs the following conversions:
+                      //  JString(v) => JBool(v)
+                      //  JString("0") => JBool(false)
+                      //  JString("1") => JBool(true)
+                      //  JBool(v) => JBool(v)
+                      //  JString() => JNull
+                      val bool = field._2.extractOpt[Boolean] // try to extract as boolean
+                      bool match {
+                        // matches JBool(v)
+                        case Some(value) => JBool(value)
+                        // try to extract as string
+                        case None =>
+                          field._2.extractOpt[String] match {
+                            // matches JString("0") or matches JString("1")
+                            case Some(value) if value.contentEquals("0") || value.contentEquals("1") =>
+                              JBool(if (value.contentEquals("0")) false else true)
+                            // matches JString(v)
+                            case Some(value) if value.nonEmpty => JBool(value.toBoolean)
+                            // matches JString()
+                            case _ => JNull
+                          }
+                      }
+                    }
+                  } catch {
+                    case e: IllegalArgumentException =>
+                      throw new InternalServerErrorException(s"${field._2} is not a parsable `Boolean`", e)
+                  }
+                case _ => field
               }
-            case _ => field
-          }
-        }).getOrElse(field)
-      }).toJson
+            })
+            .getOrElse(field)
+        })
+        .toJson
     })
     // Determine whether to use batch or streaming read mode based on the 'asStream' setting
     if (mappingJobSourceSettings.asStream) {
-      spark
-        .readStream // Use streaming mode for continuous ingestion of new messages from Kafka
+      spark.readStream // Use streaming mode for continuous ingestion of new messages from Kafka
         .format("kafka")
         .option("kafka.bootstrap.servers", mappingJobSourceSettings.bootstrapServers)
         .option("subscribe", mappingSourceBinding.topicName)
@@ -140,12 +156,10 @@ class KafkaSourceReader(spark: SparkSession) extends BaseDataSourceReader[KafkaS
         .withColumn("value", processDataUDF(col("value"))) // replace 'value' column with the processed data
         .select(from_json($"value", schema.get).as("record"))
         .select("record.*")
-    }
-    else {
+    } else {
       // Filter out the 'startingOffsets' option as it always supposed to be "earliest" for batch kafka reads
       val filteredOptions = mappingSourceBinding.options.filterNot(o => o._1 == "startingOffsets")
-      spark
-        .read // Use read instead of readStream for a batch read
+      spark.read // Use read instead of readStream for a batch read
         .format("kafka")
         .option("kafka.bootstrap.servers", mappingJobSourceSettings.bootstrapServers)
         .option("subscribe", mappingSourceBinding.topicName)

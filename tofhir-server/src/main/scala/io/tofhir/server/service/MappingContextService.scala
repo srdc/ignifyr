@@ -61,7 +61,13 @@ class MappingContextService(mappingContextRepository: IMappingContextRepository)
    * @param byteSource mapping context content to save
    * @return
    */
-  def saveMappingContextContent(projectId: String, id: String, byteSource: Source[ByteString, Any], pageNumber: Int, pageSize: Int): Future[Long] = {
+  def saveMappingContextContent(
+      projectId: String,
+      id: String,
+      byteSource: Source[ByteString, Any],
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[Long] = {
     mappingContextRepository.saveMappingContextContent(projectId, id, byteSource, pageNumber, pageSize)
   }
 
@@ -71,7 +77,12 @@ class MappingContextService(mappingContextRepository: IMappingContextRepository)
    * @param id mapping context id
    * @return
    */
-  def getMappingContextContent(projectId: String, id: String, pageNumber: Int, pageSize: Int): Future[(Source[ByteString, Any], Long)] = {
+  def getMappingContextContent(
+      projectId: String,
+      id: String,
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[(Source[ByteString, Any], Long)] = {
     mappingContextRepository.getMappingContextContent(projectId, id, pageNumber, pageSize)
   }
 

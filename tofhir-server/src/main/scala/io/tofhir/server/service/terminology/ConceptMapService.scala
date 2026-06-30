@@ -47,7 +47,11 @@ class ConceptMapService(conceptMapRepository: IConceptMapRepository) extends Laz
    * @param conceptMap TerminologyConceptMap to update
    * @return updated TerminologyConceptMap
    */
-  def updateConceptMap(terminologyId: String, conceptMapId: String, conceptMap: TerminologyConceptMap): Future[TerminologyConceptMap] = {
+  def updateConceptMap(
+      terminologyId: String,
+      conceptMapId: String,
+      conceptMap: TerminologyConceptMap
+  ): Future[TerminologyConceptMap] = {
     conceptMapRepository.updateConceptMap(terminologyId, conceptMapId, conceptMap)
   }
 
@@ -79,7 +83,13 @@ class ConceptMapService(conceptMapRepository: IConceptMapRepository) extends Laz
    * @param byteSource content of the csv file
    * @return
    */
-  def saveConceptMapContent(terminologyId: String, conceptMapId: String, byteSource: Source[ByteString, Any], pageNumber: Int, pageSize: Int): Future[Long] = {
+  def saveConceptMapContent(
+      terminologyId: String,
+      conceptMapId: String,
+      byteSource: Source[ByteString, Any],
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[Long] = {
     conceptMapRepository.saveConceptMapContent(terminologyId, conceptMapId, byteSource, pageNumber, pageSize)
   }
 
@@ -89,7 +99,12 @@ class ConceptMapService(conceptMapRepository: IConceptMapRepository) extends Laz
    * @param conceptMapId id of the concept map
    * @return content of the csv file
    */
-  def getConceptMapContent(terminologyId: String, conceptMapId: String, pageNumber: Int, pageSize: Int): Future[(Source[ByteString, Any], Long)] = {
+  def getConceptMapContent(
+      terminologyId: String,
+      conceptMapId: String,
+      pageNumber: Int,
+      pageSize: Int
+  ): Future[(Source[ByteString, Any], Long)] = {
     conceptMapRepository.getConceptMapContent(terminologyId, conceptMapId, pageNumber, pageSize)
   }
 
@@ -100,7 +115,11 @@ class ConceptMapService(conceptMapRepository: IConceptMapRepository) extends Laz
    * @param byteSource content of the csv file
    * @return
    */
-  def uploadConceptMapFile(terminologyId: String, conceptMapId: String, byteSource: Source[ByteString, Any]): Future[Unit] = {
+  def uploadConceptMapFile(
+      terminologyId: String,
+      conceptMapId: String,
+      byteSource: Source[ByteString, Any]
+  ): Future[Unit] = {
     conceptMapRepository.uploadConceptMap(terminologyId, conceptMapId, byteSource)
   }
 

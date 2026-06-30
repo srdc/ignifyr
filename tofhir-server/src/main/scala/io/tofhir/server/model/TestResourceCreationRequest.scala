@@ -8,8 +8,7 @@ import io.tofhir.engine.model.FhirMappingTask
  * @param fhirMappingTask task to be used for testing
  * @param resourceFilter  resource filter for testing
  */
-case class TestResourceCreationRequest(fhirMappingTask: FhirMappingTask,
-                                       resourceFilter: ResourceFilter)
+case class TestResourceCreationRequest(fhirMappingTask: FhirMappingTask, resourceFilter: ResourceFilter)
 
 /**
  * Resource filter config for testing a mapping
