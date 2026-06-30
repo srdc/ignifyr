@@ -66,9 +66,14 @@ class FileDataSourceReader(spark: SparkSession) extends BaseDataSourceReader[Fil
           case SourceContentTypes.CSV => mappingSourceBinding.options
         }
 
-        //Options that we infer for csv
-        val inferSchema = schema.isEmpty || mappingSourceBinding.preprocessSql.isDefined
-        val csvSchema = if (mappingSourceBinding.preprocessSql.isDefined) None else schema
+        //Options that we infer for csv. An explicit "inferSchema" option (if provided) takes precedence over
+        //the default heuristic, so a source can opt out of Spark's (sometimes wrong) type inference -
+        //e.g. when preprocessSql is just a row filter and the provided schema already describes the raw file.
+        val inferSchema = mappingSourceBinding.options.get("inferSchema")
+          .map(_.toBoolean)
+          .getOrElse(schema.isEmpty || mappingSourceBinding.preprocessSql.isDefined)
+        //Give Spark the schema only when we are not inferring; otherwise let it infer the types.
+        val csvSchema = if (inferSchema) None else schema
         //val enforceSchema = schema.isDefined
         val includeHeader = mappingSourceBinding.options.get("header").forall(_ == "true")
         //Other options except header, inferSchema and enforceSchema
