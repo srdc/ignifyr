@@ -71,6 +71,21 @@ class FhirPathMappingFunctionsTest extends AsyncFlatSpec with ToFhirTestSpec {
     hash1 != hash3 shouldBe(true)
   }
 
+  it should "correctly execute getHashedIntId" in {
+    val fhirEvaluator = FhirPathEvaluator().withFunctionLibrary("mpp", new FhirMappingFunctionsFactory(Map.empty))
+    val hash1 = fhirEvaluator.evaluateOptionalNumerical("mpp:getHashedIntId('p1', 0, 999)", JNull)
+    val hash2 = fhirEvaluator.evaluateOptionalNumerical("mpp:getHashedIntId('p1', 0, 999)", JNull)
+    hash1 shouldBe hash2
+
+    val hash3 = fhirEvaluator.evaluateOptionalNumerical("mpp:getHashedIntId('p2', 0, 999)", JNull)
+    hash1 != hash3 shouldBe true
+
+    hash1.get.toInt should be >= 0
+    hash1.get.toInt should be <= 999
+
+    an[Exception] should be thrownBy fhirEvaluator.evaluateOptionalNumerical("mpp:getHashedIntId('p1', 100, 5)", JNull)
+  }
+
   it should "correctly execute nonEmptyLoopedFields" in {
     val fhirEvaluator = FhirPathEvaluator().withFunctionLibrary("mpp",  new FhirMappingFunctionsFactory(Map.empty))
     val sct = fhirEvaluator.evaluateAndReturnJson("mpp:nonEmptyLoopedFields('sct_8116006_',1,5)", loopJson).head
