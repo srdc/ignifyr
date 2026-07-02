@@ -64,6 +64,63 @@ class FhirPathMappingFunctions(context: FhirPathEnvironment, current: Seq[FhirPa
     Seq(FhirPathString(FhirMappingUtility.getHashedId(resourceType, input)))
   }
 
+  /**
+   * Get a deterministic hashed integer for the given string value, bounded within the given inclusive range
+   * @param valueExpr      Expression that returns the string value to be hashed
+   * @param rangeStartExpr Expression that returns the inclusive lower bound of the target integer range
+   * @param rangeEndExpr   Expression that returns the inclusive upper bound of the target integer range
+   * @return
+   */
+  @FhirPathFunction(
+    documentation = FhirPathFunctionDocumentation(
+      detail = "Creates a deterministic integer hash of the given string value, bounded within the given inclusive range [rangeStart, rangeEnd]. The same input string always maps to the same integer. It returns an integer.",
+      usageWarnings = None,
+      parameters = Some(Seq(
+        FhirPathFunctionParameter(
+          name = "value",
+          detail = "The string value to generate a hashed integer for.",
+          examples = None
+        ),
+        FhirPathFunctionParameter(
+          name = "rangeStart",
+          detail = "The inclusive lower bound of the target integer range.",
+          examples = Some(Seq("0"))
+        ),
+        FhirPathFunctionParameter(
+          name = "rangeEnd",
+          detail = "The inclusive upper bound of the target integer range.",
+          examples = Some(Seq("999"))
+        )
+      )),
+      returnValue = FhirPathFunctionReturn(
+        detail = None,
+        examples = Seq("42")
+      ),
+      examples = Seq(
+        "mpp:getHashedIntId(id.toString(), 0, 999)"
+      )
+    ),
+    insertText = "mpp:getHashedIntId(<value>, <rangeStart>, <rangeEnd>)",
+    detail = "mpp",
+    label = "mpp:getHashedIntId",
+    kind = "Function",
+    returnType = Seq(FHIR_DATA_TYPES.INTEGER),
+    inputType = Seq()
+  )
+  def getHashedIntId(valueExpr: ExpressionContext, rangeStartExpr: ExpressionContext, rangeEndExpr: ExpressionContext): Seq[FhirPathResult] = {
+    val value = getStringValueOfExpr(valueExpr, s"Invalid function call 'getHashedIntId', given expression for value:${valueExpr.getText} should return a string value!")
+    val rangeStart = getIntValueOfExpr(rangeStartExpr, s"Invalid function call 'getHashedIntId', given expression for rangeStart:${rangeStartExpr.getText} should return an integer value!")
+    val rangeEnd = getIntValueOfExpr(rangeEndExpr, s"Invalid function call 'getHashedIntId', given expression for rangeEnd:${rangeEndExpr.getText} should return an integer value!")
+    Seq(FhirPathNumber(FhirMappingUtility.getHashedIntId(value, rangeStart, rangeEnd)))
+  }
+
+  private def getIntValueOfExpr(expr: ExpressionContext, errorMsg: String): Int = {
+    val result = new FhirPathExpressionEvaluator(context, current).visit(expr)
+    if (result.length != 1 || !result.head.isInstanceOf[FhirPathNumber])
+      throw new FhirPathException(errorMsg)
+    result.head.asInstanceOf[FhirPathNumber].v.toInt
+  }
+
   private def getStringValueOfExpr(expr:ExpressionContext, errorMsg:String):String = {
     val result = new FhirPathExpressionEvaluator(context, current).visit(expr)
     if (result.length != 1 || !result.head.isInstanceOf[FhirPathString])
