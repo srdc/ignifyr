@@ -4,18 +4,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.onfhir</groupId>
-    <artifactId>tofhir_2.13</artifactId>
+    <groupId>io.ignifyr</groupId>
+    <artifactId>ignifyr_2.13</artifactId>
     <version>${revision}</version>
 
     <packaging>pom</packaging>
 
-    <name>toFHIR</name>
-    <description>toFHIR is a high-performance and scalable data transformation suite that can read existing data from
+    <name>Ignifyr</name>
+    <description>Ignifyr is a high-performance and scalable data transformation suite that can read existing data from
         various sources (CSV/Test/JSON/Parquet/Avro files, relational databases, Hive tables) and transform to FHIR
         resources through mapping definitions.
     </description>
-    <url>https://onfhir.io/tofhir</url>
+    <url>https://ignifyr.io</url>
 
     <licenses>
         <license>
@@ -70,17 +70,17 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/srdc/tofhir.git</connection>
-        <developerConnection>scm:git:ssh://github.com:srdc/tofhir.git</developerConnection>
-        <url>https://github.com/srdc/tofhir/tree/main</url>
+        <connection>scm:git:git://github.com/srdc/ignifyr.git</connection>
+        <developerConnection>scm:git:ssh://github.com:srdc/ignifyr.git</developerConnection>
+        <url>https://github.com/srdc/ignifyr/tree/main</url>
     </scm>
 
     <modules>
-        <module>tofhir-engine</module>
-        <module>tofhir-server</module>
-        <module>tofhir-common</module>
-        <module>tofhir-server-common</module>
-        <module>tofhir-rxnorm</module>
+        <module>ignifyr-engine</module>
+        <module>ignifyr-server</module>
+        <module>ignifyr-common</module>
+        <module>ignifyr-server-common</module>
+        <module>ignifyr-rxnorm</module>
     </modules>
 
     <properties>
@@ -486,37 +486,37 @@
                 <version>${akka.version}</version>
             </dependency>
 
-            <!-- toFHIR Dependencies -->
+            <!-- Ignifyr Dependencies -->
             <dependency>
-                <groupId>io.onfhir</groupId>
-                <artifactId>tofhir-server-common_2.13</artifactId>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-server-common_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.onfhir</groupId>
-                <artifactId>tofhir-engine_2.13</artifactId>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-engine_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.onfhir</groupId>
-                <artifactId>tofhir-engine_2.13</artifactId>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-engine_2.13</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>io.onfhir</groupId>
-                <artifactId>tofhir-common</artifactId>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.onfhir</groupId>
-                <artifactId>tofhir-server-common</artifactId>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-server-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>io.onfhir</groupId>
-                <artifactId>tofhir-rxnorm_2.13</artifactId>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-rxnorm_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

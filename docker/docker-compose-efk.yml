@@ -12,7 +12,7 @@ services:
   fluentd:
     build: ./fluentd
     container_name: fluentd
-    image: srdc/tofhir-fluentd:latest
+    image: srdc/ignifyr-fluentd:latest
     environment:
       - FORWARD_PORT=24224
       - HOST=elasticsearch
@@ -24,7 +24,7 @@ services:
     build:
       context: ./kibana
       dockerfile: ./Dockerfile
-    image: srdc/tofhir-kibana:latest
+    image: srdc/ignifyr-kibana:latest
     container_name: kibana
     ports:
       - "5601:5601"
