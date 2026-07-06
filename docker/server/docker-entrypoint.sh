@@ -33,27 +33,27 @@ if [ ! -z "$SPARK_UIENABLED" ]; then
   JAVA_CMD+="-Dspark.ui.enabled=$SPARK_UIENABLED "
 fi
 
-# Configure toFHIR mapping-related paths
+# Configure Ignifyr mapping-related paths
 if [ ! -z "$CONTEXT_PATH" ]; then
-  JAVA_CMD+="-Dtofhir.context-path=$CONTEXT_PATH "
+  JAVA_CMD+="-Dignifyr.context-path=$CONTEXT_PATH "
 fi
 if [ ! -z "$MAPPINGS_FOLDER" ]; then
-  JAVA_CMD+="-Dtofhir.mappings.repository.folder-path=$MAPPINGS_FOLDER "
+  JAVA_CMD+="-Dignifyr.mappings.repository.folder-path=$MAPPINGS_FOLDER "
 fi
 if [ ! -z "$SCHEMAS_FOLDER" ]; then
-  JAVA_CMD+="-Dtofhir.mappings.schemas.repository.folder-path=$SCHEMAS_FOLDER "
+  JAVA_CMD+="-Dignifyr.mappings.schemas.repository.folder-path=$SCHEMAS_FOLDER "
 fi
 if [ ! -z "$MAPPING_JOB" ]; then
-  JAVA_CMD+="-Dtofhir.mapping-jobs.initial-job-file-path=$MAPPING_JOB "
+  JAVA_CMD+="-Dignifyr.mapping-jobs.initial-job-file-path=$MAPPING_JOB "
 fi
 if [ ! -z "$FHIR_BATCH_SIZE" ]; then
-  JAVA_CMD+="-Dtofhir.fhir-writer.batch-group-size=$FHIR_BATCH_SIZE "
+  JAVA_CMD+="-Dignifyr.fhir-writer.batch-group-size=$FHIR_BATCH_SIZE "
 fi
 if [ ! -z "$DB_PATH" ]; then
-  JAVA_CMD+="-Dtofhir.db-path=$DB_PATH "
+  JAVA_CMD+="-Dignifyr.db-path=$DB_PATH "
 fi
 
-# Configure the FHIR endpoint to which this toFHIR can connect to retrieve resource definitions etc.
+# Configure the FHIR endpoint to which this Ignifyr can connect to retrieve resource definitions etc.
 if [ ! -z "$FHIR_DEFINITIONS_FHIRVERSION" ]; then
   JAVA_CMD+="-Dfhir.fhir-version=$FHIR_DEFINITIONS_FHIRVERSION "
 fi
@@ -79,7 +79,7 @@ if [ ! -z "$FHIR_DEFINITIONS_CODESYSTEMS_URL" ]; then
   JAVA_CMD+="-Dfhir.codesystems-path=$FHIR_DEFINITIONS_CODESYSTEMS_URL "
 fi
 
-# Configure tofhir-server web server
+# Configure ignifyr-server web server
 if [ ! -z "$WEBSERVER_HOST" ]; then
   JAVA_CMD+="-Dwebserver.host=$WEBSERVER_HOST "
 fi
@@ -90,21 +90,21 @@ if [ ! -z "$WEBSERVER_BASEURI" ]; then
   JAVA_CMD+="-Dwebserver.base-uri=$WEBSERVER_BASEURI "
 fi
 
-# Configure tofhir-redcap
-if [ ! -z "$TOFHIR_REDCAP_ENDPOINT" ]; then
-  JAVA_CMD+="-Dtofhir-redcap.endpoint=$TOFHIR_REDCAP_ENDPOINT "
+# Configure ignifyr-redcap
+if [ ! -z "$IGNIFYR_REDCAP_ENDPOINT" ]; then
+  JAVA_CMD+="-Dignifyr-redcap.endpoint=$IGNIFYR_REDCAP_ENDPOINT "
 fi
-if [ ! -z "$TOFHIR_REDCAP_NOTIFICATION_PATH" ]; then
-  JAVA_CMD+="-Dtofhir-redcap.paths.notification=$TOFHIR_REDCAP_NOTIFICATION_PATH "
+if [ ! -z "$IGNIFYR_REDCAP_NOTIFICATION_PATH" ]; then
+  JAVA_CMD+="-Dignifyr-redcap.paths.notification=$IGNIFYR_REDCAP_NOTIFICATION_PATH "
 fi
-if [ ! -z "$TOFHIR_REDCAP_PROJECTS_PATH" ]; then
-  JAVA_CMD+="-Dtofhir-redcap.paths.projects=$TOFHIR_REDCAP_PROJECTS_PATH "
+if [ ! -z "$IGNIFYR_REDCAP_PROJECTS_PATH" ]; then
+  JAVA_CMD+="-Dignifyr-redcap.paths.projects=$IGNIFYR_REDCAP_PROJECTS_PATH "
 fi
-if [ ! -z "$TOFHIR_REDCAP_PROJECT_DATA_PATH" ]; then
-  JAVA_CMD+="-Dtofhir-redcap.paths.projectData=$TOFHIR_REDCAP_PROJECT_DATA_PATH "
+if [ ! -z "$IGNIFYR_REDCAP_PROJECT_DATA_PATH" ]; then
+  JAVA_CMD+="-Dignifyr-redcap.paths.projectData=$IGNIFYR_REDCAP_PROJECT_DATA_PATH "
 fi
-if [ ! -z "$TOFHIR_REDCAP_RELOAD_PARAMETER" ]; then
-  JAVA_CMD+="-Dtofhir-redcap.parameters.reload=$TOFHIR_REDCAP_RELOAD_PARAMETER "
+if [ ! -z "$IGNIFYR_REDCAP_RELOAD_PARAMETER" ]; then
+  JAVA_CMD+="-Dignifyr-redcap.parameters.reload=$IGNIFYR_REDCAP_RELOAD_PARAMETER "
 fi
 
 # Delay the execution for this amount of seconds
@@ -113,7 +113,7 @@ if [ ! -z "$DELAY_EXECUTION" ]; then
 fi
 
 # Finally, tell which jar to run
-JAVA_CMD+="tofhir-server-standalone.jar"
+JAVA_CMD+="ignifyr-server-standalone.jar"
 
 # Use 'exec' to replace the shell process with the Java process.
 # This ensures that the Java application becomes the main process in the container,

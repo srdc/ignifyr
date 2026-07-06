@@ -4,12 +4,13 @@ Ignifyr (formerly **toFHIR**) — a FHIR-first ETL engine. Scala 2.13 · JDK 11 
 Maven multi-module.
 
 Full agent/contributor guidance lives in **[CLAUDE.md](CLAUDE.md)** (root) and per-module `CLAUDE.md`
-files (`tofhir-engine/`, `tofhir-server/`, `tofhir-server-common/`, `tofhir-common/`, `tofhir-rxnorm/`).
+files (`ignifyr-engine/`, `ignifyr-server/`, `ignifyr-server-common/`, `ignifyr-common/`, `ignifyr-rxnorm/`).
 Read those first. The essentials:
 
-1. **`tofhir` ≡ Ignifyr in code.** Packages (`io.tofhir.*`), modules (`tofhir-*`), config keys, and
-   Docker tags all still use the legacy `tofhir` name. A full rename to `ignifyr` is a planned, separate
-   task — don't rename names piecemeal as a side effect of other work.
+1. **Naming.** The toFHIR → Ignifyr rename is complete: packages (`io.ignifyr.*`), modules
+   (`ignifyr-*`), config keys, and Docker tags all use the new name. The legacy `tofhir` name remains
+   only in references to not-yet-renamed sibling artifacts (`srdc/tofhir-web` image, `tofhir-redcap`
+   service) — don't reintroduce it in new code.
 2. **Verify with Maven.** `mvn test` for unit tests (fast, no Docker); `mvn -B verify` for the full build
    incl. integration tests — which **need Docker running** (MongoDB/Kafka/onFHIR via TestContainers).
    Report test results before claiming a change works.

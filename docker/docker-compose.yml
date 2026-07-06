@@ -1,29 +1,29 @@
 version: '3.9'
 services:
-  tofhir-server:
-    image: srdc/tofhir-server:latest
-    container_name: tofhir-server
-    hostname: tofhir-server
+  ignifyr-server:
+    image: srdc/ignifyr-server:latest
+    container_name: ignifyr-server
+    hostname: ignifyr-server
     environment:
       - FHIR_DEFINITIONS_ENDPOINT=http://onfhir:8080/fhir
       - FHIR_REPO_URL=http://onfhir:8080/fhir
-      - APP_CONF_FILE=/usr/local/tofhir/conf/docker/tofhir-server.conf
+      - APP_CONF_FILE=/usr/local/ignifyr/conf/docker/ignifyr-server.conf
       - FLUENT_HOST=fluentd
       - CONTEXT_PATH=conf
     ports:
       - "8085:8085"
     networks:
-      - tofhir-network
+      - ignifyr-network
     volumes:
-      - './data-integration-suite:/usr/local/tofhir/conf'
-      - './tofhir-docker-logs:/usr/local/tofhir/logs'
-  tofhir-web:
+      - './data-integration-suite:/usr/local/ignifyr/conf'
+      - './ignifyr-docker-logs:/usr/local/ignifyr/logs'
+  ignifyr-web:
     image: srdc/tofhir-web:latest
-    container_name: tofhir-web
+    container_name: ignifyr-web
     ports:
       - "8087:80"
     networks:
-      - tofhir-network
+      - ignifyr-network
  # Elasticsearch, Fluentd and Kibana stack for mapping job log management
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.19
@@ -33,13 +33,13 @@ services:
     ports:
       - "9200:9200"
     networks:
-      - tofhir-network
+      - ignifyr-network
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
   fluentd:
     build: ./fluentd
     container_name: fluentd
-    image: srdc/tofhir-fluentd:latest
+    image: srdc/ignifyr-fluentd:latest
     environment:
       - FORWARD_PORT=24224
       - HOST=elasticsearch
@@ -48,21 +48,21 @@ services:
       - "24224:24224"
       - "24224:24224/udp"
     networks:
-      - tofhir-network
+      - ignifyr-network
   kibana:
     build:
       context: ./kibana
       dockerfile: ./Dockerfile
-    image: srdc/tofhir-kibana:latest
+    image: srdc/ignifyr-kibana:latest
     container_name: kibana
     ports:
       - "5601:5601"
     networks:
-      - tofhir-network
+      - ignifyr-network
     depends_on:
       - elasticsearch
 networks:
-  tofhir-network:
+  ignifyr-network:
     name: onfhir-network
     external: true
 volumes:

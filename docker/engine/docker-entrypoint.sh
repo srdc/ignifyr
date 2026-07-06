@@ -27,24 +27,24 @@ if [ ! -z "$SPARK_MASTER" ]; then
   JAVA_CMD+="-Dspark.master=$SPARK_MASTER "
 fi
 
-# Configure toFHIR mapping-related paths
+# Configure Ignifyr mapping-related paths
 if [ ! -z "$CONTEXT_PATH" ]; then
-  JAVA_CMD+="-Dtofhir.context-path=$CONTEXT_PATH "
+  JAVA_CMD+="-Dignifyr.context-path=$CONTEXT_PATH "
 fi
 if [ ! -z "$MAPPINGS_FOLDER" ]; then
-  JAVA_CMD+="-Dtofhir.mappings.repository.folder-path=$MAPPINGS_FOLDER "
+  JAVA_CMD+="-Dignifyr.mappings.repository.folder-path=$MAPPINGS_FOLDER "
 fi
 if [ ! -z "$SCHEMAS_FOLDER" ]; then
-  JAVA_CMD+="-Dtofhir.mappings.schemas.repository.folder-path=$SCHEMAS_FOLDER "
+  JAVA_CMD+="-Dignifyr.mappings.schemas.repository.folder-path=$SCHEMAS_FOLDER "
 fi
 if [ ! -z "$MAPPING_JOB" ]; then
-  JAVA_CMD+="-Dtofhir.mapping-jobs.initial-job-file-path=$MAPPING_JOB "
+  JAVA_CMD+="-Dignifyr.mapping-jobs.initial-job-file-path=$MAPPING_JOB "
 fi
 if [ ! -z "$FHIR_BATCH_SIZE" ]; then
-  JAVA_CMD+="-Dtofhir.fhir-writer.batch-group-size=$FHIR_BATCH_SIZE "
+  JAVA_CMD+="-Dignifyr.fhir-writer.batch-group-size=$FHIR_BATCH_SIZE "
 fi
 if [ ! -z "$DB_PATH" ]; then
-  JAVA_CMD+="-Dtofhir.db-path=$DB_PATH "
+  JAVA_CMD+="-Dignifyr.db-path=$DB_PATH "
 fi
 
 # Delay the execution for this amount of seconds
@@ -53,6 +53,6 @@ if [ ! -z "$DELAY_EXECUTION" ]; then
 fi
 
 # Finally, tell which jar to run
-JAVA_CMD+="tofhir-engine-standalone.jar"
+JAVA_CMD+="ignifyr-engine-standalone.jar"
 
 eval $JAVA_CMD "$@"

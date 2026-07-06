@@ -8,7 +8,28 @@
 > 
 > **toFHIR** has been officially rebranded as **Ignifyr**. This change reflects our transition from a research-focused engine at [**SRDC**](https://srdc.com.tr) to a commercially supported product line by [**Pontegra**](https://pontegra.com).
 >
-> **Note on Technical Migration:** While the project identity has changed, the internal codebase - including package names (`io.tofhir`), configuration keys, and Docker image tags - still uses the legacy `tofhir` naming. We are planning a phased migration for these technical components in upcoming major releases.
+> **Note on Technical Migration:** The technical migration is complete as of this release: Maven coordinates, package names (`io.ignifyr.*`), configuration keys, REST paths, and Docker image tags all use the `ignifyr` name. If you are upgrading from a toFHIR release, see [Migrating from toFHIR](#migrating-from-tofhir).
+
+---
+
+## Migrating from toFHIR
+
+Everything that carried the `tofhir` name has been renamed to `ignifyr`. When upgrading an existing deployment:
+
+| Area | Old (toFHIR) | New (Ignifyr) |
+|---|---|---|
+| Maven coordinates | `io.onfhir:tofhir-engine_2.13` (and other `tofhir-*` artifacts) | `io.ignifyr:ignifyr-engine_2.13` (and `ignifyr-*`) |
+| Packages & classes | `io.tofhir.*`, `ToFhirEngine`, `ToFhirError`, … | `io.ignifyr.*`, `IgnifyrEngine`, `IgnifyrError`, … |
+| Configuration (HOCON) | `tofhir { … }`, `tofhir-redcap { … }`, `-Dtofhir.*` overrides | `ignifyr { … }`, `ignifyr-redcap { … }`, `-Dignifyr.*` |
+| REST base path | `http://<host>:8085/tofhir` | `http://<host>:8085/ignifyr` (configurable via `webserver.base-uri`) |
+| Internal database folder | `tofhir-db` | `ignifyr-db` — rename your existing folder, or point `ignifyr.db-path` at it |
+| Standalone jars | `tofhir-engine-standalone.jar`, `tofhir-server-standalone.jar` | `ignifyr-engine-standalone.jar`, `ignifyr-server-standalone.jar` |
+| Docker | images `srdc/tofhir-*`, env vars `TOFHIR_*`, home `/usr/local/tofhir` | images `srdc/ignifyr-*`, env vars `IGNIFYR_*`, home `/usr/local/ignifyr` |
+| Log files | `logs/tofhir-engine.log`, `logs/tofhir-server.log`, `logs/tofhir-mappings.log` | `logs/ignifyr-engine.log`, `logs/ignifyr-server.log`, `logs/ignifyr-mappings.log` |
+| API error `type` URIs | `https://tofhir.io/errors/<Error>` | `https://ignifyr.io/errors/<Error>` |
+| Server metadata field | `toFhirRedcapVersion` | `ignifyrRedcapVersion` |
+
+The [tofhir-redcap](https://github.com/srdc/tofhir-redcap) companion service and the `srdc/tofhir-web` UI image keep their current names until they are renamed in their own repositories; only Ignifyr's own configuration key for the integration changed (`ignifyr-redcap`).
 
 ---
 
@@ -29,11 +50,11 @@ It can be used as a library or a standalone tool for data integration. The stand
 ## Modules
 
 Ignifyr consists of the following modules:
-- `tofhir-engine`: The core engine including the main mapping and transformation functionality.
-- `tofhir-server`: A standalone web server providing a REST API to manage and run mapping jobs.
-- `tofhir-server-common`: Shared files and configurations for server implementations.
-- `tofhir-common`: Shared model and utility classes.
-- `tofhir-rxnorm`: Client for RxNorm API access and FHIRPath functions for terminology integration.
+- `ignifyr-engine`: The core engine including the main mapping and transformation functionality.
+- `ignifyr-server`: A standalone web server providing a REST API to manage and run mapping jobs.
+- `ignifyr-server-common`: Shared files and configurations for server implementations.
+- `ignifyr-common`: Shared model and utility classes.
+- `ignifyr-rxnorm`: Client for RxNorm API access and FHIRPath functions for terminology integration.
 
 For a visual representation of the dependencies between these modules, please refer to the diagram below:
 
@@ -88,19 +109,19 @@ This command loads the mapping job located in the path. After that, the mapping 
 
 ### 2. Ignifyr Server (REST API)
 The server provides a REST API to manage the lifecycle of mapping projects.
-* **Base URL:** http://<host>:8085/tofhir (default)
+* **Base URL:** http://<host>:8085/ignifyr (default)
 * **API Documentation:** [SwaggerHub API Docs](https://app.swaggerhub.com/apis-docs/toFHIR/toFHIR-Server/)
 
 ### Configurations
  
-Ignifyr uses HOCON-based configuration. Below is a snippet of the standard tofhir.conf structure:
+Ignifyr uses HOCON-based configuration. Below is a snippet of the standard ignifyr.conf structure:
 
 ```conf
-tofhir {
+ignifyr {
 
   # A path to a directory from where any File system readings should use within the mappingjob definition.
   # This should be pointed to the root folder of the definitions.
-  context-path = "tofhir-definitions"
+  context-path = "ignifyr-definitions"
 
   mappings = {
 
@@ -166,8 +187,8 @@ tofhir {
     batch-group-size = 50
   }
 
-  # Database folder of toFHIR (e.g., to maintain synchronization times for scheduled jobs)
-  db-path = "tofhir-db"
+  # Database folder of Ignifyr (e.g., to maintain synchronization times for scheduled jobs)
+  db-path = "ignifyr-db"
 }
 
 # Spark configurations
@@ -186,7 +207,7 @@ akka = {
 Considering the configuration file defined above, Ignifyr can be utilized with a folder structure like the following:
 
 ```html
-tofhir-definitions (root folder of definitions)
+ignifyr-definitions (root folder of definitions)
 ├── mappings
 │   ├── project1
 │   │   ├── mapping1.json
@@ -212,7 +233,7 @@ tofhir-definitions (root folder of definitions)
 │   ├── ├── ConceptMap1.csv
 │   ├── ├── CodeSystem1.csv
 │   └── ...
-└── tofhir.conf
+└── ignifyr.conf
 ```
 
 You are free to organize the definitions in any way you like and arrange the configuration file accordingly.
@@ -553,7 +574,7 @@ Example of a Mapping Job definition file with csv source type in streaming mode:
       "jsonClass": "FileSystemSourceSettings",
       "name": "project1-source",
       "sourceUri": "https://aiccelerate.eu/data-integration-suite/project1-data",
-      "dataFolderPath": "D:/codes/onfhir-io/tofhir/data",
+      "dataFolderPath": "D:/ignifyr/data",
       "asStream": true
     }
   },
@@ -919,10 +940,10 @@ Here's an example mapping that utilizes the **pid** field from the **patient** s
 ```
 Please refer to the following files for full definitions:
 
-- [patient-simple.csv](tofhir-engine/src/test/resources/test-data/patient-simple.csv)
-- [patient-gender-simple.csv](tofhir-engine/src/test/resources/test-data-gender/patient-gender-simple.csv)
-- [patient-mapping-job-with-two-sources.json](tofhir-engine/src/test/resources/patient-mapping-job-with-two-sources.json)
-- [patient-mapping-with-two-sources.json](tofhir-engine/src/test/resources/test-mappings/patient-mapping-with-two-sources.json)
+- [patient-simple.csv](ignifyr-engine/src/test/resources/test-data/patient-simple.csv)
+- [patient-gender-simple.csv](ignifyr-engine/src/test/resources/test-data-gender/patient-gender-simple.csv)
+- [patient-mapping-job-with-two-sources.json](ignifyr-engine/src/test/resources/patient-mapping-job-with-two-sources.json)
+- [patient-mapping-with-two-sources.json](ignifyr-engine/src/test/resources/test-mappings/patient-mapping-with-two-sources.json)
 
 #### Sink Settings
 
