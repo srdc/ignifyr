@@ -56,10 +56,6 @@ Ignifyr consists of the following modules:
 - `ignifyr-common`: Shared model and utility classes.
 - `ignifyr-rxnorm`: Client for RxNorm API access and FHIRPath functions for terminology integration.
 
-For a visual representation of the dependencies between these modules, please refer to the diagram below:
-
-![module-component-diagram.png](readme-assets%2Fmodule-component-diagram.png)
-
 ## Requirements
 To run Ignifyr, you need:
 
