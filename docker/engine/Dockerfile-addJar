@@ -4,7 +4,7 @@ ENV IGNIFYR_HOME /usr/local/ignifyr
 RUN mkdir -p "$IGNIFYR_HOME"
 WORKDIR $IGNIFYR_HOME
 
-COPY ./ignifyr-engine/target/ignifyr-engine-standalone.jar .
+COPY ./ignifyr-cli/target/ignifyr-engine-standalone.jar .
 COPY ./docker/engine/docker-entrypoint.sh .
 RUN chmod +x docker-entrypoint.sh
 

@@ -76,9 +76,10 @@
     </scm>
 
     <modules>
-        <module>ignifyr-engine</module>
-        <module>ignifyr-server</module>
         <module>ignifyr-common</module>
+        <module>ignifyr-engine</module>
+        <module>ignifyr-cli</module>
+        <module>ignifyr-server</module>
         <module>ignifyr-server-common</module>
         <module>ignifyr-rxnorm</module>
     </modules>
