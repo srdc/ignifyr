@@ -9,8 +9,7 @@ import io.ignifyr.engine.model.{
   FileSystemSource,
   KafkaSource,
   MappingJobSourceSettings,
-  MappingSourceBinding,
-  SqlSource
+  MappingSourceBinding
 }
 import io.ignifyr.engine.spi.{ExtensionRegistry, MissingConnectorException}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -30,10 +29,11 @@ class ExtensionRegistrySpec extends AnyFlatSpec with IgnifyrTestSpec {
 
   behavior of "ExtensionRegistry"
 
-  it should "discover the community core source connectors through ServiceLoader" in {
+  it should "discover the in-engine core source connectors through ServiceLoader" in {
+    // Source connectors extracted into their own modules (e.g. SQL) are asserted in those modules;
+    // these are the ones still registered by CoreExtension on the engine's own classpath.
     val bindings = ExtensionRegistry.sourceConnectors.keySet
     bindings should contain(classOf[FileSystemSource]: Class[_])
-    bindings should contain(classOf[SqlSource]: Class[_])
     bindings should contain(classOf[KafkaSource]: Class[_])
     bindings should contain(classOf[FhirServerSource]: Class[_])
   }

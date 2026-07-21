@@ -1,0 +1,2 @@
+# Ignifyr SQL/JDBC source connector.
+io.ignifyr.connector.sql.SqlConnectorExtension

@@ -1,6 +1,7 @@
-package io.ignifyr.engine.data.read
+package io.ignifyr.connector.sql
 
 import com.typesafe.scalalogging.Logger
+import io.ignifyr.engine.data.read.BaseDataSourceReader
 import io.ignifyr.engine.model.exception.FhirMappingException
 import io.ignifyr.engine.model.{SqlSource, SqlSourceSettings}
 import org.apache.spark.sql.types.StructType
