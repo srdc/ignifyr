@@ -192,16 +192,7 @@
             <artifactId>jackson-dataformat-csv</artifactId>
         </dependency>
 
-        <!-- Postgres driver for Spark Read JDBC -->
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.ibm.db2</groupId>
-            <artifactId>jcc</artifactId>
-        </dependency>
+        <!-- JDBC drivers live with the SQL connector module (ignifyr-connector-sql), not the engine. -->
 
         <!-- For Unit testing -->
         <dependency>

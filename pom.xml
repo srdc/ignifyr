@@ -78,6 +78,7 @@
     <modules>
         <module>ignifyr-common</module>
         <module>ignifyr-engine</module>
+        <module>ignifyr-connector-sql</module>
         <module>ignifyr-cli</module>
         <module>ignifyr-server</module>
         <module>ignifyr-server-common</module>
@@ -499,6 +500,11 @@
                 <version>${project.version}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-connector-sql_2.13</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>

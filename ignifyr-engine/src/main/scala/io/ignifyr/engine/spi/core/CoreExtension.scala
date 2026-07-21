@@ -17,8 +17,7 @@ import io.ignifyr.engine.data.read.{
   BaseDataSourceReader,
   FhirServerDataSourceReader,
   FileDataSourceReader,
-  KafkaSourceReader,
-  SqlSourceReader
+  KafkaSourceReader
 }
 import io.ignifyr.engine.data.write.{BaseFhirWriter, FhirRepositoryWriter, FileSystemWriter}
 import io.ignifyr.engine.mapping.service.LocalTerminologyService
@@ -41,7 +40,6 @@ class CoreExtension extends IgnifyrExtension {
 
   override def sourceConnectors: Seq[SourceConnector] = Seq(
     source("file", classOf[FileSystemSource], classOf[FileSystemSourceSettings])(new FileDataSourceReader(_)),
-    source("sql", classOf[SqlSource], classOf[SqlSourceSettings])(new SqlSourceReader(_)),
     source("kafka", classOf[KafkaSource], classOf[KafkaSourceSettings])(new KafkaSourceReader(_)),
     source("fhir-server", classOf[FhirServerSource], classOf[FhirServerSourceSettings])(
       new FhirServerDataSourceReader(_)

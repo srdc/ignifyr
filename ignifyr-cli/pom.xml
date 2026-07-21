@@ -26,6 +26,11 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-engine_2.13</artifactId>
         </dependency>
+        <!-- Community source connectors bundled into the standalone distribution -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-sql_2.13</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
