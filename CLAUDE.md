@@ -42,7 +42,7 @@ Run everything from the repo root with Maven.
 
 **Build**
 - `mvn -DskipTests install` — compile + package all modules.
-- Standalone fat jars: `ignifyr-engine/target/ignifyr-engine-standalone.jar`,
+- Standalone fat jars: `ignifyr-cli/target/ignifyr-engine-standalone.jar`,
   `ignifyr-server/target/ignifyr-server-standalone.jar`.
 
 **Test** — ScalaTest via the `scalatest-maven-plugin` (surefire is disabled).
@@ -59,8 +59,8 @@ Run everything from the repo root with Maven.
   so it never runs automatically during compile/verify/CI.
 
 **Run**
-- Engine CLI (default): `java -jar ignifyr-engine/target/ignifyr-engine-standalone.jar`
-- Engine batch: `java -jar ignifyr-engine/target/ignifyr-engine-standalone.jar run --job <job.json>`
+- Engine CLI (default): `java -jar ignifyr-cli/target/ignifyr-engine-standalone.jar`
+- Engine batch: `java -jar ignifyr-cli/target/ignifyr-engine-standalone.jar run --job <job.json>`
 - Server: `java -Dconfig.file=<ignifyr.conf> -jar ignifyr-server/target/ignifyr-server-standalone.jar`
   → REST at `http://localhost:8085/ignifyr`.
 - Add `-Dconfig.file=<ignifyr.conf>` to either to override the bundled config.
