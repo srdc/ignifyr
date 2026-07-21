@@ -2,6 +2,7 @@ package io.ignifyr.engine.data.read
 
 import io.ignifyr.engine.model.exception.FhirMappingException
 import io.ignifyr.engine.model.{MappingJobSourceSettings, MappingSourceBinding}
+import io.ignifyr.engine.spi.{ExtensionHints, ExtensionRegistry, MissingConnectorException}
 import org.apache.spark.sql.functions.{col, lit, when, concat, concat_ws}
 import org.apache.spark.sql.types.{DataTypes, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -38,11 +39,17 @@ object SourceHandler {
       timeRange: Option[(LocalDateTime, LocalDateTime)] = Option.empty,
       jobId: Option[String] = Option.empty
   ): DataFrame = {
+    // Resolve the connector for this source binding from the extension registry. A missing connector
+    // is reported as-is (actionable "install ignifyr-connector-X" message) rather than wrapped.
+    val connector = ExtensionRegistry.sourceConnectors.getOrElse(
+      mappingSource.getClass,
+      throw MissingConnectorException(ExtensionHints.describeSource(mappingSource.getClass))
+    )
     val reader =
       try {
-        DataSourceReaderFactory
-          .apply(spark, mappingSource, mappingJobSourceSettings)
+        connector.createReader(spark).asInstanceOf[BaseDataSourceReader[T, S]]
       } catch {
+        case e: MissingConnectorException => throw e
         case e: Throwable =>
           throw FhirMappingException(
             s"Failed to construct reader for mapping source: $mappingSource source settings: $mappingJobSourceSettings.",

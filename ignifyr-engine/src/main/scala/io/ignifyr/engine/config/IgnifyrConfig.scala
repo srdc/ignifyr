@@ -25,7 +25,7 @@ object IgnifyrConfig {
 
   /** Application name for Spark */
   private lazy val sparkAppName: String =
-    Try(sparkConfig.getString("app.name")).getOrElse("AICCELERATE Data Integration Suite")
+    Try(sparkConfig.getString("app.name")).getOrElse("Ignifyr")
 
   /** Master url of the Spark cluster */
   private lazy val sparkMaster: String = Try(sparkConfig.getString("master")).getOrElse("local[4]")

@@ -126,6 +126,5 @@ object SourceContentTypes {
   final val TSV = "tsv"
   final val PARQUET = "parquet"
   final val JSON = "json"
-  final val AVRO = "avro"
   final val NDJSON = "ndjson"
 }

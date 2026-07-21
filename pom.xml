@@ -489,11 +489,6 @@
             <!-- Ignifyr Dependencies -->
             <dependency>
                 <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-server-common_2.13</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-engine_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>

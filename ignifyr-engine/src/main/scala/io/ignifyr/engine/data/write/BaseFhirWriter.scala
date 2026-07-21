@@ -1,6 +1,7 @@
 package io.ignifyr.engine.data.write
 
-import io.ignifyr.engine.model.{FhirMappingResult, FhirRepositorySinkSettings, FhirSinkSettings, FileSystemSinkSettings}
+import io.ignifyr.engine.model.{FhirMappingResult, FhirSinkSettings}
+import io.ignifyr.engine.spi.{ExtensionHints, ExtensionRegistry, MissingSinkException}
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.util.CollectionAccumulator
 
@@ -30,14 +31,13 @@ abstract class BaseFhirWriter(sinkSettings: FhirSinkSettings) extends Serializab
 }
 
 /**
- * Factory for FHIR writers
+ * Resolves a [[BaseFhirWriter]] for given sink settings from the extension registry. Kept as a thin
+ * facade over `ExtensionRegistry.sinkProviders` so existing call sites are unchanged; a sink type
+ * with no registered provider fails with an actionable [[MissingSinkException]].
  */
 object FhirWriterFactory {
-  def apply(sinkSettings: FhirSinkSettings): BaseFhirWriter = {
-    sinkSettings match {
-      case frs: FhirRepositorySinkSettings => new FhirRepositoryWriter(frs)
-      case fsss: FileSystemSinkSettings => new FileSystemWriter(fsss)
-      case _ => throw new NotImplementedError()
-    }
-  }
+  def apply(sinkSettings: FhirSinkSettings): BaseFhirWriter =
+    ExtensionRegistry.sinkProviders
+      .getOrElse(sinkSettings.getClass, throw MissingSinkException(ExtensionHints.describeSink(sinkSettings.getClass)))
+      .createWriter(sinkSettings)
 }
