@@ -8,6 +8,7 @@ import io.ignifyr.engine.mapping.context.{IMappingContextLoader, MappingContextL
 import io.ignifyr.engine.mapping.schema.{IFhirSchemaLoader, SchemaFolderLoader}
 import io.ignifyr.engine.model.exception.EngineInitializationException
 import io.ignifyr.engine.repository.mapping.{FhirMappingFolderRepository, IFhirMappingRepository}
+import io.ignifyr.engine.spi.ExtensionRegistry
 import io.ignifyr.engine.util.FileUtils
 import org.apache.spark.sql.SparkSession
 
@@ -34,6 +35,10 @@ class IgnifyrEngine(
   val engineConfig: IgnifyrEngineConfig = IgnifyrConfig.engineConfig
 
   val sparkSession: SparkSession = IgnifyrConfig.sparkSession
+
+  // Discover installed extension modules (connectors, sinks, services, CLI commands) and validate
+  // their registrations up front, so duplicate/misconfigured plugins fail at startup, not mid-job.
+  ExtensionRegistry.init()
 
   // Repository for mapping definitions
   val mappingRepo: IFhirMappingRepository = mappingRepository.getOrElse(

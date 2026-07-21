@@ -1,0 +1,2 @@
+# Ignifyr community engine core extension (source connectors, sinks, local terminology, CLI commands).
+io.ignifyr.engine.spi.core.CoreExtension

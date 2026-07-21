@@ -297,11 +297,6 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Reflection -->
-        <dependency>
-            <groupId>org.reflections</groupId>
-            <artifactId>reflections</artifactId>
-        </dependency>
         <!-- For integrating Delta Lake with Spark in a Scala project -->
         <dependency>
             <groupId>io.delta</groupId>

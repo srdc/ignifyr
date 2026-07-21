@@ -170,8 +170,8 @@ object CommandLineInterface {
         nextArg(map ++ Map("mappings" -> value), tail)
       case "--schemas" :: value :: tail =>
         nextArg(map ++ Map("schemas" -> value), tail)
-      case "--db" :: value :: tail =>
-        nextArg(map ++ Map("db" -> value), tail)
+      case ("--db" | "--db-path") :: value :: tail =>
+        nextArg(map ++ Map("db-path" -> value), tail)
       case "--data-dictionary" :: value :: tail =>
         nextArg(map ++ Map("data-dictionary" -> value), tail)
       case "--definition-root-url" :: value :: tail =>

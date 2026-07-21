@@ -1,0 +1,48 @@
+package io.ignifyr.engine.spi
+
+import io.ignifyr.engine.model.{
+  FhirRepositorySinkSettings,
+  FhirServerSource,
+  FileSystemSinkSettings,
+  FileSystemSource,
+  KafkaSource,
+  SqlSource
+}
+
+/**
+ * Static "which module provides this?" hints used only to build actionable error messages when a
+ * connector/sink is missing. This is not dispatch logic — it maps a model class to a human label
+ * and the Maven coordinates of the module that supplies its runtime, so the error can say exactly
+ * what to install. Unknown (e.g. third-party) classes fall back to their simple name.
+ *
+ * Keyed on model classes, all of which permanently live in the engine, so these entries stay valid
+ * regardless of which edition currently ships the corresponding reader/writer.
+ */
+object ExtensionHints {
+
+  private val sourceModules: Map[Class[_], (String, String)] = Map(
+    classOf[FileSystemSource] -> ("file", "io.ignifyr:ignifyr-connector-file"),
+    classOf[SqlSource] -> ("sql", "io.ignifyr:ignifyr-connector-sql"),
+    classOf[KafkaSource] -> ("kafka", "com.pontegra.ignifyr:ignifyr-connector-kafka"),
+    classOf[FhirServerSource] -> ("fhir-server", "com.pontegra.ignifyr:ignifyr-connector-fhir-server")
+  )
+
+  private val sinkModules: Map[Class[_], (String, String)] = Map(
+    classOf[FhirRepositorySinkSettings] -> ("fhir-repository", "io.ignifyr:ignifyr-engine"),
+    classOf[FileSystemSinkSettings] -> ("file", "io.ignifyr:ignifyr-connector-file")
+  )
+
+  def describeSource(bindingClass: Class[_]): String =
+    describe("source reader", bindingClass, sourceModules)
+
+  def describeSink(settingsClass: Class[_]): String =
+    describe("FHIR writer", settingsClass, sinkModules)
+
+  private def describe(what: String, cls: Class[_], modules: Map[Class[_], (String, String)]): String =
+    modules.get(cls) match {
+      case Some((label, module)) =>
+        s"No $what registered for source type '$label'. Install the '$module' module."
+      case None =>
+        s"No $what registered for '${cls.getSimpleName}'. The module providing it is not installed."
+    }
+}
