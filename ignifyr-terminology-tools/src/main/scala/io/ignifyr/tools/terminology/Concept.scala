@@ -1,4 +1,4 @@
-package io.ignifyr.engine.util.mappinggenerator
+package io.ignifyr.tools.terminology
 
 import scala.beans.BeanProperty
 

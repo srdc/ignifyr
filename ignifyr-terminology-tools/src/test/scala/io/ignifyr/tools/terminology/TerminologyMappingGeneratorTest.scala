@@ -1,6 +1,6 @@
-package io.ignifyr.test.engine.util
+package io.ignifyr.tools.terminology
 
-import io.ignifyr.engine.util.mappinggenerator.{
+import io.ignifyr.tools.terminology.{
   GeneratorDBAdapter,
   OmopConcept,
   OmopConceptRelationship,

@@ -1,8 +1,8 @@
-package io.ignifyr.engine.util.mappinggenerator
+package io.ignifyr.tools.terminology
 
 import com.fasterxml.jackson.dataformat.csv.{CsvMapper, CsvSchema}
 import io.ignifyr.engine.mapping.service.LocalTerminologyService.ConceptMapFileColumns
-import io.ignifyr.engine.util.mappinggenerator.TerminologyMappingGenerator._
+import io.ignifyr.tools.terminology.TerminologyMappingGenerator._
 
 import java.io.File
 import scala.collection.mutable
