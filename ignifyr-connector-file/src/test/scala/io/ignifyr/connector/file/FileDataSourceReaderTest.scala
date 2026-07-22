@@ -1,7 +1,7 @@
-package io.ignifyr.test.engine.data.read
+package io.ignifyr.connector.file
 
+import io.ignifyr.connector.file.format.MissingFileFormatException
 import io.ignifyr.engine.config.IgnifyrConfig
-import io.ignifyr.engine.data.read.FileDataSourceReader
 import io.ignifyr.engine.model.{FileSystemSource, FileSystemSourceSettings, SourceContentTypes}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.scalatest.BeforeAndAfterAll
@@ -54,7 +54,7 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
    *
    * The test case covers two scenarios:
    * 1. Providing a file path instead of a directory for a streaming job should result in an IllegalArgumentException.
-   * 2. Providing unsupported content types should result in a NotImplementedError.
+   * 2. Providing unsupported content types should result in a MissingFileFormatException.
    *
    * The following configurations are used for the tests:
    * - `illegalArgumentSourceBinding`: A source binding with a 'file' path to test the directory requirement for streaming jobs.
@@ -64,10 +64,10 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
    *
    * The test verifies the following:
    * 1. An IllegalArgumentException is thrown with the expected message when a file path is provided instead of a directory for a streaming job.
-   * 2. A NotImplementedError is thrown for unsupported content types, indicating that these cases are not yet implemented or handled.
+   * 2. A MissingFileFormatException is thrown for unsupported content types, indicating that no format handler is installed.
    *
    */
-  it should "throw IllegalArgumentException, NotImplementedError when necessary" in {
+  it should "throw IllegalArgumentException, MissingFileFormatException when necessary" in {
     // Folder including the test files belong to this test
     val folderPath = "/single-file-test"
 
@@ -87,10 +87,10 @@ class FileDataSourceReaderTest extends AnyFlatSpec with BeforeAndAfterAll {
       s"${fileName} is not a directory. For streaming job, you should provide a directory."
     )
 
-    // Test case 2: Verify that unsupported content types throw a NotImplementedError
+    // Test case 2: Verify that unsupported content types throw a MissingFileFormatException
     val unsupportedContentTypeSourceBinding = FileSystemSource(path = fileName, contentType = "UNSUPPORTED")
     val batchJobSourceSettings = streamJobSourceSettings.copy(asStream = false)
-    assertThrows[NotImplementedError] {
+    assertThrows[MissingFileFormatException] {
       fileDataSourceReader.read(unsupportedContentTypeSourceBinding, batchJobSourceSettings, Option.empty)
     }
   }

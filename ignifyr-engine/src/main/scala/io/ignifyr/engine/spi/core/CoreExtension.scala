@@ -3,12 +3,10 @@ package io.ignifyr.engine.spi.core
 import io.onfhir.api.service.{IFhirIdentityService, IFhirTerminologyService}
 import io.onfhir.client.{IdentityServiceClient, TerminologyServiceClient}
 import io.ignifyr.engine.cli.command.{Command, Exit, Help, ListRunningMappings, Load, Reload, Run, Stop}
-import io.ignifyr.engine.data.read.{BaseDataSourceReader, FileDataSourceReader}
-import io.ignifyr.engine.data.write.{BaseFhirWriter, FhirRepositoryWriter, FileSystemWriter}
+import io.ignifyr.engine.data.write.{BaseFhirWriter, FhirRepositoryWriter}
 import io.ignifyr.engine.mapping.service.LocalTerminologyService
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.spi._
-import org.apache.spark.sql.SparkSession
 
 import scala.concurrent.ExecutionContext
 
@@ -23,15 +21,10 @@ class CoreExtension extends IgnifyrExtension {
 
   override val id: String = "core"
 
-  override def sourceConnectors: Seq[SourceConnector] = Seq(
-    source("file", classOf[FileSystemSource], classOf[FileSystemSourceSettings])(new FileDataSourceReader(_))
-  )
-
   override def sinkProviders: Seq[SinkProvider] = Seq(
     sink("fhir-repository", classOf[FhirRepositorySinkSettings])(s =>
       new FhirRepositoryWriter(s.asInstanceOf[FhirRepositorySinkSettings])
-    ),
-    sink("file", classOf[FileSystemSinkSettings])(s => new FileSystemWriter(s.asInstanceOf[FileSystemSinkSettings]))
+    )
   )
 
   override def terminologyServiceProviders: Seq[TerminologyServiceProvider] = Seq(
@@ -70,18 +63,6 @@ class CoreExtension extends IgnifyrExtension {
     command("stop")(new Stop()),
     command("exit", Seq("quit"))(new Exit())
   )
-
-  private def source(
-      identifier: String,
-      binding: Class[_ <: MappingSourceBinding],
-      settings: Class[_ <: MappingJobSourceSettings]
-  )(reader: SparkSession => BaseDataSourceReader[_, _]): SourceConnector =
-    new SourceConnector {
-      override val id: String = identifier
-      override val bindingClass: Class[_ <: MappingSourceBinding] = binding
-      override val settingsClass: Class[_ <: MappingJobSourceSettings] = settings
-      override def createReader(spark: SparkSession): BaseDataSourceReader[_, _] = reader(spark)
-    }
 
   private def sink(identifier: String, settings: Class[_ <: FhirSinkSettings])(
       writer: FhirSinkSettings => BaseFhirWriter
