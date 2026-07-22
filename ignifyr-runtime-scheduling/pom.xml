@@ -32,6 +32,29 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <!-- Unit phase: the no-Docker registration spec only. -->
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.runtime.scheduling</wildcardSuites>
+                        </configuration>
+                    </execution>
+                    <!-- Integration phase: the full cron/SQL/onFHIR SchedulingTest. -->
+                    <execution>
+                        <id>integration-test</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <membersOnlySuites>io.ignifyr.integrationtest</membersOnlySuites>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -50,14 +73,18 @@
             <artifactId>cron4j</artifactId>
         </dependency>
 
+        <!-- Shared test harness (IgnifyrTestSpec + OnFhirTestContainer) + fixtures, plus
+             scalatest / mockito / h2 transitively. -->
         <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_${scala.binary.version}</artifactId>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- The behavioural SchedulingTest reads a SqlSource, so the SQL connector must be on the test
+             classpath for its reader to be ServiceLoader-discovered. -->
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-scala_2.13</artifactId>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-sql_2.13</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
