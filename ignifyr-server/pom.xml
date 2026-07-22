@@ -216,6 +216,12 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-runtime-scheduling_2.13</artifactId>
         </dependency>
+        <!-- Observability runtime: Logstash JSON audit encoding + Fluentd shipping (referenced from
+             the server's logback.xml); carries the logstash/fluentd dependencies. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-observability_2.13</artifactId>
+        </dependency>
 
         <!-- For Unit testing -->
         <dependency>
@@ -228,15 +234,7 @@
             <artifactId>mockito-scala_2.13</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Fluentd-Logback Integration-->
-        <dependency>
-            <groupId>com.sndyuk</groupId>
-            <artifactId>logback-more-appenders</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.fluentd</groupId>
-            <artifactId>fluent-logger</artifactId>
-        </dependency>
+        <!-- Fluentd/Logstash log shipping comes via ignifyr-observability (above). -->
         <!-- Testkit for Akka Stream-->
         <dependency>
             <groupId>com.typesafe.akka</groupId>

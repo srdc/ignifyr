@@ -36,18 +36,12 @@
 
     <appender name="FILE-AUDIT" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/ignifyr-mappings.log</file>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <includeMdc>false</includeMdc>
-            <fieldNames>
-                <thread>[ignore]</thread>
-                <version>[ignore]</version>
-                <loggerName>[ignore]</loggerName>
-                <levelValue>[ignore]</levelValue>
-            </fieldNames>
+        <!-- Community engine: plain-text mapping/execution audit log. Structured (Logstash JSON)
+             audit encoding + Fluentd shipping are provided by the enterprise ignifyr-observability
+             module and configured in the server's logback.xml. -->
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <Pattern>%d{yyyy-MM-dd_HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</Pattern>
         </encoder>
-        <!-- Encoder to map MapMarker to LogstashMarker
-             Without this encoder, RollingFileAppender will ignore the markers -->
-        <encoder class="io.ignifyr.engine.logback.MapMarkerToLogstashMarkerEncoder" />
 
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
             <FileNamePattern>logs/ignifyr-mappings.%i.log.zip</FileNamePattern>
@@ -72,12 +66,10 @@
 
     <logger name="io.ignifyr.engine.data.write.SinkHandler" level="INFO">
         <appender-ref ref="ASYNC-AUDIT" />
-        <appender-ref ref="FLUENT" />
     </logger>
 
     <logger name="io.ignifyr.engine.execution.log.ExecutionLogger">
         <appender-ref ref="ASYNC-AUDIT" />
-        <appender-ref ref="ASYNC-AUDIT-FLUENT" />
     </logger>
 
     <!-- Give me DEBUG level logs from io.ignifyr package because the default is set to ERROR at root (above) -->

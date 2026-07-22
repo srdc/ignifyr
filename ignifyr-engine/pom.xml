@@ -114,10 +114,8 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>net.logstash.logback</groupId>
-            <artifactId>logstash-logback-encoder</artifactId>
-        </dependency>
+        <!-- logstash-logback-encoder + the MapMarker encoder moved to ignifyr-observability (enterprise);
+             the community engine logs plain console + rolling file. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -167,14 +165,13 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
         </dependency>
-        <!-- Fluentd-Logback Integration-->
+        <!-- logback-more-appenders provides the MapMarker marker type used by ExecutionLogger and the
+             mapping-result models to attach structured key/value data to log events (community logging).
+             The Logstash JSON encoding + Fluentd shipping that consume those markers live in the
+             enterprise ignifyr-observability module. -->
         <dependency>
             <groupId>com.sndyuk</groupId>
             <artifactId>logback-more-appenders</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.fluentd</groupId>
-            <artifactId>fluent-logger</artifactId>
         </dependency>
 
         <!-- Application Configuration -->

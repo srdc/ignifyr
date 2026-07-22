@@ -88,6 +88,7 @@
         <module>ignifyr-server-common</module>
         <module>ignifyr-rxnorm</module>
         <module>ignifyr-terminology-tools</module>
+        <module>ignifyr-observability</module>
     </modules>
 
     <properties>
@@ -534,6 +535,11 @@
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-terminology-tools_2.13</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-observability_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
