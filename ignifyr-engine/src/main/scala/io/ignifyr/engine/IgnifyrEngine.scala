@@ -60,7 +60,9 @@ class IgnifyrEngine(
 
   // Archiver for deleting or archiving the files processed
   val fileStreamInputArchiver: FileStreamInputArchiver = new FileStreamInputArchiver(runningJobRegistry)
-  fileStreamInputArchiver.startStreamingArchiveTask()
+  // Only run the streaming input-archiver timer when a streaming runtime is installed; the community
+  // batch-only engine has no streaming jobs to archive, so the timer would just spin idle.
+  if (ExtensionRegistry.streaming.isDefined) fileStreamInputArchiver.startStreamingArchiveTask()
 
   /**
    * Merges built-in function libraries and external libraries passed in the constructor

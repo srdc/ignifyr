@@ -12,6 +12,7 @@ import io.ignifyr.engine.mapping.schema.IFhirSchemaLoader
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.model.exception.{FhirMappingException, FhirMappingJobStoppedException}
 import io.ignifyr.engine.repository.mapping.IFhirMappingRepository
+import io.ignifyr.engine.spi.{ExtensionRegistry, MappingTaskPipeline, MissingCapabilityException}
 import it.sauronsoftware.cron4j.SchedulingPattern
 import org.apache.spark.SparkThrowable
 import org.apache.spark.sql.functions.{collect_list, struct, udf}
@@ -43,9 +44,38 @@ class FhirMappingJobManager(
     spark: SparkSession,
     mappingJobScheduler: Option[MappingJobScheduler] = Option.empty
 )(implicit ec: ExecutionContext)
-    extends IFhirMappingJobManager {
+    extends IFhirMappingJobManager
+    with MappingTaskPipeline {
 
   private val logger: Logger = Logger(this.getClass)
+
+  /** The engine Spark session, exposed for capability providers via [[MappingTaskPipeline]]. */
+  override def sparkSession: SparkSession = spark
+
+  /**
+   * Public [[MappingTaskPipeline]] entry point delegating to the internal read+execute path, so
+   * runtime capability providers (streaming, scheduling) can run a single mapping task.
+   */
+  override def runMappingTask(
+      jobId: String,
+      task: FhirMappingTask,
+      sourceSettings: Map[String, MappingJobSourceSettings],
+      terminologyServiceSettings: Option[TerminologyServiceSettings],
+      identityServiceSettings: Option[IdentityServiceSettings],
+      timeRange: Option[(LocalDateTime, LocalDateTime)],
+      executionId: Option[String],
+      projectId: Option[String]
+  ): Future[Dataset[FhirMappingResult]] =
+    readSourceAndExecuteTask(
+      jobId,
+      task,
+      sourceSettings,
+      terminologyServiceSettings,
+      identityServiceSettings,
+      timeRange,
+      executionId,
+      projectId
+    )
 
   /**
    * Execute the given batch mapping job and write the resulting FHIR resources to given sink
@@ -151,40 +181,25 @@ class FhirMappingJobManager(
       sinkSettings: FhirSinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None
-  ): Map[String, Future[StreamingQuery]] = {
-    val fhirWriter = FhirWriterFactory.apply(sinkSettings)
-    fhirWriter.validate()
-    mappingJobExecution.mappingTasks
-      .map(t => {
-        logger.debug(
-          s"Streaming mapping job ${mappingJobExecution.jobId}, mapping name ${t.name} is started and waiting for the data..."
+  ): Map[String, Future[StreamingQuery]] =
+    // Streaming execution is an installable capability (enterprise ignifyr-runtime-streaming). The
+    // engine builds the source datasets via this MappingTaskPipeline; the provider starts and writes
+    // the Spark streaming queries. Absent a provider, a streaming job fails with a clear message.
+    ExtensionRegistry.streaming
+      .getOrElse(
+        throw MissingCapabilityException(
+          "This job has a streaming source (asStream=true). Streaming execution requires the " +
+            "'ignifyr-runtime-streaming' module (com.pontegra.ignifyr:ignifyr-runtime-streaming)."
         )
-        // log the start of the FHIR mapping task execution
-        ExecutionLogger
-          .logExecutionStatus(mappingJobExecution, FhirMappingJobResult.STARTED, Some(t.name), isChunkResult = false)
-        // Construct a tuple of (mapping name, Future[StreamingQuery])
-        t.name ->
-          readSourceAndExecuteTask(
-            mappingJobExecution.jobId,
-            t,
-            sourceSettings,
-            terminologyServiceSettings,
-            identityServiceSettings,
-            executionId = Some(mappingJobExecution.id),
-            projectId = Some(mappingJobExecution.projectId)
-          )
-            .map(ts => {
-              SinkHandler.writeStream(spark, mappingJobExecution, ts, fhirWriter, t.name)
-            })
-            .recover { case e: Throwable =>
-              // log the execution status as "FAILURE"
-              ExecutionLogger
-                .logExecutionStatus(mappingJobExecution, FhirMappingJobResult.FAILURE, Some(t.name), Some(e))
-              throw e
-            }
-      })
-      .toMap
-  }
+      )
+      .startMappingJobStream(
+        this,
+        mappingJobExecution,
+        sourceSettings,
+        sinkSettings,
+        terminologyServiceSettings,
+        identityServiceSettings
+      )
 
   /**
    * Schedule to execute the given mapping job with given cron expression and write the resulting FHIR resources to the given sink
