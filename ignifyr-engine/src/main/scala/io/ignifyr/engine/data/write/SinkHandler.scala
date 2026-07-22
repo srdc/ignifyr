@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.Logger
 import io.ignifyr.engine.execution.log.ExecutionLogger
 import io.ignifyr.engine.execution.processing.ErroneousRecordWriter
 import io.ignifyr.engine.model._
-import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.util.CollectionAccumulator
 
@@ -60,42 +59,6 @@ object SinkHandler {
     )
     // Unpersist the data frame
     df.unpersist()
-  }
-
-  /**
-   * Writes streaming FHIR mapping results to the specified resource writer.
-   *
-   * @param spark The SparkSession instance.
-   * @param mappingJobExecution The execution context of the FHIR mapping job.
-   * @param df The DataFrame containing FHIR mapping results.
-   * @param resourceWriter The writer instance to write the FHIR resources.
-   * @param mappingTaskName The name for the mappingTask.
-   * @return The StreamingQuery instance representing the streaming query.
-   */
-  def writeStream(
-      spark: SparkSession,
-      mappingJobExecution: FhirMappingJobExecution,
-      df: Dataset[FhirMappingResult],
-      resourceWriter: BaseFhirWriter,
-      mappingTaskName: String
-  ): StreamingQuery = {
-    val datasetWrite = (dataset: Dataset[FhirMappingResult], _: Long) =>
-      try {
-        writeMappingResult(spark, mappingJobExecution, mappingTaskName, dataset, resourceWriter)
-      } catch {
-        case e: Throwable =>
-          logger.error(
-            s"Streaming chunk resulted in error for project: ${mappingJobExecution.projectId}, job: ${mappingJobExecution.jobId}, execution: ${mappingJobExecution.id}, mappingTask: $mappingTaskName",
-            e.getMessage
-          )
-      }
-
-    df.writeStream
-      // We need to provide explicit checkpoints. If not, Spark will use the same checkpoint directory, which mixes up the offsets for different streams.
-      // We create a new checkpoint directory per job and per mapping task included in the jobs.
-      .option("checkpointLocation", mappingJobExecution.getCheckpointDirectory(mappingTaskName))
-      .foreachBatch(datasetWrite)
-      .start()
   }
 
   /**

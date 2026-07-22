@@ -47,4 +47,7 @@ trait IgnifyrExtension {
 
   /** Streaming-failure descriptors this module contributes (e.g. a connector's client-specific errors). */
   def streamingFailureDescriptors: Seq[StreamingFailureDescriptor] = Nil
+
+  /** Streaming execution capability, if this module provides one. At most one may be installed. */
+  def streamingProvider: Option[StreamingExecutionProvider] = None
 }

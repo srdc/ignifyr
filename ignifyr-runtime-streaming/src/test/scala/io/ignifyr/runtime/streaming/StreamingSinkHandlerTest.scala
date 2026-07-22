@@ -1,7 +1,7 @@
-package io.ignifyr.test.engine.data.write
+package io.ignifyr.runtime.streaming
 
 import io.ignifyr.engine.config.IgnifyrConfig
-import io.ignifyr.engine.data.write.{BaseFhirWriter, SinkHandler}
+import io.ignifyr.engine.data.write.BaseFhirWriter
 import io.ignifyr.engine.model.{
   DataProcessingSettings,
   FhirMappingJob,
@@ -18,11 +18,11 @@ import java.sql.Timestamp
 import java.time.Instant
 import scala.language.postfixOps
 
-class SinkHandlerTest extends AnyFlatSpec {
+class StreamingSinkHandlerTest extends AnyFlatSpec {
 
   val sparkSession: SparkSession = IgnifyrConfig.sparkSession
 
-  "SinkHandler" should "continue processing subsequent chunks for streaming queries after a chunk throws an exception" in { //
+  "StreamingSinkHandler" should "continue processing subsequent chunks for streaming queries after a chunk throws an exception" in { //
     // A mock
     val mockJob: FhirMappingJob = mock[FhirMappingJob]
     when(mockJob.id).thenReturn("jobId")
@@ -63,7 +63,8 @@ class SinkHandlerTest extends AnyFlatSpec {
     ).thenThrow(new Exception())
 
     // Start streaming
-    val streamingQuery = SinkHandler.writeStream(sparkSession, execution, df, mockWriter, "someMappingTaskName")
+    val streamingQuery =
+      StreamingSinkHandler.writeStream(sparkSession, execution, df, mockWriter, "someMappingTaskName")
 
     // Wait for data generation for 5 seconds and then terminate the query
     streamingQuery.awaitTermination(5000)

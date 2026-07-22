@@ -70,6 +70,21 @@ object ExtensionRegistry {
   lazy val streamingFailureDescriptors: Seq[StreamingFailureDescriptor] =
     extensions.flatMap(_.streamingFailureDescriptors)
 
+  /** The single installed streaming execution provider, if any. More than one is a config error. */
+  lazy val streaming: Option[StreamingExecutionProvider] = singleCapability("streaming execution provider")(
+    extensions.flatMap(e => e.streamingProvider.map(e.id -> _))
+  )
+
+  /** Selects at most one capability provider, failing fast (naming owners) if more than one is installed. */
+  private def singleCapability[V](what: String)(entries: Seq[(String, V)]): Option[V] = {
+    if (entries.size > 1) {
+      throw new IllegalStateException(
+        s"Multiple $what modules installed: ${entries.map(_._1).mkString(", ")}. Install exactly one."
+      )
+    }
+    entries.headOption.map(_._2)
+  }
+
   /**
    * Force every registry to materialize — so a duplicate-registration error surfaces at engine
    * startup rather than in the middle of a job — and log what was loaded.

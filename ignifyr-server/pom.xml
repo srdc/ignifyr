@@ -206,6 +206,11 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-kafka_2.13</artifactId>
         </dependency>
+        <!-- Streaming execution runtime (the server can run streaming jobs) -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-runtime-streaming_2.13</artifactId>
+        </dependency>
 
         <!-- For Unit testing -->
         <dependency>
