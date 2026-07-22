@@ -81,6 +81,7 @@
         <module>ignifyr-connector-sql</module>
         <module>ignifyr-connector-file</module>
         <module>ignifyr-format-json</module>
+        <module>ignifyr-format-delta</module>
         <module>ignifyr-connector-fhir-server</module>
         <module>ignifyr-connector-kafka</module>
         <module>ignifyr-runtime-streaming</module>
@@ -522,6 +523,11 @@
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-format-json_2.13</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-format-delta_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

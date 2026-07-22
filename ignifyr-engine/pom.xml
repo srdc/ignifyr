@@ -218,11 +218,8 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- For integrating Delta Lake with Spark in a Scala project -->
-        <dependency>
-            <groupId>io.delta</groupId>
-            <artifactId>delta-spark_${scala.binary.version}</artifactId>
-        </dependency>
+        <!-- Delta Lake (delta-spark) + its Spark-session wiring live in the enterprise
+             ignifyr-format-delta module, not the community engine. -->
     </dependencies>
 
 </project>

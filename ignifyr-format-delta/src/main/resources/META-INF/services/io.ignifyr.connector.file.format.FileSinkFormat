@@ -1,0 +1,2 @@
+# Enterprise Delta Lake file sink format handler.
+io.ignifyr.format.delta.DeltaSinkFormat

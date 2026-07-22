@@ -85,6 +85,30 @@ object ExtensionRegistry {
     extensions.flatMap(e => e.schedulerProvider.map(e.id -> _))
   )
 
+  /**
+   * Spark-configuration entries contributed by the installed extensions, merged into the shared
+   * SparkSession config (below the user's `spark { }` config). `spark.sql.extensions` is a
+   * comma-separated, additive list, so multiple contributors are concatenated (deduplicated); any
+   * other key claimed by more than one extension is a configuration error and fails fast.
+   */
+  lazy val sparkConfContributions: Map[String, String] = {
+    val entries: Seq[(String, String, String)] = // (ownerExtensionId, key, value)
+      extensions.flatMap(e => e.sparkConfContributions.map { case (k, v) => (e.id, k, v) })
+    entries.groupBy(_._2).map { case (key, group) =>
+      if (key == "spark.sql.extensions") {
+        key -> group.map(_._3).distinct.mkString(",")
+      } else if (group.size > 1) {
+        val owners = group.map(_._1).mkString(", ")
+        throw new IllegalStateException(
+          s"Conflicting Spark configuration '$key' contributed by extensions: $owners. " +
+            "Each Spark-conf key (other than the additive spark.sql.extensions) may be set by at most one module."
+        )
+      } else {
+        key -> group.head._3
+      }
+    }
+  }
+
   /** Selects at most one capability provider, failing fast (naming owners) if more than one is installed. */
   private def singleCapability[V](what: String)(entries: Seq[(String, V)]): Option[V] = {
     if (entries.size > 1) {

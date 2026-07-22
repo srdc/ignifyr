@@ -1,0 +1,4 @@
+# Enterprise Delta Lake sink format: contributes the Delta Spark-session wiring (spark.sql.extensions
+# + the Delta catalog). The Delta FileSinkFormat handler is registered via the file connector's own
+# format sub-SPI service file.
+io.ignifyr.format.delta.DeltaFormatExtension
