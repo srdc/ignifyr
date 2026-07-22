@@ -31,6 +31,29 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <!-- Unit phase: the no-Docker registration spec only. -->
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.connector.sql</wildcardSuites>
+                        </configuration>
+                    </execution>
+                    <!-- Integration phase: the full-pipeline SqlSourceTest (H2 + onFHIR container). -->
+                    <execution>
+                        <id>integration-test</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <membersOnlySuites>io.ignifyr.integrationtest</membersOnlySuites>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -49,11 +72,11 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Test: registration spec only. The full-pipeline SqlSourceTest (H2 + onFHIR container) is
-             parked pending the Phase 2 testkit that shares folder-based fixtures across modules. -->
+        <!-- Shared test harness (IgnifyrTestSpec + OnFhirTestContainer) + classpath fixtures, plus
+             scalatest / h2 transitively. Hosts the full-pipeline SqlSourceTest (H2 + onFHIR container). -->
         <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_${scala.binary.version}</artifactId>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
