@@ -1,4 +1,4 @@
-package io.ignifyr.engine.logback
+package io.ignifyr.observability.logback
 
 import ch.qos.logback.classic.spi.{ILoggingEvent, IThrowableProxy, LoggerContextVO}
 import ch.qos.logback.more.appenders.marker.MapMarker

@@ -52,7 +52,7 @@
         </encoder>
         <!-- Encoder to map MapMarker to LogstashMarker
              Without this encoder, RollingFileAppender will ignore the markers -->
-        <encoder class="io.ignifyr.engine.logback.MapMarkerToLogstashMarkerEncoder" />
+        <encoder class="io.ignifyr.observability.logback.MapMarkerToLogstashMarkerEncoder" />
 
         <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
             <FileNamePattern>${LOG_FOLDER}/ignifyr-mappings.%i.log.zip</FileNamePattern>
