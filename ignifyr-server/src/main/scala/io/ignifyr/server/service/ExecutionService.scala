@@ -3,10 +3,10 @@ package io.ignifyr.server.service
 import com.typesafe.scalalogging.LazyLogging
 import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.env.EnvironmentVariableResolver
+import io.ignifyr.engine.execution.MappingJobLauncher
 import io.ignifyr.engine.mapping.context.MappingContextLoader
-import io.ignifyr.engine.mapping.job.FhirMappingJobManager
 import io.ignifyr.engine.model._
-import io.ignifyr.engine.spi.{ExtensionRegistry, MissingCapabilityException}
+import io.ignifyr.engine.spi.ExtensionRegistry
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils
 import io.ignifyr.engine.util.FileUtils.FileExtensions
@@ -17,8 +17,6 @@ import io.ignifyr.server.repository.job.IJobRepository
 import io.ignifyr.server.repository.mapping.IMappingRepository
 import io.ignifyr.server.repository.schema.ISchemaRepository
 import io.ignifyr.server.util.DataFrameUtil
-import org.apache.commons.io
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{AnalysisException, KeyValueGroupedDataset}
 import org.json4s.jackson.JsonMethods
@@ -48,6 +46,9 @@ class ExecutionService(
   import Execution.actorSystem
 
   implicit val ec: ExecutionContext = actorSystem.dispatcher
+
+  // The single home of the batch/stream/scheduled dispatch (shared with the CLI).
+  private val mappingJobLauncher = new MappingJobLauncher(ignifyrEngine)
 
   /**
    * Run the job for the given execute job tasks
@@ -124,94 +125,26 @@ class ExecutionService(
           projectId = projectId,
           mappingTasks = mappingTasks
         )
-        val fhirMappingJobManager = new FhirMappingJobManager(
-          ignifyrEngine.mappingRepo,
-          ignifyrEngine.contextLoader,
-          ignifyrEngine.schemaLoader,
-          ignifyrEngine.functionLibraries,
-          ignifyrEngine.sparkSession
+
+        // check whether the job execution is already scheduled (vacuously false without a scheduling provider;
+        // the launcher raises the missing-capability error when it actually tries to schedule)
+        if (
+          executionId.nonEmpty && mappingJob.schedulingSettings.nonEmpty &&
+          ExtensionRegistry.scheduler.exists(_.isScheduled(mappingJob.id, executionId.get))
+        ) {
+          throw BadRequest(
+            "The mapping job execution is already scheduled!",
+            s"The mapping job execution is already scheduled!"
+          )
+        }
+
+        // dispatch to batch / streaming / scheduled execution
+        mappingJobLauncher.launch(
+          mappingJob,
+          mappingJobExecution,
+          clearCheckpoints = executeJobTask.exists(_.clearCheckpoints)
         )
-
-        // Streaming jobs
-        val submittedJob =
-          if (mappingJob.sourceSettings.exists(_._2.asStream)) {
-            // Delete checkpoint directory if set accordingly
-            if (executeJobTask.exists(_.clearCheckpoints)) {
-              mappingTasks.foreach(mappingTask => {
-                // Reset the archiving offset so that the archiving starts from scratch
-                ignifyrEngine.fileStreamInputArchiver.resetOffset(mappingJobExecution, mappingTask.name)
-
-                val checkpointDirectory: File = new File(mappingJobExecution.getCheckpointDirectory(mappingTask.name))
-                io.FileUtils.deleteDirectory(checkpointDirectory)
-                logger.debug(
-                  s"Deleted checkpoint directory for jobId: ${mappingJobExecution.jobId}, executionId: ${mappingJobExecution.id}, mappingTaskName: ${mappingTask.name}, path: ${checkpointDirectory.getAbsolutePath}"
-                )
-              })
-            }
-
-            fhirMappingJobManager
-              .startMappingJobStream(
-                mappingJobExecution,
-                sourceSettings = mappingJob.sourceSettings,
-                sinkSettings = mappingJob.sinkSettings,
-                terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-                identityServiceSettings = mappingJob.getIdentityServiceSettings()
-              )
-              .foreach(sq => ignifyrEngine.runningJobRegistry.registerStreamingQuery(mappingJobExecution, sq._1, sq._2))
-          }
-
-          // Batch jobs
-          else {
-            // run the mapping job with scheduler
-            if (mappingJob.schedulingSettings.nonEmpty) {
-              // Scheduled execution is an installable capability (enterprise ignifyr-runtime-scheduling).
-              // Absent a provider, a job with schedulingSettings fails with a clear message.
-              val scheduler = ExtensionRegistry.scheduler.getOrElse(
-                throw MissingCapabilityException(
-                  "This job has schedulingSettings. Scheduled execution requires the " +
-                    "'ignifyr-runtime-scheduling' module (com.pontegra.ignifyr:ignifyr-runtime-scheduling)."
-                )
-              )
-              // check whether the job execution is already scheduled
-              if (executionId.nonEmpty && scheduler.isScheduled(mappingJob.id, executionId.get)) {
-                throw BadRequest(
-                  "The mapping job execution is already scheduled!",
-                  s"The mapping job execution is already scheduled!"
-                )
-              }
-              // schedule the mapping job (validates the cron, registers the execution, and starts the scheduler)
-              scheduler.scheduleMappingJob(
-                jobManager = fhirMappingJobManager,
-                runningJobRegistry = ignifyrEngine.runningJobRegistry,
-                ignifyrDbFolderPath = IgnifyrConfig.engineConfig.ignifyrDbFolderPath,
-                mappingJobExecution = mappingJobExecution,
-                sourceSettings = mappingJob.sourceSettings,
-                sinkSettings = mappingJob.sinkSettings,
-                schedulingSettings = mappingJob.schedulingSettings.get,
-                terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-                identityServiceSettings = mappingJob.getIdentityServiceSettings()
-              )
-            }
-
-            // run the batch job without scheduling
-            else {
-              val executionFuture: Future[Unit] = fhirMappingJobManager
-                .executeMappingJob(
-                  mappingJobExecution = mappingJobExecution,
-                  sourceSettings = mappingJob.sourceSettings,
-                  sinkSettings = mappingJob.sinkSettings,
-                  terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-                  identityServiceSettings = mappingJob.getIdentityServiceSettings()
-                )
-              // Register the job to the registry
-              ignifyrEngine.runningJobRegistry.registerBatchJob(
-                mappingJobExecution,
-                Some(executionFuture),
-                s"Spark job for job: ${mappingJobExecution.jobId} mappingTaskNames: ${mappingTasks.map(_.name).mkString(" ")}"
-              )
-            }
-          }
-        submittedJob
+        ()
     }
   }
 
@@ -269,23 +202,15 @@ class ExecutionService(
           case Some(strategy) if strategy.batchParameterSets.nonEmpty =>
             val firstBatchParams = strategy.batchParameterSets.head
             logger.debug(s"Testing with first batch parameters: $firstBatchParams")
-            substituteBatchParameters(mappingTaskWithNormalizedUrls, firstBatchParams)
+            mappingTaskWithNormalizedUrls.substituteBatchParameters(firstBatchParams)
           case _ => mappingTaskWithNormalizedUrls
         }
 
-        val fhirMappingJobManager = new FhirMappingJobManager(
-          ignifyrEngine.mappingRepo,
-          ignifyrEngine.contextLoader,
-          ignifyrEngine.schemaLoader,
-          ignifyrEngine.functionLibraries,
-          ignifyrEngine.sparkSession
-        )
-        // Define the updated jobSourceSettings where asStream is set to false if the setting is a KafkaSourceSettings
-        val jobSourceSettings: Map[String, MappingJobSourceSettings] = mappingJob.sourceSettings.map {
-          case (key, kafkaSettings: KafkaSourceSettings) =>
-            key -> kafkaSettings.copy(asStream = false) // Copy and update asStream to false for KafkaSourceSettings
-          case other => other // Keep other source settings unchanged
-        }
+        val fhirMappingJobManager = mappingJobLauncher.jobManager
+        // Force batch reading for the test run: streaming settings (e.g. Kafka) are copied with
+        // asStream=false so the test reads a bounded sample instead of opening a stream.
+        val jobSourceSettings: Map[String, MappingJobSourceSettings] =
+          mappingJob.sourceSettings.map { case (key, settings) => key -> settings.withAsStream(false) }
 
         val (fhirMapping, mappingJobSourceSettings, dataFrame) =
           try {
@@ -336,17 +261,15 @@ class ExecutionService(
           }
           .recover {
             case ee: ExecutionException =>
-              Option(ee.getCause) match {
-                // special handling of UnknownTopicOrPartitionException to include the missing topic names
-                case Some(_: UnknownTopicOrPartitionException) =>
-                  val topicNames: Seq[String] = testResourceCreationRequest.fhirMappingTask.sourceBinding
-                    .map(source => source._2.asInstanceOf[KafkaSource].topicName)
-                    .toSeq
-                  throw BadRequest(
-                    "Invalid Kafka Topics",
-                    s"The following Kafka topic(s) specified in the mapping task do not exist: ${topicNames.mkString(", ")}."
-                  )
-                case _ =>
+              // Ask connector-provided descriptors to translate the failure into a clearer message
+              // (e.g. Kafka's "unknown topic" error naming the missing topics) without the server
+              // importing any connector client types.
+              ExtensionRegistry.sourceFailureDescriptors
+                .flatMap(_.describeBatchTaskFailure(ee, testResourceCreationRequest.fhirMappingTask))
+                .headOption match {
+                case Some(described) =>
+                  throw BadRequest("Invalid source for the mapping test execution", described.getMessage)
+                case None =>
                   throw ee
               }
             case se: SparkException =>
@@ -499,33 +422,4 @@ class ExecutionService(
     }
   }
 
-  /**
-   * Substitutes batch parameters in the preprocessSql of all source bindings in a mapping task.
-   * Parameters in preprocessSql are specified as $parameterName and will be replaced with the corresponding value.
-   *
-   * @param task       The original mapping task
-   * @param parameters Map of parameter names to their values (e.g., Map("year" -> "2014", "month" -> "1"))
-   * @return A new mapping task with substituted preprocessSql in all source bindings
-   */
-  private def substituteBatchParameters(task: FhirMappingTask, parameters: Map[String, String]): FhirMappingTask = {
-    val updatedSourceBinding = task.sourceBinding.map { case (alias, binding) =>
-      val updatedBinding = binding.preprocessSql match {
-        case Some(sql) =>
-          val substitutedSql = parameters.foldLeft(sql) { case (currentSql, (paramName, paramValue)) =>
-            currentSql.replace(s"$$$paramName", paramValue)
-          }
-          // Create a new binding with the substituted SQL based on the binding type
-          binding match {
-            case fs: FileSystemSource => fs.copy(preprocessSql = Some(substitutedSql))
-            case ss: SqlSource => ss.copy(preprocessSql = Some(substitutedSql))
-            case ks: KafkaSource => ks.copy(preprocessSql = Some(substitutedSql))
-            case fss: FhirServerSource => fss.copy(preprocessSql = Some(substitutedSql))
-            case other => other // For any other type, return as-is
-          }
-        case None => binding
-      }
-      alias -> updatedBinding
-    }
-    task.copy(sourceBinding = updatedSourceBinding)
-  }
 }
