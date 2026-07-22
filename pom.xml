@@ -90,6 +90,7 @@
         <module>ignifyr-rxnorm</module>
         <module>ignifyr-terminology-tools</module>
         <module>ignifyr-observability</module>
+        <module>ignifyr-testkit</module>
     </modules>
 
     <properties>
@@ -503,10 +504,8 @@
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-engine_2.13</artifactId>
+                <artifactId>ignifyr-testkit_2.13</artifactId>
                 <version>${project.version}</version>
-                <type>test-jar</type>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>

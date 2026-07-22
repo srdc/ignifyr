@@ -174,10 +174,11 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-engine_2.13</artifactId>
         </dependency>
+        <!-- Shared test harness (OnFhirTestContainer + IgnifyrTestSpec) + fixtures, replacing the
+             former engine test-jar. -->
         <dependency>
             <groupId>io.ignifyr</groupId>
-            <artifactId>ignifyr-engine_2.13</artifactId>
-            <type>test-jar</type>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
