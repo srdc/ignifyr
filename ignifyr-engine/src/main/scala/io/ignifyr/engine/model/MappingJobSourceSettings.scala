@@ -75,13 +75,11 @@ case class SqlSourceSettings(name: String, sourceUri: String, databaseUrl: Strin
  * @param name             Human friendly name for the source organization for data source
  * @param sourceUri        Computer friendly canonical url indicating the source of the data (May be used for Resource.meta.source)
  * @param bootstrapServers Kafka bootstrap server(s) with port, may be comma seperated list (localhost:9092,localhost:9091)
- * @param asRedCap         Indicate whether it is a RedCap source
  */
 case class KafkaSourceSettings(
     name: String = "",
     sourceUri: String = "",
     bootstrapServers: String = "",
-    asRedCap: Boolean = false,
     override val asStream: Boolean = true
 ) extends MappingJobSourceSettings {
   override def withAsStream(asStream: Boolean): MappingJobSourceSettings = copy(asStream = asStream)

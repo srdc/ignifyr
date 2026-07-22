@@ -14,15 +14,14 @@ object KafkaSourceSettingsSerializers {
       extends CustomSerializer[KafkaSourceSettings](format =>
         (
           {
-            // deserialize
+            // deserialize (an obsolete "asRedCap" field in existing job JSONs is simply ignored)
             case json: JObject =>
               val name = (json \ "name").extractOrElse("Unknown")
               val sourceUri = (json \ "sourceUri").extractOrElse("Unknown")
               val bootstrapServers = (json \ "bootstrapServers").extractOrElse("Unknown")
-              val asRedCap = (json \ "asRedCap").extractOrElse(false)
               val asStream = (json \ "asStream").extractOrElse(true)
 
-              KafkaSourceSettings(name, sourceUri, bootstrapServers, asRedCap, asStream)
+              KafkaSourceSettings(name, sourceUri, bootstrapServers, asStream)
           },
           {
             // serialize
@@ -32,7 +31,6 @@ object KafkaSourceSettingsSerializers {
                 "sourceUri" -> JString(settings.sourceUri),
                 "bootstrapServers" -> JString(settings.bootstrapServers),
                 "asStream" -> JBool(settings.asStream),
-                "asRedCap" -> JBool(settings.asRedCap),
                 "jsonClass" -> JString("KafkaSourceSettings")
               )
           }

@@ -76,7 +76,7 @@ object EnvironmentVariableResolver {
       key -> (value match {
         case fs: FileSystemSourceSettings =>
           fs.copy(dataFolderPath = resolveEnvironmentVariables(fs.dataFolderPath))
-        case ks: KafkaSourceSettings if ks.asRedCap =>
+        case ks: KafkaSourceSettings =>
           ks.copy(sourceUri = resolveEnvironmentVariables(ks.sourceUri))
         case other => other // No changes for other types
       })
