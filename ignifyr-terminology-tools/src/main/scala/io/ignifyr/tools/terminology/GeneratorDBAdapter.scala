@@ -1,6 +1,6 @@
-package io.ignifyr.engine.util.mappinggenerator
+package io.ignifyr.tools.terminology
 
-import io.ignifyr.engine.util.mappinggenerator.GeneratorDBAdapter._
+import io.ignifyr.tools.terminology.GeneratorDBAdapter._
 
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet}
 import scala.collection.mutable
