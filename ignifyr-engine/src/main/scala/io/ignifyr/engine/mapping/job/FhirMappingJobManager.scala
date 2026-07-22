@@ -276,36 +276,6 @@ class FhirMappingJobManager(
   }
 
   /**
-   * Substitutes batch parameters in the preprocessSql of all source bindings in a mapping task.
-   * Parameters in preprocessSql are specified as $parameterName and will be replaced with the corresponding value.
-   *
-   * @param task       The original mapping task
-   * @param parameters Map of parameter names to their values (e.g., Map("year" -> "2014", "month" -> "1"))
-   * @return A new mapping task with substituted preprocessSql in all source bindings
-   */
-  private def substituteBatchParameters(task: FhirMappingTask, parameters: Map[String, String]): FhirMappingTask = {
-    val updatedSourceBinding = task.sourceBinding.map { case (alias, binding) =>
-      val updatedBinding = binding.preprocessSql match {
-        case Some(sql) =>
-          val substitutedSql = parameters.foldLeft(sql) { case (currentSql, (paramName, paramValue)) =>
-            currentSql.replace(s"$$$paramName", paramValue)
-          }
-          // Create a new binding with the substituted SQL based on the binding type
-          binding match {
-            case fs: FileSystemSource => fs.copy(preprocessSql = Some(substitutedSql))
-            case ss: SqlSource => ss.copy(preprocessSql = Some(substitutedSql))
-            case ks: KafkaSource => ks.copy(preprocessSql = Some(substitutedSql))
-            case fss: FhirServerSource => fss.copy(preprocessSql = Some(substitutedSql))
-            case other => other // For any other type, return as-is
-          }
-        case None => binding
-      }
-      alias -> updatedBinding
-    }
-    task.copy(sourceBinding = updatedSourceBinding)
-  }
-
-  /**
    * Read the source data, divide it into chunks and execute the mapping (first mapping task in the Fhir Mapping Job
    * Execution) and write each chunk sequentially
    *
@@ -348,7 +318,7 @@ class FhirMappingJobManager(
               )
 
               // Substitute the batch parameters in the task's preprocessSql
-              val batchTask = substituteBatchParameters(mappingTask, batchParams)
+              val batchTask = mappingTask.substituteBatchParameters(batchParams)
 
               // Execute the batch, only log final result on last batch
               executeSingleBatch(

@@ -3,9 +3,8 @@ package io.ignifyr.engine.cli
 import io.ignifyr.engine.Execution.actorSystem.dispatcher
 import io.ignifyr.engine.IgnifyrEngine
 import io.ignifyr.engine.cli.command.{CommandExecutionContext, CommandFactory, Load}
-import io.ignifyr.engine.mapping.job.FhirMappingJobManager
+import io.ignifyr.engine.execution.{MappingJobLaunch, MappingJobLauncher}
 import io.ignifyr.engine.model.FhirMappingJobExecution
-import io.ignifyr.engine.spi.{ExtensionRegistry, MissingCapabilityException}
 import io.ignifyr.engine.util.FhirMappingJobFormatter
 import org.json4s.MappingException
 
@@ -80,7 +79,8 @@ object CommandLineInterface {
   }
 
   /**
-   * Run the given mappingJob as a batch and exit the process.
+   * Run the given mappingJob and exit the process (batch), keep it alive until the streaming
+   * queries terminate (streaming), or hand it to the installed scheduler (scheduled).
    *
    * @param ignifyrEngine
    * @param mappingJobFilePath
@@ -91,74 +91,16 @@ object CommandLineInterface {
       System.exit(1)
     }
     val mappingJob = FhirMappingJobFormatter.readMappingJobFromFile(mappingJobFilePath.get)
-    if (mappingJob.schedulingSettings.isEmpty) {
-      val fhirMappingJobManager =
-        new FhirMappingJobManager(
-          ignifyrEngine.mappingRepo,
-          ignifyrEngine.contextLoader,
-          ignifyrEngine.schemaLoader,
-          ignifyrEngine.functionLibraries,
-          ignifyrEngine.sparkSession
-        )
-      val mappingJobExecution = FhirMappingJobExecution(job = mappingJob, mappingTasks = mappingJob.mappings)
-      if (mappingJob.sourceSettings.exists(_._2.asStream)) {
-        val streamingQueryInitializationTasks: Seq[Future[Unit]] =
-          fhirMappingJobManager
-            .startMappingJobStream(
-              mappingJobExecution,
-              sourceSettings = mappingJob.sourceSettings,
-              sinkSettings = mappingJob.sinkSettings,
-              terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-              identityServiceSettings = mappingJob.getIdentityServiceSettings()
-            )
-            .map(sq => ignifyrEngine.runningJobRegistry.registerStreamingQuery(mappingJobExecution, sq._1, sq._2))
-            .toSeq
+    val mappingJobExecution = FhirMappingJobExecution(job = mappingJob, mappingTasks = mappingJob.mappings)
+    new MappingJobLauncher(ignifyrEngine).launch(mappingJob, mappingJobExecution, ignifyrDbFolderPath) match {
+      case MappingJobLaunch.Batch(completion) =>
+        Await.result(completion, Duration.Inf)
+      case MappingJobLaunch.Streaming(queryRegistrations) =>
         // Wait for all Futures (i.e. Streaming Queries) to complete
-        Await.result(Future.sequence(streamingQueryInitializationTasks), Duration.Inf)
-
-      } else {
-        val f =
-          fhirMappingJobManager
-            .executeMappingJob(
-              mappingJobExecution,
-              sourceSettings = mappingJob.sourceSettings,
-              sinkSettings = mappingJob.sinkSettings,
-              terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-              identityServiceSettings = mappingJob.getIdentityServiceSettings()
-            )
-        Await.result(f, Duration.Inf)
-      }
-    } else {
-      // Scheduled execution is an installable capability (enterprise ignifyr-runtime-scheduling).
-      // The community batch-only engine fails clearly if a scheduled job is submitted without it.
-      val scheduler = ExtensionRegistry.scheduler.getOrElse(
-        throw MissingCapabilityException(
-          "This job has schedulingSettings. Scheduled execution requires the " +
-            "'ignifyr-runtime-scheduling' module (com.pontegra.ignifyr:ignifyr-runtime-scheduling)."
-        )
-      )
-      val fhirMappingJobManager =
-        new FhirMappingJobManager(
-          ignifyrEngine.mappingRepo,
-          ignifyrEngine.contextLoader,
-          ignifyrEngine.schemaLoader,
-          ignifyrEngine.functionLibraries,
-          ignifyrEngine.sparkSession
-        )
-      // scheduleMappingJob validates the cron, registers the execution, and starts the scheduler.
-      scheduler.scheduleMappingJob(
-        jobManager = fhirMappingJobManager,
-        runningJobRegistry = ignifyrEngine.runningJobRegistry,
-        ignifyrDbFolderPath = ignifyrDbFolderPath,
-        mappingJobExecution = FhirMappingJobExecution(job = mappingJob, mappingTasks = mappingJob.mappings),
-        sourceSettings = mappingJob.sourceSettings,
-        sinkSettings = mappingJob.sinkSettings,
-        schedulingSettings = mappingJob.schedulingSettings.get,
-        terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-        identityServiceSettings = mappingJob.getIdentityServiceSettings()
-      )
+        Await.result(Future.sequence(queryRegistrations), Duration.Inf)
+      case MappingJobLaunch.Scheduled =>
+        () // The scheduler's own threads keep the process alive and fire executions per the cron.
     }
-
   }
 
   /**

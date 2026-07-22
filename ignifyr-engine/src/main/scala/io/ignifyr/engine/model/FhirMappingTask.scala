@@ -20,7 +20,29 @@ case class FhirMappingTask(
     sourceBinding: Map[String, MappingSourceBinding],
     mapping: Option[FhirMapping] = None,
     batchingStrategy: Option[BatchingStrategy] = None
-)
+) {
+
+  /**
+   * Substitutes batch parameters in the preprocessSql of all source bindings of this mapping task.
+   * Parameters in preprocessSql are specified as $parameterName and will be replaced with the corresponding value.
+   *
+   * @param parameters Map of parameter names to their values (e.g., Map("year" -> "2014", "month" -> "1"))
+   * @return A new mapping task with substituted preprocessSql in all source bindings
+   */
+  def substituteBatchParameters(parameters: Map[String, String]): FhirMappingTask = {
+    val updatedSourceBinding = sourceBinding.map { case (alias, binding) =>
+      alias -> (binding.preprocessSql match {
+        case Some(sql) =>
+          val substitutedSql = parameters.foldLeft(sql) { case (currentSql, (paramName, paramValue)) =>
+            currentSql.replace(s"$$$paramName", paramValue)
+          }
+          binding.withPreprocessSql(Some(substitutedSql))
+        case None => binding
+      })
+    }
+    copy(sourceBinding = updatedSourceBinding)
+  }
+}
 
 /**
  * Interface for defining the mapping source binding in a mapping job.
@@ -43,6 +65,12 @@ trait MappingSourceBinding extends Serializable {
    * ensuring backward compatibility.
    */
   val sourceRef: Option[String] = None
+
+  /**
+   * A copy of this binding with the given preprocess SQL, so callers can rewrite the query
+   * (e.g. batch-parameter substitution) without matching on concrete binding types.
+   */
+  def withPreprocessSql(preprocessSql: Option[String]): MappingSourceBinding
 }
 
 /**
@@ -73,7 +101,10 @@ case class FileSystemSource(
     options: Map[String, String] = Map.empty[String, String],
     override val preprocessSql: Option[String] = None,
     override val sourceRef: Option[String] = None
-) extends MappingSourceBinding {}
+) extends MappingSourceBinding {
+  override def withPreprocessSql(preprocessSql: Option[String]): MappingSourceBinding =
+    copy(preprocessSql = preprocessSql)
+}
 
 /**
  * Context/configuration for one of the source of the mapping that will read the source data from an SQL database
@@ -89,7 +120,10 @@ case class SqlSource(
     options: Map[String, String] = Map.empty[String, String],
     override val preprocessSql: Option[String] = None,
     override val sourceRef: Option[String] = None
-) extends MappingSourceBinding
+) extends MappingSourceBinding {
+  override def withPreprocessSql(preprocessSql: Option[String]): MappingSourceBinding =
+    copy(preprocessSql = preprocessSql)
+}
 
 /**
  * Context/configuration for one of the source of the mapping that will read the source data from a kafka as stream
@@ -102,7 +136,10 @@ case class KafkaSource(
     options: Map[String, String] = Map.empty[String, String],
     override val preprocessSql: Option[String] = None,
     override val sourceRef: Option[String] = None
-) extends MappingSourceBinding
+) extends MappingSourceBinding {
+  override def withPreprocessSql(preprocessSql: Option[String]): MappingSourceBinding =
+    copy(preprocessSql = preprocessSql)
+}
 
 /**
  * Represents a mapping source binding for FHIR server data.
@@ -116,7 +153,10 @@ case class FhirServerSource(
     query: Option[String] = None,
     override val preprocessSql: Option[String] = None,
     override val sourceRef: Option[String] = None
-) extends MappingSourceBinding
+) extends MappingSourceBinding {
+  override def withPreprocessSql(preprocessSql: Option[String]): MappingSourceBinding =
+    copy(preprocessSql = preprocessSql)
+}
 
 /**
  * List of source content types supported by ignifyr

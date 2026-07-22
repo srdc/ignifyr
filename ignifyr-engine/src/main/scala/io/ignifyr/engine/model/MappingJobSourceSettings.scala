@@ -24,6 +24,13 @@ trait MappingJobSourceSettings {
   val asStream: Boolean = false
 
   /**
+   * A copy of these settings with the given streaming mode. Settings types without a streaming
+   * mode (their `asStream` is fixed) return themselves, so callers can force batch reading
+   * (e.g. for mapping tests) without matching on concrete settings types.
+   */
+  def withAsStream(asStream: Boolean): MappingJobSourceSettings = this
+
+  /**
    * Return the context params that will be supplied to mapping tasks
    *
    * @return
@@ -48,7 +55,9 @@ case class FileSystemSourceSettings(
     sourceUri: String,
     dataFolderPath: String,
     override val asStream: Boolean = false
-) extends MappingJobSourceSettings
+) extends MappingJobSourceSettings {
+  override def withAsStream(asStream: Boolean): MappingJobSourceSettings = copy(asStream = asStream)
+}
 
 /**
  *
@@ -74,7 +83,9 @@ case class KafkaSourceSettings(
     bootstrapServers: String = "",
     asRedCap: Boolean = false,
     override val asStream: Boolean = true
-) extends MappingJobSourceSettings
+) extends MappingJobSourceSettings {
+  override def withAsStream(asStream: Boolean): MappingJobSourceSettings = copy(asStream = asStream)
+}
 
 /**
  * Settings for configuring a FHIR server data source.

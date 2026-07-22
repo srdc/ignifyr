@@ -4,12 +4,13 @@ import io.ignifyr.engine.data.read.BaseDataSourceReader
 import io.ignifyr.engine.model.exception.FhirMappingException
 import io.ignifyr.engine.model.{
   FhirMappingJobExecution,
+  FhirMappingTask,
   KafkaSource,
   KafkaSourceSettings,
   MappingJobSourceSettings,
   MappingSourceBinding
 }
-import io.ignifyr.engine.spi.{IgnifyrExtension, SourceConnector, StreamingFailureDescriptor}
+import io.ignifyr.engine.spi.{IgnifyrExtension, SourceConnector, SourceFailureDescriptor}
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
 import org.apache.spark.sql.SparkSession
 
@@ -17,9 +18,9 @@ import scala.annotation.tailrec
 
 /**
  * Registers the Kafka source connector with the engine via ServiceLoader, plus a
- * [[StreamingFailureDescriptor]] that turns Kafka's `UnknownTopicOrPartitionException` into a
+ * [[SourceFailureDescriptor]] that turns Kafka's `UnknownTopicOrPartitionException` into a
  * message naming the missing topic(s) — logic that previously lived (with a hard Kafka import) in
- * the engine's RunningJobRegistry.
+ * the engine's RunningJobRegistry and the server's ExecutionService.
  */
 class KafkaConnectorExtension extends IgnifyrExtension {
 
@@ -34,28 +35,38 @@ class KafkaConnectorExtension extends IgnifyrExtension {
     }
   )
 
-  override def streamingFailureDescriptors: Seq[StreamingFailureDescriptor] = Seq(
-    new StreamingFailureDescriptor {
-      override def describe(
+  override def sourceFailureDescriptors: Seq[SourceFailureDescriptor] = Seq(
+    new SourceFailureDescriptor {
+      override def describeStreamingFailure(
           error: Throwable,
           execution: FhirMappingJobExecution,
           mappingTaskName: String
       ): Option[FhirMappingException] =
         if (hasCause(error, classOf[UnknownTopicOrPartitionException])) {
-          val topicNames = execution.mappingTasks
+          val bindings = execution.mappingTasks
             .find(_.name.contentEquals(mappingTaskName))
             .toSeq
             .flatMap(_.sourceBinding.values)
-            .collect { case k: KafkaSource => k.topicName }
-            .mkString(", ")
-          Some(
-            FhirMappingException(
-              s"The following Kafka topic(s) specified in the mapping task do not exist: $topicNames"
-            )
-          )
+          Some(missingTopicsException(bindings))
         } else None
+
+      override def describeBatchTaskFailure(
+          error: Throwable,
+          mappingTask: FhirMappingTask
+      ): Option[FhirMappingException] =
+        if (hasCause(error, classOf[UnknownTopicOrPartitionException]))
+          Some(missingTopicsException(mappingTask.sourceBinding.values.toSeq))
+        else None
     }
   )
+
+  /** Builds the "missing topics" message from the Kafka bindings among the given source bindings. */
+  private def missingTopicsException(bindings: Seq[MappingSourceBinding]): FhirMappingException = {
+    val topicNames = bindings.collect { case k: KafkaSource => k.topicName }.mkString(", ")
+    FhirMappingException(
+      s"The following Kafka topic(s) specified in the mapping task do not exist: $topicNames"
+    )
+  }
 
   /** Walks the cause chain looking for an exception of the given type. */
   @tailrec
