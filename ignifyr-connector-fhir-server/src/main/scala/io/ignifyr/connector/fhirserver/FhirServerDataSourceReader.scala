@@ -1,4 +1,4 @@
-package io.ignifyr.engine.data.read
+package io.ignifyr.connector.fhirserver
 
 import io.onfhir.client.model.{
   BasicAuthenticationSettings,
@@ -6,6 +6,7 @@ import io.onfhir.client.model.{
   FixedTokenAuthenticationSettings
 }
 import io.onfhir.spark.reader.FhirApiReader.OPTIONS
+import io.ignifyr.engine.data.read.BaseDataSourceReader
 import io.ignifyr.engine.model._
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SparkSession}

@@ -192,6 +192,16 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-rxnorm_2.13</artifactId>
         </dependency>
+        <!-- Source connectors the server runtime executes / infers schemas from. The server is the
+             enterprise runtime, so it bundles the connectors (community + enterprise) it can run. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-sql_2.13</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-fhir-server_2.13</artifactId>
+        </dependency>
 
         <!-- For Unit testing -->
         <dependency>

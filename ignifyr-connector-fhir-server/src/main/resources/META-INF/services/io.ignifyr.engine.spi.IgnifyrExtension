@@ -1,0 +1,2 @@
+# Ignifyr FHIR-server-as-source connector.
+io.ignifyr.connector.fhirserver.FhirServerConnectorExtension
