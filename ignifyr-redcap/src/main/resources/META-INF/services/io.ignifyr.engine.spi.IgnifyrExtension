@@ -1,0 +1,2 @@
+# Ignifyr REDCap integration (engine-side contributions: the extract-redcap-schemas CLI command).
+io.ignifyr.redcap.RedCapExtension

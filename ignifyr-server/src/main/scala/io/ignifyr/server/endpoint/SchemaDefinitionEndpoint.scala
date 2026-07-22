@@ -10,14 +10,13 @@ import io.ignifyr.server.endpoint.SchemaDefinitionEndpoint.{
   SEGMENT_IMPORT,
   SEGMENT_IMPORT_ZIP,
   SEGMENT_INFER,
-  SEGMENT_REDCAP,
   SEGMENT_SCHEMAS
 }
 import io.onfhir.definitions.common.model.Json4sSupport._
 import io.ignifyr.server.model.{ImportSchemaSettings, InferTask}
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.server.common.model.{BadRequest, InternalError, ResourceNotFound, IgnifyrRestCall}
-import io.ignifyr.server.endpoint.MappingContextEndpoint.ATTACHMENT
+import io.ignifyr.server.common.spi.{IgnifyrServerExtension, SchemaImportSink}
 import io.onfhir.api.Resource
 import io.ignifyr.server.repository.mapping.IMappingRepository
 import io.ignifyr.server.repository.schema.ISchemaRepository
@@ -29,10 +28,20 @@ import java.io.File
 import java.nio.file.Files
 import scala.util.{Failure, Success}
 
-class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepository: IMappingRepository)
-    extends LazyLogging {
+class SchemaDefinitionEndpoint(
+    schemaRepository: ISchemaRepository,
+    mappingRepository: IMappingRepository,
+    serverExtensions: Seq[IgnifyrServerExtension]
+) extends LazyLogging {
 
   val service: SchemaDefinitionService = new SchemaDefinitionService(schemaRepository, mappingRepository)
+
+  // Module-specific schema import routes (e.g. the REDCap data-dictionary import), contributed by
+  // installed server extensions; imported schemas are persisted through the service.
+  private val schemaImportSink: SchemaImportSink = (projectId, schemas) =>
+    service.saveImportedSchemas(projectId, schemas)
+  private val extensionImportRoutes: Seq[IgnifyrRestCall => Route] =
+    serverExtensions.flatMap(_.schemaImportRoutes(schemaImportSink))
 
   def route(request: IgnifyrRestCall): Route = {
     pathPrefix(SEGMENT_SCHEMAS) {
@@ -50,15 +59,14 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
         }
       } ~ pathPrefix(SEGMENT_INFER) { // infer a schema
         inferSchema()
-      } ~ pathPrefix(SEGMENT_REDCAP) { // import a REDCap data dictionary file
-        importREDCapDataDictionary(projectId)
-      } ~ pathPrefix(SEGMENT_IMPORT) { // import a schema from a Fhir Server
-        importFromFhirServer(projectId)
-      } ~ pathPrefix(SEGMENT_IMPORT_ZIP) {
-        importFromZipOfFHIRProfiles(projectId)
-      } ~ pathPrefix(Segment) { schemaId: String => // Operations on a single schema identified by its id
-        getSchema(projectId, schemaId) ~ updateSchema(projectId, schemaId) ~ deleteSchema(projectId, schemaId)
-      }
+      } ~ concat(extensionImportRoutes.map(_(request)): _*) ~ // module-specific schema imports
+        pathPrefix(SEGMENT_IMPORT) { // import a schema from a Fhir Server
+          importFromFhirServer(projectId)
+        } ~ pathPrefix(SEGMENT_IMPORT_ZIP) {
+          importFromZipOfFHIRProfiles(projectId)
+        } ~ pathPrefix(Segment) { schemaId: String => // Operations on a single schema identified by its id
+          getSchema(projectId, schemaId) ~ updateSchema(projectId, schemaId) ~ deleteSchema(projectId, schemaId)
+        }
     }
   }
 
@@ -190,22 +198,6 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
   }
 
   /**
-   * Route to import a REDCap data dictionary file which will be used to create schemas.
-   * */
-  private def importREDCapDataDictionary(projectId: String): Route = {
-    post {
-      fileUpload(ATTACHMENT) { case (_, byteSource) =>
-        parameters("rootUrl", "recordIdField") { (rootUrl, recordIdField) =>
-          complete {
-            service.importREDCapDataDictionary(projectId, byteSource, rootUrl, recordIdField)
-          }
-        }
-
-      }
-    }
-  }
-
-  /**
    * Route to import a schema i.e. FHIR Structure Definition from the given FHIR Server.
    * */
   private def importFromFhirServer(projectId: String): Route = {
@@ -263,7 +255,6 @@ class SchemaDefinitionEndpoint(schemaRepository: ISchemaRepository, mappingRepos
 object SchemaDefinitionEndpoint {
   val SEGMENT_SCHEMAS = "schemas"
   val SEGMENT_INFER = "infer"
-  val SEGMENT_REDCAP = "redcap"
   val SEGMENT_IMPORT = "import"
   val SEGMENT_IMPORT_ZIP = "import-zip"
   val QUERY_PARAM_TYPE = "type"

@@ -1,4 +1,4 @@
-package io.ignifyr.server.config
+package io.ignifyr.redcap
 
 import com.typesafe.config.Config
 

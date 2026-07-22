@@ -1,4 +1,4 @@
-package io.ignifyr.engine.util.redcap
+package io.ignifyr.redcap
 
 import io.onfhir.api.{FHIR_DATA_TYPES, FHIR_FOUNDATION_RESOURCES, FHIR_ROOT_URL_FOR_DEFINITIONS, Resource}
 import io.onfhir.definitions.common.model.{DataTypeWithProfiles, SchemaDefinition, SimpleStructureDefinition}

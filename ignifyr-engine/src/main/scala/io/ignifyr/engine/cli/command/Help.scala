@@ -1,7 +1,15 @@
 package io.ignifyr.engine.cli.command
 
+import io.ignifyr.engine.spi.ExtensionRegistry
+
 class Help extends Command {
   override def execute(args: Seq[String], context: CommandExecutionContext): CommandExecutionContext = {
+    // Help lines contributed by installed extension modules (e.g. REDCap's extract-redcap-schemas)
+    val extensionCommandHelp = ExtensionRegistry.cliCommands.values.toSeq.distinct
+      .flatMap(_.helpText)
+      .sorted
+      .map(line => s"\t$line\n")
+      .mkString
     println(
       "List of available commands:\n" +
         "\tload <path> - Load the Mapping Job definition file from the path.\n" +
@@ -10,7 +18,7 @@ class Help extends Command {
         "\thelp - See the available commands and their use.\n" +
         "\tlist - Show jobs with at least one running mapping.\n" +
         "\tstop - Stop the execution of the Mapping Job (if any) or a specific Mapping Task associated with a job.\n" +
-        "\textract-redcap-schemas <path> <definition-root-url> <encoding> - Extracts schemas from the given REDCap data dictionary file. Schemas will be annotated with the given definition root url. If the encoding of CSV file is different from UTF-8, you should provide it.\n" +
+        extensionCommandHelp +
         "\texit|quit - Exit the program.\n"
     )
     context

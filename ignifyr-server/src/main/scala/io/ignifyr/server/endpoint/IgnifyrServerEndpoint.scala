@@ -4,8 +4,8 @@ import akka.http.scaladsl.model.{HttpMethod, Uri}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{RejectionHandler, Route}
 import io.ignifyr.engine.config.IgnifyrEngineConfig
-import io.ignifyr.server.config.RedCapServiceConfig
 import io.ignifyr.server.common.config.WebServerConfig
+import io.ignifyr.server.common.spi.IgnifyrServerExtension
 import io.onfhir.definitions.resource.fhir.FhirDefinitionsConfig
 import io.onfhir.definitions.resource.endpoint.FhirDefinitionsEndpoint
 import io.ignifyr.server.common.interceptor.{ICORSHandler, IErrorHandler}
@@ -32,7 +32,7 @@ class IgnifyrServerEndpoint(
     ignifyrEngineConfig: IgnifyrEngineConfig,
     webServerConfig: WebServerConfig,
     fhirDefinitionsConfig: FhirDefinitionsConfig,
-    redCapServiceConfig: Option[RedCapServiceConfig]
+    serverExtensions: Seq[IgnifyrServerExtension]
 ) extends ICORSHandler
     with IErrorHandler {
 
@@ -45,7 +45,8 @@ class IgnifyrServerEndpoint(
     repositoryManager.mappingRepository,
     repositoryManager.mappingJobRepository,
     repositoryManager.mappingContextRepository,
-    repositoryManager.projectRepository
+    repositoryManager.projectRepository,
+    serverExtensions
   )
 
   val terminologyServiceManagerEndpoint = new TerminologyServiceManagerEndpoint(
@@ -64,10 +65,12 @@ class IgnifyrServerEndpoint(
         .getOrElse(Seq.empty)
   val fhirPathFunctionsEndpoint = new FhirPathFunctionsEndpoint(functionLibraryPackages)
 
-  val redcapEndpoint = redCapServiceConfig.map(config => new RedCapEndpoint(config))
+  // Routes contributed by installed server extension modules (e.g. the REDCap proxy endpoints),
+  // collected once at assembly; an extension contributes nothing when unconfigured.
+  private val extensionRootRoutes: Seq[IgnifyrRestCall => Route] = serverExtensions.flatMap(_.rootRoutes)
   val fileSystemTreeStructureEndpoint = new FileSystemTreeStructureEndpoint()
   val metadataEndpoint =
-    new MetadataEndpoint(ignifyrEngineConfig, webServerConfig, fhirDefinitionsConfig, redCapServiceConfig)
+    new MetadataEndpoint(ignifyrEngineConfig, webServerConfig, fhirDefinitionsConfig, serverExtensions)
 
   val reloadEndpoint = new ReloadEndpoint(repositoryManager)
 
@@ -90,7 +93,6 @@ class IgnifyrServerEndpoint(
                   )
                   handleRejections(ignifyrRejectionHandler) {
                     handleExceptions(exceptionHandler(restCall)) { // Handle exceptions
-                      // RedCap Endpoint is optional, so it will be handled separately
                       val routes = Seq(
                         terminologyServiceManagerEndpoint.route(restCall),
                         projectEndpoint.route(restCall),
@@ -99,7 +101,7 @@ class IgnifyrServerEndpoint(
                         fileSystemTreeStructureEndpoint.route(restCall),
                         metadataEndpoint.route(restCall),
                         reloadEndpoint.route(restCall)
-                      ) ++ redcapEndpoint.map(_.route(restCall))
+                      ) ++ extensionRootRoutes.map(_(restCall))
 
                       concat(routes: _*)
                     }

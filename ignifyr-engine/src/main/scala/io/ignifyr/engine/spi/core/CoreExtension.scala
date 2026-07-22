@@ -2,17 +2,7 @@ package io.ignifyr.engine.spi.core
 
 import io.onfhir.api.service.{IFhirIdentityService, IFhirTerminologyService}
 import io.onfhir.client.{IdentityServiceClient, TerminologyServiceClient}
-import io.ignifyr.engine.cli.command.{
-  Command,
-  Exit,
-  ExtractRedCapSchemas,
-  Help,
-  ListRunningMappings,
-  Load,
-  Reload,
-  Run,
-  Stop
-}
+import io.ignifyr.engine.cli.command.{Command, Exit, Help, ListRunningMappings, Load, Reload, Run, Stop}
 import io.ignifyr.engine.data.read.{BaseDataSourceReader, FileDataSourceReader}
 import io.ignifyr.engine.data.write.{BaseFhirWriter, FhirRepositoryWriter, FileSystemWriter}
 import io.ignifyr.engine.mapping.service.LocalTerminologyService
@@ -74,7 +64,6 @@ class CoreExtension extends IgnifyrExtension {
   override def cliCommands: Seq[CliCommandProvider] = Seq(
     command("help")(new Help()),
     command("load")(new Load()),
-    command("extract-redcap-schemas")(new ExtractRedCapSchemas()),
     command("reload")(new Reload()),
     command("run", Seq("execute"))(new Run()),
     command("list")(new ListRunningMappings()),
