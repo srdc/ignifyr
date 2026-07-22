@@ -202,6 +202,10 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-fhir-server_2.13</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-kafka_2.13</artifactId>
+        </dependency>
 
         <!-- For Unit testing -->
         <dependency>

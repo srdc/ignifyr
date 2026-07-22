@@ -6,7 +6,6 @@ import io.ignifyr.engine.model.{
   FhirRepositorySinkSettings,
   FileSystemSinkSettings,
   FileSystemSource,
-  KafkaSource,
   MappingJobSourceSettings,
   MappingSourceBinding
 }
@@ -33,7 +32,6 @@ class ExtensionRegistrySpec extends AnyFlatSpec with IgnifyrTestSpec {
     // these are the ones still registered by CoreExtension on the engine's own classpath.
     val bindings = ExtensionRegistry.sourceConnectors.keySet
     bindings should contain(classOf[FileSystemSource]: Class[_])
-    bindings should contain(classOf[KafkaSource]: Class[_])
   }
 
   it should "discover the community core sink providers through ServiceLoader" in {

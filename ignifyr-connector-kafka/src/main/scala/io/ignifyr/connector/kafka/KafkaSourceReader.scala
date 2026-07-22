@@ -1,8 +1,9 @@
-package io.ignifyr.engine.data.read
+package io.ignifyr.connector.kafka
 
 import com.fasterxml.jackson.core.JsonParseException
 import io.onfhir.api.Resource
 import io.onfhir.util.JsonFormatter._
+import io.ignifyr.engine.data.read.BaseDataSourceReader
 import io.ignifyr.engine.model.{KafkaSource, KafkaSourceSettings}
 import org.apache.spark.sql.functions.{col, from_json, udf}
 import org.apache.spark.sql.types._

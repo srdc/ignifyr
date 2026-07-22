@@ -66,6 +66,10 @@ object ExtensionRegistry {
       extensions.flatMap(e => e.cliCommands.flatMap(cmd => (cmd.name +: cmd.aliases).map(token => (e.id, token, cmd))))
     )
 
+  /** All streaming-failure descriptors, in extension order. Queried on a streaming query failure. */
+  lazy val streamingFailureDescriptors: Seq[StreamingFailureDescriptor] =
+    extensions.flatMap(_.streamingFailureDescriptors)
+
   /**
    * Force every registry to materialize — so a duplicate-registration error surfaces at engine
    * startup rather than in the middle of a job — and log what was loaded.
