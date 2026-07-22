@@ -78,18 +78,9 @@
             </plugin>
             <!-- The runnable standalone (shaded) jar is produced by the downstream ignifyr-cli module,
                  which bundles this engine library together with the community connector/format plugins.
-                 The engine itself is a plain library so plugin modules can depend on it without a cycle. -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>test-jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+                 The engine itself is a plain library so plugin modules can depend on it without a cycle.
+                 The shared test harness (IgnifyrTestSpec, OnFhirTestContainer) + fixtures moved to the
+                 ignifyr-testkit module, so the engine no longer publishes a test-jar. -->
         </plugins>
     </build>
 

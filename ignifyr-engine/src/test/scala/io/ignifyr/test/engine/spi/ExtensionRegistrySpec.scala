@@ -1,6 +1,6 @@
 package io.ignifyr.test.engine.spi
 
-import io.ignifyr.IgnifyrTestSpec
+import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.data.read.SourceHandler
 import io.ignifyr.engine.model.{
   FhirRepositorySinkSettings,
@@ -11,6 +11,7 @@ import io.ignifyr.engine.model.{
 }
 import io.ignifyr.engine.spi.{ExtensionRegistry, MissingConnectorException}
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 /** A source binding with no registered connector, used to exercise the missing-connector path. */
 private case class UnregisteredSource() extends MappingSourceBinding {
@@ -25,7 +26,7 @@ private case class UnregisteredSourceSettings(name: String = "unregistered", sou
  * and sinks, and a source binding with no installed connector fails with an actionable message
  * (rather than the job failing to parse, or a bare NotImplementedError as before).
  */
-class ExtensionRegistrySpec extends AnyFlatSpec with IgnifyrTestSpec {
+class ExtensionRegistrySpec extends AnyFlatSpec with Matchers {
 
   behavior of "ExtensionRegistry"
 
@@ -46,7 +47,7 @@ class ExtensionRegistrySpec extends AnyFlatSpec with IgnifyrTestSpec {
     val ex = intercept[MissingConnectorException] {
       SourceHandler.readSource(
         alias = "test",
-        spark = sparkSession,
+        spark = IgnifyrConfig.sparkSession,
         mappingSource = UnregisteredSource(),
         mappingJobSourceSettings = UnregisteredSourceSettings(),
         schema = None

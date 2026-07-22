@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.ignifyr</groupId>
+        <artifactId>ignifyr_2.13</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>ignifyr-testkit_2.13</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      Shared test harness for the Ignifyr reactor: IgnifyrTestSpec (Spark session + folder-backed
+      mapping/schema repositories + context loader + RunningJobRegistry) and OnFhirTestContainer,
+      plus the classpath test fixtures (mappings/schemas/terminology) they need. Replaces the former
+      ignifyr-engine test-jar.
+
+      Consumed in TEST scope by modules whose fixture-driven suites need the shared harness
+      (connector-sql, connector-file, runtime-scheduling, server, ...). Its test-support libraries are
+      COMPILE scope here on purpose, so a single test-scope dependency on this module transitively
+      supplies a consumer with scalatest + mockito + h2 + testcontainers. The module is test-only and
+      is never bundled into a distribution.
+
+      It must NOT be depended upon by ignifyr-engine (engine's own tests would form a reactor cycle);
+      the engine tests that need the harness were relocated here.
+    -->
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <!-- Engine library: config, models, repositories, mapping context loader, RunningJobRegistry -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-engine_2.13</artifactId>
+        </dependency>
+
+        <!-- Test-support libraries are COMPILE scope (overriding the root's managed 'test' scope) so a
+             consumer inherits them by depending on the testkit alone. IgnifyrTestSpec extends ScalaTest
+             matchers; OnFhirTestContainer drives Testcontainers; consumers' re-homed suites use
+             mockito + h2. -->
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-scala_2.13</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mongodb</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+
+</project>
