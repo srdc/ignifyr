@@ -11,8 +11,8 @@ import io.ignifyr.engine.Execution.actorSystem.dispatcher
 import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.data.read.SourceHandler
 import io.ignifyr.engine.mapping.schema.SchemaConverter
-import io.ignifyr.engine.model.{SqlSource, SqlSourceSettings}
 import io.ignifyr.engine.model.exception.FhirMappingException
+import io.ignifyr.engine.spi.ExtensionRegistry
 import io.ignifyr.engine.util.redcap.RedCapUtil
 import io.ignifyr.engine.util.{CsvUtil, FhirVersionUtil}
 import io.ignifyr.server.common.model.{BadRequest, ResourceNotFound}
@@ -167,31 +167,20 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
       dataFrame.schema // Get the schema inferred by Spark
     }
 
-    val effectiveSchema = sourceSettings match {
-      case sqlSourceSettings: SqlSourceSettings =>
-        inferTask.sourceBinding match {
-          case sqlSource: SqlSource if sqlSource.preprocessSql.isEmpty => // If there is a preprocessSq
-            try {
-              schemaConverter
-                .getTableSchema(
-                  sqlSourceSettings.databaseUrl,
-                  sqlSourceSettings.username,
-                  sqlSourceSettings.password,
-                  sqlSource.tableName.getOrElse(sqlSource.query.get),
-                  sqlSource.query.isDefined
-                )
-            } catch {
-              case e: Throwable =>
-                throw BadRequest(e.getMessage, e.getCause.toString, Some(e))
-            }
-          case sqlSource: SqlSource if sqlSource.preprocessSql.isDefined =>
-            inferSchemaFromSparkRead()
-          case _ =>
-            throw new IllegalStateException(
-              "Source binding must be SqlSource if the sourceSettings is SqlSourceSettings."
-            )
-        }
-      case _ =>
+    // Prefer a connector-native inferrer (e.g. SQL reads JDBC metadata without pulling data);
+    // fall back to the generic one-row Spark read when no inferrer is registered for the settings
+    // type, or when the registered inferrer defers to Spark (e.g. a SQL binding with preprocessSql).
+    val effectiveSchema = ExtensionRegistry.schemaInferrers.get(sourceSettings.getClass) match {
+      case Some(inferrer) =>
+        val inferred =
+          try {
+            inferrer.inferSchema(inferTask.sourceBinding, sourceSettings)
+          } catch {
+            case e: Throwable =>
+              throw BadRequest(e.getMessage, Option(e.getCause).map(_.toString).getOrElse(e.getMessage), Some(e))
+          }
+        inferred.getOrElse(inferSchemaFromSparkRead())
+      case None =>
         inferSchemaFromSparkRead()
     }
 

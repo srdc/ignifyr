@@ -16,4 +16,17 @@ class SqlConnectorExtensionSpec extends AnyFlatSpec with Matchers {
     connector.map(_.id) shouldBe Some("sql")
     connector.map(_.settingsClass) shouldBe Some(classOf[SqlSourceSettings])
   }
+
+  it should "register a schema inferrer for SqlSourceSettings" in {
+    ExtensionRegistry.schemaInferrers.get(classOf[SqlSourceSettings]).map(_.id) shouldBe Some("sql")
+  }
+
+  it should "fall back to Spark-read inference when a preprocessSql is defined" in {
+    val inferrer = ExtensionRegistry.schemaInferrers(classOf[SqlSourceSettings])
+    val settings = SqlSourceSettings("test", "urn:test", "jdbc:h2:mem:unused", "", "")
+    inferrer.inferSchema(
+      SqlSource(tableName = Some("t"), preprocessSql = Some("select * from t")),
+      settings
+    ) shouldBe None
+  }
 }
