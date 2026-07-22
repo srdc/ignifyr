@@ -2120,9 +2120,6 @@ components:
             bootstrapServers:
               type: string
               description: "Kafka bootstrap server(s) with port, may be comma-separated list (localhost:9092,localhost:9091)"
-            asRedCap:
-              type: boolean
-              description: "Indicate whether it is a RedCap source"
           required:
             - bootstrapServers
     FhirServerSourceSettings:
@@ -3516,7 +3513,6 @@ components:
             sourceUri: "suri"
             asStream: true
             jsonClass: "KafkaSourceSettings"
-            asRedCap: false
             bootstrapServers: "bootstrap"
           source4:
             name: "source4"
