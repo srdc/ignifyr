@@ -1,6 +1,7 @@
 package io.ignifyr.engine.config
 
 import com.typesafe.config.Config
+import io.ignifyr.engine.spi.ExtensionRegistry
 import io.ignifyr.engine.util.FileUtils
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
@@ -43,9 +44,10 @@ object IgnifyrConfig {
       "spark.sql.caseSensitive" -> "true", // Enable case sensitivity to treat schema column names as case-sensitive to avoid potential conflicts
       "spark.sql.files.ignoreCorruptFiles" -> "false", // Do not ignore corrupted files (e.g. CSV missing a field from the given schema) as we want to log them
       "spark.sql.streaming.checkpointLocation" -> sparkCheckpointDirectory, // Checkpoint directory for streaming
-      "spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs" -> "false", // Do not create _SUCCESS file while writing to csv
-      "spark.sql.extensions" -> "io.delta.sql.DeltaSparkSessionExtension", // Enable Delta Lake features by adding the DeltaSparkSessionExtension to the Spark session.
-      "spark.sql.catalog.spark_catalog" -> "org.apache.spark.sql.delta.catalog.DeltaCatalog" // Use DeltaCatalog as the default catalog for managing Delta tables in Spark.
+      "spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs" -> "false" // Do not create _SUCCESS file while writing to csv
+      // Spark session extensions/catalogs required by specific formats (e.g. the Delta Lake session
+      // extension + catalog) are contributed by their modules via IgnifyrExtension.sparkConfContributions,
+      // so the community engine carries no such wiring. See ExtensionRegistry.sparkConfContributions.
     )
   // Spark session
   lazy val sparkSession: SparkSession = SparkSession.builder().config(createSparkConf).getOrCreate()
@@ -59,8 +61,9 @@ object IgnifyrConfig {
       .setMaster(sparkMaster)
 
     val sparkConfEntries =
-      sparkConfDefaults ++ // Defaults plus provided entries
-        sparkConfig
+      sparkConfDefaults ++ // engine defaults
+        ExtensionRegistry.sparkConfContributions ++ // Spark conf contributed by installed modules (e.g. Delta)
+        sparkConfig // user-provided `spark { }` config wins over both
           .entrySet()
           .asScala
           .filter(e => e.getKey != "app.name" && e.getKey != "master")

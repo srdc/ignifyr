@@ -56,4 +56,13 @@ trait IgnifyrExtension {
 
   /** Scheduled (cron) execution capability, if this module provides one. At most one may be installed. */
   def schedulerProvider: Option[SchedulerProvider] = None
+
+  /**
+   * Extra Spark configuration entries this module contributes to the shared SparkSession — e.g. an
+   * enterprise format that needs a Spark session extension or catalog (`spark.sql.extensions`,
+   * `spark.sql.catalog.spark_catalog`). Merged into the session config when it is first built, below
+   * the user-provided `spark { }` config (which still wins). Keeping this a pure accessor that never
+   * touches the SparkSession avoids an initialization cycle.
+   */
+  def sparkConfContributions: Map[String, String] = Map.empty
 }

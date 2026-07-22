@@ -208,6 +208,11 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-format-json_2.13</artifactId>
         </dependency>
+        <!-- Enterprise Delta Lake file-sink format + its Spark-session wiring (extends the file connector) -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-format-delta_2.13</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-fhir-server_2.13</artifactId>

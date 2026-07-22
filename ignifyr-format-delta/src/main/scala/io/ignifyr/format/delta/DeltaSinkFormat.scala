@@ -1,16 +1,15 @@
-package io.ignifyr.connector.file.format.sink
+package io.ignifyr.format.delta
 
 import io.ignifyr.connector.file.format.{FileSinkFormat, FileSinkSupport}
 import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings, SinkContentTypes}
 import org.apache.spark.sql.{Dataset, SparkSession}
 
 /**
- * Delta Lake file sink format. Optionally partitions the output by FHIR resource type.
- *
- * NOTE: this handler (and the delta-spark dependency + the Delta Spark-session wiring it needs) is
- * extracted into the enterprise `ignifyr-format-delta` module in a later step; it lives here only
- * while the file connector is first carved out of the engine. The write is string-based
- * (`.format("delta")`), so it compiles without delta-spark but requires it at runtime.
+ * Enterprise Delta Lake file *sink* format (optionally partitioned by FHIR resource type),
+ * contributed to the file connector's format sub-SPI via ServiceLoader. The Spark-session wiring
+ * Delta needs (`spark.sql.extensions` + the Delta catalog) is contributed by
+ * [[DeltaFormatExtension]] through IgnifyrExtension.sparkConfContributions, and the delta-spark
+ * dependency lives in this module — keeping Delta out of the community engine and jar.
  */
 class DeltaSinkFormat extends FileSinkFormat {
 
