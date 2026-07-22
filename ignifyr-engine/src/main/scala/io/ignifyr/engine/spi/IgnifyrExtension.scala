@@ -45,8 +45,11 @@ trait IgnifyrExtension {
   /** CLI commands this module contributes, keyed at registration by name and aliases. */
   def cliCommands: Seq[CliCommandProvider] = Nil
 
-  /** Streaming-failure descriptors this module contributes (e.g. a connector's client-specific errors). */
-  def streamingFailureDescriptors: Seq[StreamingFailureDescriptor] = Nil
+  /** Source-failure descriptors this module contributes (e.g. a connector's client-specific errors). */
+  def sourceFailureDescriptors: Seq[SourceFailureDescriptor] = Nil
+
+  /** Source schema inferrers this module contributes, keyed at registration by their settings class. */
+  def schemaInferrers: Seq[SourceSchemaInferrer] = Nil
 
   /** Streaming execution capability, if this module provides one. At most one may be installed. */
   def streamingProvider: Option[StreamingExecutionProvider] = None

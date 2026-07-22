@@ -66,9 +66,14 @@ object ExtensionRegistry {
       extensions.flatMap(e => e.cliCommands.flatMap(cmd => (cmd.name +: cmd.aliases).map(token => (e.id, token, cmd))))
     )
 
-  /** All streaming-failure descriptors, in extension order. Queried on a streaming query failure. */
-  lazy val streamingFailureDescriptors: Seq[StreamingFailureDescriptor] =
-    extensions.flatMap(_.streamingFailureDescriptors)
+  /** All source-failure descriptors, in extension order. Queried on a connector-specific failure. */
+  lazy val sourceFailureDescriptors: Seq[SourceFailureDescriptor] =
+    extensions.flatMap(_.sourceFailureDescriptors)
+
+  lazy val schemaInferrers: Map[Class[_], SourceSchemaInferrer] =
+    indexUnique("source schema inferrer")(
+      extensions.flatMap(e => e.schemaInferrers.map(p => (e.id, p.settingsClass: Class[_], p)))
+    )
 
   /** The single installed streaming execution provider, if any. More than one is a config error. */
   lazy val streaming: Option[StreamingExecutionProvider] = singleCapability("streaming execution provider")(
@@ -100,6 +105,7 @@ object ExtensionRegistry {
     terminologyServiceProviders
     identityServiceProviders
     cliCommands
+    schemaInferrers
     ()
   }
 

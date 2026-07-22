@@ -109,8 +109,8 @@ class RunningJobRegistry(spark: SparkSession) {
           // Ask connector-provided descriptors to translate the failure into a clearer message
           // (e.g. Kafka's "unknown topic" error naming the missing topics). Fall back to the raw
           // exception if no installed connector recognizes it — the engine stays connector-agnostic.
-          val describedError: Throwable = ExtensionRegistry.streamingFailureDescriptors
-            .flatMap(_.describe(exception, execution, mappingTaskName))
+          val describedError: Throwable = ExtensionRegistry.sourceFailureDescriptors
+            .flatMap(_.describeStreamingFailure(exception, execution, mappingTaskName))
             .headOption
             .getOrElse(exception)
           ExecutionLogger.logExecutionStatus(

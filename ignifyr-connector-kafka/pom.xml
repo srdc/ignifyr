@@ -15,9 +15,9 @@
 
     <!--
       Enterprise Kafka source connector: reads streaming (or batch) records from Kafka topics as
-      mapping input, and contributes a StreamingFailureDescriptor that turns Kafka's low-level
+      mapping input, and contributes a SourceFailureDescriptor that turns Kafka's low-level
       "unknown topic" error into an actionable message — keeping the Kafka client libraries out of
-      the community engine.
+      the community engine and the server.
     -->
 
     <build>
@@ -43,7 +43,7 @@
         </dependency>
 
         <!-- Spark's Kafka source (also transitively provides the Kafka client used by the
-             StreamingFailureDescriptor) -->
+             SourceFailureDescriptor) -->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-sql-kafka-0-10_${scala.binary.version}</artifactId>

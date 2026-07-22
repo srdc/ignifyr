@@ -7,7 +7,7 @@ import org.scalatest.matchers.should.Matchers
 
 /**
  * Verifies the Kafka connector is discovered through ServiceLoader when this module is on the
- * classpath — both its source connector and its streaming-failure descriptor (no Docker required).
+ * classpath — both its source connector and its source-failure descriptor (no Docker required).
  */
 class KafkaConnectorExtensionSpec extends AnyFlatSpec with Matchers {
 
@@ -17,7 +17,7 @@ class KafkaConnectorExtensionSpec extends AnyFlatSpec with Matchers {
     connector.map(_.settingsClass) shouldBe Some(classOf[KafkaSourceSettings])
   }
 
-  it should "register a streaming-failure descriptor" in {
-    ExtensionRegistry.streamingFailureDescriptors should not be empty
+  it should "register a source-failure descriptor" in {
+    ExtensionRegistry.sourceFailureDescriptors should not be empty
   }
 }

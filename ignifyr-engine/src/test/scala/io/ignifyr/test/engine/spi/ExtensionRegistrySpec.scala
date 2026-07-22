@@ -13,7 +13,9 @@ import io.ignifyr.engine.spi.{ExtensionRegistry, MissingConnectorException}
 import org.scalatest.flatspec.AnyFlatSpec
 
 /** A source binding with no registered connector, used to exercise the missing-connector path. */
-private case class UnregisteredSource() extends MappingSourceBinding
+private case class UnregisteredSource() extends MappingSourceBinding {
+  override def withPreprocessSql(preprocessSql: Option[String]): MappingSourceBinding = this
+}
 
 private case class UnregisteredSourceSettings(name: String = "unregistered", sourceUri: String = "urn:test")
     extends MappingJobSourceSettings
