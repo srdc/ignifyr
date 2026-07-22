@@ -13,7 +13,7 @@ import io.ignifyr.engine.cli.command.{
   Run,
   Stop
 }
-import io.ignifyr.engine.data.read.{BaseDataSourceReader, FileDataSourceReader, KafkaSourceReader}
+import io.ignifyr.engine.data.read.{BaseDataSourceReader, FileDataSourceReader}
 import io.ignifyr.engine.data.write.{BaseFhirWriter, FhirRepositoryWriter, FileSystemWriter}
 import io.ignifyr.engine.mapping.service.LocalTerminologyService
 import io.ignifyr.engine.model._
@@ -34,8 +34,7 @@ class CoreExtension extends IgnifyrExtension {
   override val id: String = "core"
 
   override def sourceConnectors: Seq[SourceConnector] = Seq(
-    source("file", classOf[FileSystemSource], classOf[FileSystemSourceSettings])(new FileDataSourceReader(_)),
-    source("kafka", classOf[KafkaSource], classOf[KafkaSourceSettings])(new KafkaSourceReader(_))
+    source("file", classOf[FileSystemSource], classOf[FileSystemSourceSettings])(new FileDataSourceReader(_))
   )
 
   override def sinkProviders: Seq[SinkProvider] = Seq(

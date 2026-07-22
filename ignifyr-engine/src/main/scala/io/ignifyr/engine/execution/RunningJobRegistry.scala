@@ -3,7 +3,7 @@ package io.ignifyr.engine.execution
 import it.sauronsoftware.cron4j.{Scheduler, SchedulerListener, TaskExecutor}
 import com.typesafe.scalalogging.Logger
 import io.ignifyr.engine.Execution.actorSystem.dispatcher
-import io.ignifyr.engine.model.{FhirMappingJobExecution, FhirMappingJobResult, KafkaSource}
+import io.ignifyr.engine.model.{FhirMappingJobExecution, FhirMappingJobResult}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.{StreamingQuery, StreamingQueryException}
 
@@ -12,11 +12,9 @@ import java.util.concurrent.Executors
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
 import io.ignifyr.engine.Execution.actorSystem
-import io.ignifyr.engine.data.write.SinkHandler
 import io.ignifyr.engine.execution.log.ExecutionLogger
 import io.ignifyr.engine.execution.processing.FileStreamInputArchiver
-import io.ignifyr.engine.model.exception.FhirMappingException
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
+import io.ignifyr.engine.spi.ExtensionRegistry
 
 /**
  * Execution manager that keeps track of running and scheduled mapping tasks in-memory.
@@ -117,45 +115,20 @@ class RunningJobRegistry(spark: SparkSession) {
         updatedExecution.getStreamingQuery(mappingTaskName).awaitTermination()
       } catch {
         case exception: StreamingQueryException =>
-          Option(exception.getCause) match {
-            case None =>
-              ExecutionLogger.logExecutionStatus(
-                execution,
-                FhirMappingJobResult.FAILURE,
-                Some(mappingTaskName),
-                Some(exception),
-                isChunkResult = false
-              )
-            case Some(cause) =>
-              Option(cause.getCause) match {
-                // special handling of UnknownTopicOrPartitionException to include the missing topic names
-                case Some(_: UnknownTopicOrPartitionException) =>
-                  val topicNames = execution.mappingTasks
-                    .find(mappingTask => mappingTask.name.contentEquals(mappingTaskName))
-                    .get
-                    .sourceBinding
-                    .map(source => source._2.asInstanceOf[KafkaSource].topicName)
-                    .mkString(", ")
-                  val unknownTopicError = FhirMappingException(
-                    s"The following Kafka topic(s) specified in the mapping task do not exist: $topicNames"
-                  )
-                  ExecutionLogger.logExecutionStatus(
-                    execution,
-                    FhirMappingJobResult.FAILURE,
-                    Some(mappingTaskName),
-                    Some(unknownTopicError),
-                    isChunkResult = false
-                  )
-                case _ =>
-                  ExecutionLogger.logExecutionStatus(
-                    execution,
-                    FhirMappingJobResult.FAILURE,
-                    Some(mappingTaskName),
-                    Some(exception),
-                    isChunkResult = false
-                  )
-              }
-          }
+          // Ask connector-provided descriptors to translate the failure into a clearer message
+          // (e.g. Kafka's "unknown topic" error naming the missing topics). Fall back to the raw
+          // exception if no installed connector recognizes it — the engine stays connector-agnostic.
+          val describedError: Throwable = ExtensionRegistry.streamingFailureDescriptors
+            .flatMap(_.describe(exception, execution, mappingTaskName))
+            .headOption
+            .getOrElse(exception)
+          ExecutionLogger.logExecutionStatus(
+            execution,
+            FhirMappingJobResult.FAILURE,
+            Some(mappingTaskName),
+            Some(describedError),
+            isChunkResult = false
+          )
       } finally {
         // Remove the mapping execution from the running tasks after the query is terminated
         stopMappingExecution(jobId, executionId, mappingTaskName)

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.ignifyr</groupId>
+        <artifactId>ignifyr_2.13</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>ignifyr-connector-kafka_2.13</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      Enterprise Kafka source connector: reads streaming (or batch) records from Kafka topics as
+      mapping input, and contributes a StreamingFailureDescriptor that turns Kafka's low-level
+      "unknown topic" error into an actionable message — keeping the Kafka client libraries out of
+      the community engine.
+    -->
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <!-- Engine library: SPI, base reader, models -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-engine_2.13</artifactId>
+        </dependency>
+
+        <!-- Spark's Kafka source (also transitively provides the Kafka client used by the
+             StreamingFailureDescriptor) -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql-kafka-0-10_${scala.binary.version}</artifactId>
+        </dependency>
+
+        <!-- Test: registration spec only. The full-pipeline KafkaSourceIntegrationTest (Kafka
+             container) is parked pending the Phase 2 testkit that shares fixtures across modules. -->
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

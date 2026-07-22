@@ -44,4 +44,7 @@ trait IgnifyrExtension {
 
   /** CLI commands this module contributes, keyed at registration by name and aliases. */
   def cliCommands: Seq[CliCommandProvider] = Nil
+
+  /** Streaming-failure descriptors this module contributes (e.g. a connector's client-specific errors). */
+  def streamingFailureDescriptors: Seq[StreamingFailureDescriptor] = Nil
 }
