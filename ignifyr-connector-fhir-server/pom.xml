@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.ignifyr</groupId>
+        <artifactId>ignifyr_2.13</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>ignifyr-connector-fhir-server_2.13</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      Enterprise FHIR-server-as-source connector: reads FHIR resources from a FHIR API as mapping
+      input. Contributes a FhirServerSource reader via the IgnifyrExtension SPI. Kept out of the
+      community distribution; also isolates the spark-on-fhir (fhir-api-spark-source) dependency from
+      the community engine.
+    -->
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <!-- Engine library: SPI, base reader, models -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-engine_2.13</artifactId>
+        </dependency>
+
+        <!-- Spark data source for reading from a FHIR API -->
+        <dependency>
+            <groupId>io.onfhir</groupId>
+            <artifactId>fhir-api-spark-source_${scala.binary.version}</artifactId>
+        </dependency>
+
+        <!-- Test: registration spec only. The full-pipeline FhirServerSourceTest (onFHIR container) is
+             parked pending the Phase 2 testkit that shares folder-based fixtures across modules. -->
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>
