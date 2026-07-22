@@ -211,6 +211,11 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-runtime-streaming_2.13</artifactId>
         </dependency>
+        <!-- Scheduling execution runtime (the server can run cron-scheduled jobs) -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-runtime-scheduling_2.13</artifactId>
+        </dependency>
 
         <!-- For Unit testing -->
         <dependency>

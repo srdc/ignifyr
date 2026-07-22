@@ -4,8 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.env.EnvironmentVariableResolver
 import io.ignifyr.engine.mapping.context.MappingContextLoader
-import io.ignifyr.engine.mapping.job.{FhirMappingJobManager, MappingJobScheduler}
+import io.ignifyr.engine.mapping.job.FhirMappingJobManager
 import io.ignifyr.engine.model._
+import io.ignifyr.engine.spi.{ExtensionRegistry, MissingCapabilityException}
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils
 import io.ignifyr.engine.util.FileUtils.FileExtensions
@@ -116,10 +117,6 @@ class ExecutionService(
           }
         }
 
-        // create an instance of MappingJobScheduler
-        val mappingJobScheduler: MappingJobScheduler =
-          MappingJobScheduler.instance(IgnifyrConfig.engineConfig.ignifyrDbFolderPath)
-
         // create execution
         val mappingJobExecution = FhirMappingJobExecution(
           executionId.getOrElse(UUID.randomUUID().toString),
@@ -132,8 +129,7 @@ class ExecutionService(
           ignifyrEngine.contextLoader,
           ignifyrEngine.schemaLoader,
           ignifyrEngine.functionLibraries,
-          ignifyrEngine.sparkSession,
-          Some(mappingJobScheduler)
+          ignifyrEngine.sparkSession
         )
 
         // Streaming jobs
@@ -168,29 +164,33 @@ class ExecutionService(
           else {
             // run the mapping job with scheduler
             if (mappingJob.schedulingSettings.nonEmpty) {
+              // Scheduled execution is an installable capability (enterprise ignifyr-runtime-scheduling).
+              // Absent a provider, a job with schedulingSettings fails with a clear message.
+              val scheduler = ExtensionRegistry.scheduler.getOrElse(
+                throw MissingCapabilityException(
+                  "This job has schedulingSettings. Scheduled execution requires the " +
+                    "'ignifyr-runtime-scheduling' module (com.pontegra.ignifyr:ignifyr-runtime-scheduling)."
+                )
+              )
               // check whether the job execution is already scheduled
-              if (
-                executionId.nonEmpty && ignifyrEngine.runningJobRegistry.isScheduled(mappingJob.id, executionId.get)
-              ) {
+              if (executionId.nonEmpty && scheduler.isScheduled(mappingJob.id, executionId.get)) {
                 throw BadRequest(
                   "The mapping job execution is already scheduled!",
                   s"The mapping job execution is already scheduled!"
                 )
               }
-              // schedule the mapping job
-              fhirMappingJobManager
-                .scheduleMappingJob(
-                  mappingJobExecution = mappingJobExecution,
-                  sourceSettings = mappingJob.sourceSettings,
-                  sinkSettings = mappingJob.sinkSettings,
-                  schedulingSettings = mappingJob.schedulingSettings.get,
-                  terminologyServiceSettings = mappingJob.terminologyServiceSettings,
-                  identityServiceSettings = mappingJob.getIdentityServiceSettings()
-                )
-              // start scheduler
-              mappingJobScheduler.scheduler.start()
-              // register the job to the registry
-              ignifyrEngine.runningJobRegistry.registerSchedulingJob(mappingJobExecution, mappingJobScheduler.scheduler)
+              // schedule the mapping job (validates the cron, registers the execution, and starts the scheduler)
+              scheduler.scheduleMappingJob(
+                jobManager = fhirMappingJobManager,
+                runningJobRegistry = ignifyrEngine.runningJobRegistry,
+                ignifyrDbFolderPath = IgnifyrConfig.engineConfig.ignifyrDbFolderPath,
+                mappingJobExecution = mappingJobExecution,
+                sourceSettings = mappingJob.sourceSettings,
+                sinkSettings = mappingJob.sinkSettings,
+                schedulingSettings = mappingJob.schedulingSettings.get,
+                terminologyServiceSettings = mappingJob.terminologyServiceSettings,
+                identityServiceSettings = mappingJob.getIdentityServiceSettings()
+              )
             }
 
             // run the batch job without scheduling
@@ -385,9 +385,10 @@ class ExecutionService(
             )
           )
           .toSeq
-        // Retrieve the scheduled executions for the given job
-        val scheduledExecutionsJson: Seq[JValue] = ignifyrEngine.runningJobRegistry
-          .getScheduledExecutions(jobId)
+        // Retrieve the scheduled executions for the given job (empty unless a scheduling provider is installed)
+        val scheduledExecutionsJson: Seq[JValue] = ExtensionRegistry.scheduler
+          .map(_.getScheduledExecutions(jobId))
+          .getOrElse(Set.empty)
           .map(id =>
             JObject(
               List(
@@ -436,14 +437,17 @@ class ExecutionService(
    */
   def descheduleJobExecution(jobId: String, executionId: String): Future[Unit] = {
     Future {
-      if (ignifyrEngine.runningJobRegistry.isScheduled(jobId, executionId)) {
-        ignifyrEngine.runningJobRegistry.descheduleJobExecution(jobId, executionId)
-        logger.debug(s"Job execution descheduled. jobId: $jobId, execution: $executionId")
-      } else {
-        throw ResourceNotFound(
-          "Job is not scheduled.",
-          s"There is no scheduled job execution with jobId: $jobId, executionId: $executionId."
-        )
+      // Scheduled executions are owned by the installable scheduling provider; if none is installed
+      // there is nothing scheduled to deschedule.
+      ExtensionRegistry.scheduler.filter(_.isScheduled(jobId, executionId)) match {
+        case Some(scheduler) =>
+          scheduler.descheduleJobExecution(ignifyrEngine.runningJobRegistry, jobId, executionId)
+          logger.debug(s"Job execution descheduled. jobId: $jobId, execution: $executionId")
+        case None =>
+          throw ResourceNotFound(
+            "Job is not scheduled.",
+            s"There is no scheduled job execution with jobId: $jobId, executionId: $executionId."
+          )
       }
     }
   }

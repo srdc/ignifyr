@@ -1,6 +1,5 @@
 package io.ignifyr.engine.execution
 
-import it.sauronsoftware.cron4j.{Scheduler, SchedulerListener, TaskExecutor}
 import com.typesafe.scalalogging.Logger
 import io.ignifyr.engine.Execution.actorSystem.dispatcher
 import io.ignifyr.engine.model.{FhirMappingJobExecution, FhirMappingJobResult}
@@ -26,16 +25,15 @@ import io.ignifyr.engine.spi.ExtensionRegistry
  * For Batch Jobs:
  * - The registry maintains the overall execution status of the Batch job.
  * - Individual statuses of tasks within a batch job are not maintained in the registry due to the nature of batch processing.
+ *
+ * Scheduled (cron) executions are tracked separately by the enterprise `ignifyr-runtime-scheduling`
+ * module (`SchedulerProvider`), which drives running batch jobs into this registry through
+ * [[registerBatchJob]] / [[handleCompletedBatchJob]] — so the engine carries no scheduling dependency.
  */
 class RunningJobRegistry(spark: SparkSession) {
   // Keeps active executions in the form of: jobId -> (executionId -> execution)
   private val runningTasks: collection.mutable.Map[String, collection.mutable.Map[String, FhirMappingJobExecution]] =
     collection.mutable.Map[String, collection.mutable.Map[String, FhirMappingJobExecution]]()
-
-  // Keeps the scheduled jobs in the form of: jobId -> (executionId -> (Scheduler, execution))
-  private val scheduledTasks
-      : collection.mutable.Map[String, collection.mutable.Map[String, (Scheduler, FhirMappingJobExecution)]] =
-    collection.mutable.Map[String, collection.mutable.Map[String, (Scheduler, FhirMappingJobExecution)]]()
 
   // Dedicated execution context for blocking streaming jobs
   private val streamingTaskExecutionContext: ExecutionContext =
@@ -45,7 +43,7 @@ class RunningJobRegistry(spark: SparkSession) {
 
   /**
    * When the actor system is terminated i.e., the system is shutdown, log the status of running mapping jobs
-   * as 'STOPPED' and scheduled mapping jobs as 'DESCHEDULED'.
+   * as 'STOPPED'. Scheduled mapping jobs are logged as 'DESCHEDULED' by the scheduling runtime module.
    */
   actorSystem.whenTerminated
     .map(_ => {
@@ -55,13 +53,6 @@ class RunningJobRegistry(spark: SparkSession) {
         .foreach(execution => {
           // log execution status as 'STOPPED'
           ExecutionLogger.logExecutionStatus(execution, FhirMappingJobResult.STOPPED)
-        })
-      // iterate over all scheduled tasks and log each one as 'DESCHEDULED'
-      scheduledTasks.values
-        .flatMap(_.values.map(_._2))
-        .foreach(execution => {
-          // log execution status as 'DESCHEDULED'
-          ExecutionLogger.logExecutionStatus(execution, FhirMappingJobResult.DESCHEDULED)
         })
     })
 
@@ -152,8 +143,8 @@ class RunningJobRegistry(spark: SparkSession) {
   /**
    * Caches a batch job. This method sets the Spark job group id for further referencing (e.g. cancelling the Spark jobs via the job group).
    * Spark job group manages job groups per different threads. This practically means that for each mapping execution request initiated by a REST call would have a different job group.
-   * We utilize jobFuture to handle the completion of the job, however, for scheduled mapping jobs, we do not have such a future. Its completion will be handled by scheduler listeners in
-   * registerSchedulingJob function.
+   * We utilize jobFuture to handle the completion of the job, however, for scheduled mapping jobs, we do not have such a future. Its completion is handled by the scheduling runtime module's
+   * scheduler listener, which calls [[handleCompletedBatchJob]] directly.
    *
    * @param execution      Execution representing the batch job.
    * @param jobFuture      Unified Future to yield the completion of the mapping tasks (Optional since scheduling jobs do not have a future).
@@ -181,67 +172,6 @@ class RunningJobRegistry(spark: SparkSession) {
       jobFuture.get.onComplete(_ => {
         handleCompletedBatchJob(execution)
       })
-  }
-
-  /**
-   * Registers a scheduling job with the specified mapping job execution and scheduler.
-   *
-   * @param mappingJobExecution The mapping job execution.
-   * @param scheduler           The scheduler associated with the job execution.
-   */
-  def registerSchedulingJob(mappingJobExecution: FhirMappingJobExecution, scheduler: Scheduler): Unit = {
-    // add it to the scheduledTasks map
-    scheduledTasks
-      .getOrElseUpdate(
-        mappingJobExecution.jobId,
-        collection.mutable.Map[String, (Scheduler, FhirMappingJobExecution)]()
-      )
-      .put(mappingJobExecution.id, (scheduler, mappingJobExecution))
-    // log execution status as 'SCHEDULED'
-    ExecutionLogger.logExecutionStatus(mappingJobExecution, FhirMappingJobResult.SCHEDULED)
-    // add a scheduler listener to monitor task events
-    scheduler.addSchedulerListener(new SchedulerListener {
-      override def taskLaunching(executor: TaskExecutor): Unit = {
-        registerBatchJob(
-          mappingJobExecution,
-          None,
-          s"Spark job for job: ${mappingJobExecution.jobId} mappingTasks: ${mappingJobExecution.mappingTasks.map(_.name).mkString(" ")}"
-        )
-      }
-
-      override def taskSucceeded(executor: TaskExecutor): Unit = {
-        handleCompletedBatchJob(mappingJobExecution)
-      }
-
-      override def taskFailed(executor: TaskExecutor, exception: Throwable): Unit = {
-        handleCompletedBatchJob(mappingJobExecution)
-      }
-    })
-  }
-
-  /**
-   * Deschedules a job execution.
-   *
-   * @param jobId       The ID of the job.
-   * @param executionId The ID of the execution.
-   */
-  def descheduleJobExecution(jobId: String, executionId: String): Unit = {
-    // TODO: We call this function but it does not actually stop the execution of a scheduled mappings jobs
-    //  due to the fact that Spark can distribute the tasks into several threads and our setJobGroup/cancelJobGroup
-    //  logic cannot work properly in this case
-    // stop the job execution
-    stopJobExecution(jobId, executionId)
-    // stop the scheduler for the specified job execution
-    scheduledTasks(jobId)(executionId)._1.stop()
-    logger.debug(s"Descheduled the mapping job with id: $jobId and execution: $executionId")
-    // log execution status as 'DESCHEDULED'
-    ExecutionLogger.logExecutionStatus(scheduledTasks(jobId)(executionId)._2, FhirMappingJobResult.DESCHEDULED)
-    // remove the execution from the scheduledTask Map
-    scheduledTasks(jobId).remove(executionId)
-    // if there are no executions left for the job, remove the job from the map
-    if (!scheduledTasks.contains(jobId)) {
-      scheduledTasks.remove(jobId)
-    }
   }
 
   /**
@@ -424,27 +354,6 @@ class RunningJobRegistry(spark: SparkSession) {
   }
 
   /**
-   * Gets scheduled executions for the given job
-   *
-   * @param jobId Identifier of the job
-   * @return A set of execution ids
-   */
-  def getScheduledExecutions(jobId: String): Set[String] = {
-    scheduledTasks.get(jobId).map(_.keySet).getOrElse(Set.empty).toSet
-  }
-
-  /**
-   * Checks if a job with the given execution ID is scheduled.
-   *
-   * @param jobId       The ID of the job
-   * @param executionId The ID of the execution
-   * @return True if the given job execution is scheduled, otherwise false.
-   */
-  def isScheduled(jobId: String, executionId: String): Boolean = {
-    scheduledTasks.contains(jobId) && scheduledTasks(jobId).contains(executionId)
-  }
-
-  /**
    * Converts the running task map into a structure as follows: (jobId -> sequence of (executionId -> sequence of mappingTask names))
    *
    * @return
@@ -489,10 +398,11 @@ class RunningJobRegistry(spark: SparkSession) {
   /**
    * Handles the completion of a batch job execution.
    * This method runs archiving manually for the batch job and removes the execution from the list of running tasks.
+   * Public because the scheduling runtime module's scheduler listener calls it when a scheduled batch run finishes.
    *
    * @param execution The execution of the batch job to handle.
    */
-  private def handleCompletedBatchJob(execution: FhirMappingJobExecution): Unit = {
+  def handleCompletedBatchJob(execution: FhirMappingJobExecution): Unit = {
     FileStreamInputArchiver.applyArchivingOnBatchJob(execution)
     removeExecutionFromRunningTasks(execution.jobId, execution.id)
   }
