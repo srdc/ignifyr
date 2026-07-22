@@ -13,7 +13,7 @@ import org.scalatest.{Inside, Inspectors, OptionValues}
 
 import java.io.FileWriter
 import java.net.{JarURLConnection, URI}
-import java.nio.file.{Files, StandardCopyOption}
+import java.nio.file.{Files, Paths, StandardCopyOption}
 import scala.io.Source
 import scala.jdk.CollectionConverters._
 
@@ -39,6 +39,16 @@ trait IgnifyrTestSpec extends Matchers with OptionValues with Inside with Inspec
   val sparkSession: SparkSession = IgnifyrConfig.sparkSession
 
   val runningJobRegistry: RunningJobRegistry = new RunningJobRegistry(sparkSession)
+
+  /**
+   * Resolves a classpath fixture *folder* to an absolute on-disk path, jar-safe: a folder served from
+   * a jar (e.g. this testkit's own fixtures when consumed as a dependency in the reactor) is first
+   * materialized to a temp directory, so `Paths.get`/`new File` on the result works. Use this instead
+   * of `Paths.get(getClass.getResource(folder).toURI)` for any shared fixture folder shipped by the
+   * testkit (e.g. `/terminology-service`).
+   */
+  def testResourceFolderPath(resourcePath: String): String =
+    Paths.get(IgnifyrTestSpec.resolveResourceFolder(resourcePath)).normalize().toAbsolutePath.toString
 
   /**
    * Copies the content of a resource file to given location in the context path.

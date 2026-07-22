@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.ignifyr</groupId>
+        <artifactId>ignifyr_2.13</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>ignifyr-connector-file_2.13</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      Community file-system connector: the FileDataSourceReader and FileSystemWriter, contributed to
+      the engine through the IgnifyrExtension SPI (discovered via META-INF/services). It also owns a
+      connector-local file-format sub-SPI (FileSourceFormat / FileSinkFormat, discovered through their
+      own ServiceLoader) and ships the community formats: csv/tsv/parquet source and ndjson/csv/parquet
+      sink (FHIR bulk output). JSON/NDJSON *source* and the Delta *sink* are split into enterprise
+      format-* modules; the reader/writer stay format-agnostic. Apache-2.0-clean.
+    -->
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <!-- Unit phase: format-agnostic reader/writer suites + the registration spec (no Docker). -->
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.connector.file</wildcardSuites>
+                        </configuration>
+                    </execution>
+                    <!-- Integration phase: the full mapping-pipeline FhirMappingJobManagerTest (onFHIR container). -->
+                    <execution>
+                        <id>integration-test</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <membersOnlySuites>io.ignifyr.integrationtest</membersOnlySuites>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <!-- Engine library: SPI, base reader/writer, models, Spark, SparkUtil/FileUtils -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-engine_2.13</artifactId>
+        </dependency>
+
+        <!-- Shared test harness (IgnifyrTestSpec + OnFhirTestContainer) + fixtures, plus scalatest
+             transitively. Hosts the format-agnostic reader/writer suites and the onFHIR-backed
+             FhirMappingJobManagerTest. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

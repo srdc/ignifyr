@@ -1,10 +1,8 @@
-package io.ignifyr.test.engine.data.write
+package io.ignifyr.connector.file
 
 import io.ignifyr.engine.config.IgnifyrConfig
-import io.ignifyr.engine.data.write.FileSystemWriter
 import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings, MappedFhirResource, SinkContentTypes}
 import io.ignifyr.engine.util.FileUtils
-import org.apache.spark.sql.delta.implicits.longEncoder
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.BeforeAndAfterAll
@@ -23,6 +21,9 @@ class FileSystemWriterTest extends AnyFlatSpec with BeforeAndAfterAll {
    * SparkSession used for the test cases.
    */
   val sparkSession: SparkSession = IgnifyrConfig.sparkSession
+  // Standard Spark encoders (e.g. Encoder[Long] for `.as[Long]`); replaces an accidental dependency on
+  // a delta-spark encoder, so these community writer tests do not require delta-spark on the classpath.
+  import sparkSession.implicits._
 
   /**
    * A DataFrame containing FHIR mapping results used as test data.

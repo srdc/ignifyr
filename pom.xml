@@ -79,6 +79,7 @@
         <module>ignifyr-common</module>
         <module>ignifyr-engine</module>
         <module>ignifyr-connector-sql</module>
+        <module>ignifyr-connector-file</module>
         <module>ignifyr-connector-fhir-server</module>
         <module>ignifyr-connector-kafka</module>
         <module>ignifyr-runtime-streaming</module>
@@ -510,6 +511,11 @@
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-connector-sql_2.13</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-connector-file_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
