@@ -13,19 +13,13 @@ import io.ignifyr.engine.model._
 import io.ignifyr.engine.model.exception.{FhirMappingException, FhirMappingJobStoppedException}
 import io.ignifyr.engine.repository.mapping.IFhirMappingRepository
 import io.ignifyr.engine.spi.{ExtensionRegistry, MappingTaskPipeline, MissingCapabilityException}
-import it.sauronsoftware.cron4j.SchedulingPattern
 import org.apache.spark.SparkThrowable
 import org.apache.spark.sql.functions.{collect_list, struct, udf}
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
-import java.io.{File, FileNotFoundException, FileWriter}
-import java.net.URI
-import java.time.{Instant, LocalDateTime, ZoneOffset}
-import javax.ws.rs.BadRequestException
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.io.Source
+import java.time.LocalDateTime
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
  * Main entrypoint for FHIR mapping jobs
@@ -41,8 +35,7 @@ class FhirMappingJobManager(
     contextLoader: IMappingContextLoader,
     schemaLoader: IFhirSchemaLoader,
     functionLibraries: Map[String, IFhirPathFunctionLibraryFactory],
-    spark: SparkSession,
-    mappingJobScheduler: Option[MappingJobScheduler] = Option.empty
+    spark: SparkSession
 )(implicit ec: ExecutionContext)
     extends IFhirMappingJobManager
     with MappingTaskPipeline {
@@ -200,135 +193,6 @@ class FhirMappingJobManager(
         terminologyServiceSettings,
         identityServiceSettings
       )
-
-  /**
-   * Schedule to execute the given mapping job with given cron expression and write the resulting FHIR resources to the given sink
-   *
-   * @param mappingJobExecution        Fhir Mapping Job execution
-   * @param sourceSettings             The source settings of the mapping job
-   * @param sinkSettings               FHIR sink settings (can be a FHIR repository, file system, kafka)
-   * @param schedulingSettings         Settings for scheduling the job
-   * @param terminologyServiceSettings Settings for terminology service to use within mappings (e.g. lookupDisplay)
-   * @param identityServiceSettings    Settings for identity service to use within mappings (e.g. resolveIdentifier)
-   * @return
-   * @throws BadRequestException when the given cron expression is invalid
-   */
-  override def scheduleMappingJob(
-      mappingJobExecution: FhirMappingJobExecution,
-      sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
-      schedulingSettings: BaseSchedulingSettings,
-      terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
-      identityServiceSettings: Option[IdentityServiceSettings] = None
-  ): Unit = {
-
-    if (mappingJobScheduler.isEmpty) {
-      throw new IllegalStateException(
-        "scheduleMappingJob cannot be called if the FhirMappingJobManager's mappingJobScheduler is not configured."
-      )
-    }
-    // validate the cron expression
-    if (!SchedulingPattern.validate(schedulingSettings.cronExpression)) {
-      throw new BadRequestException(s"'${schedulingSettings.cronExpression}' is not a valid cron expression.")
-    }
-    // find the start time for SQL data sources
-    val startTime = schedulingSettings match {
-      case SQLSchedulingSettings(_, initialTime) =>
-        if (initialTime.isEmpty) {
-          logger.info(
-            s"initialTime is not specified in the mappingJob. I will sync all the data from midnight, January 1, 1970 to the next run time."
-          )
-          Instant.ofEpochMilli(0L).atOffset(ZoneOffset.UTC).toLocalDateTime
-        } else {
-          LocalDateTime.parse(initialTime.get)
-        }
-      case SchedulingSettings(_) =>
-        Instant.ofEpochMilli(0L).atOffset(ZoneOffset.UTC).toLocalDateTime
-    }
-    // Schedule a task
-    mappingJobScheduler.get.scheduler.schedule(
-      schedulingSettings.cronExpression,
-      new Runnable() {
-        override def run(): Unit = {
-          val scheduledJob = runnableMappingJob(
-            mappingJobExecution,
-            startTime,
-            sourceSettings,
-            sinkSettings,
-            terminologyServiceSettings,
-            identityServiceSettings,
-            schedulingSettings
-          )
-          Await.result(scheduledJob, Duration.Inf)
-        }
-      }
-    )
-  }
-
-  /**
-   * Runnable for scheduled periodic mapping job
-   *
-   * @param mappingJobExecution Mapping job execution
-   * @param startTime           Initial start time for source data
-   * @param sourceSettings      The source settings of the mapping job
-   * @param sinkSettings        FHIR sink settings/configurations
-   * @param schedulingSettings  Scheduling information
-   * @return
-   */
-  private def runnableMappingJob(
-      mappingJobExecution: FhirMappingJobExecution,
-      startTime: LocalDateTime,
-      sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
-      terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
-      identityServiceSettings: Option[IdentityServiceSettings] = None,
-      schedulingSettings: BaseSchedulingSettings
-  ): Future[Unit] = {
-    val timeRange = getScheduledTimeRange(mappingJobExecution.jobId, mappingJobScheduler.get.folderUri, startTime)
-    logger.info(s"Running scheduled job with the expression: ${schedulingSettings.cronExpression}")
-    logger.info(s"Synchronizing data between ${timeRange._1} and ${timeRange._2}")
-    executeMappingJob(
-      mappingJobExecution,
-      sourceSettings,
-      sinkSettings,
-      terminologyServiceSettings,
-      identityServiceSettings,
-      Some(timeRange)
-    )
-      .map(_ => {
-        val writer =
-          new FileWriter(s"${mappingJobScheduler.get.folderUri.getPath}/${mappingJobExecution.jobId}.txt", true)
-        try writer.write(timeRange._2.toString + "\n")
-        finally writer.close() // write last sync time to the file
-      })
-  }
-
-  /**
-   * Read the latest synchronization time point for the job
-   *
-   * @param mappingJobId Job identifier
-   * @param folderUri    Folder for sync files
-   * @param startTime    Initial start time for the job (for source data)
-   * @return
-   */
-  private def getScheduledTimeRange(
-      mappingJobId: String,
-      folderUri: URI,
-      startTime: LocalDateTime
-  ): (LocalDateTime, LocalDateTime) = {
-    val file = new File(folderUri)
-    if (!file.exists || !file.isDirectory) {
-      file.mkdirs()
-    }
-    try {
-      val source = Source.fromFile(s"${folderUri.getPath}/$mappingJobId.txt") // read last sync time from file
-      val lines = source.getLines()
-      val lastLine = lines.foldLeft("") { case (_, line) => line }
-      (LocalDateTime.parse(lastLine), LocalDateTime.now()) // (lastSyncTime, currentTime)}
-    } catch {
-      case _: FileNotFoundException => (startTime, LocalDateTime.now())
-    }
-  }
 
   /**
    * Execute the given mapping task and write the resulting FHIR resources to the given sink

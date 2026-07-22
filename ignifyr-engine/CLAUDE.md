@@ -19,9 +19,10 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
   `DataSourceReaderFactory` picks one from the source settings; `SourceHandler` wraps the read.
 - `data/write/` — `BaseFhirWriter` with `FhirRepositoryWriter` (to a FHIR server) and `FileSystemWriter`;
   `SinkHandler` orchestrates writes.
-- `mapping/` — `MappingTaskExecutor`, `FhirMappingService`, `job/FhirMappingJobManager` +
-  `MappingJobScheduler` (cron4j), `schema/` (load/convert schemas), `context/MappingContextLoader`,
-  `fhirPath/FhirPathMappingFunctions`, `service/LocalTerminologyService`.
+- `mapping/` — `MappingTaskExecutor`, `FhirMappingService`, `job/FhirMappingJobManager` (batch +
+  delegating streaming/scheduling seams), `schema/` (load/convert schemas), `context/MappingContextLoader`,
+  `fhirPath/FhirPathMappingFunctions`, `service/LocalTerminologyService`. Cron scheduling itself lives
+  in the enterprise `ignifyr-runtime-scheduling` module (`SchedulerProvider`).
 - `execution/` — `RunningJobRegistry` (tracks running Spark jobs), `processing/`
   (`ErroneousRecordWriter`, `FileStreamInputArchiver`), `log/ExecutionLogger`.
 - `model/` — domain models (`FhirMapping`, `FhirMappingJob`, `FhirMappingTask`, `*SinkSettings`,

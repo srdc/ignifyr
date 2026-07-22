@@ -50,4 +50,7 @@ trait IgnifyrExtension {
 
   /** Streaming execution capability, if this module provides one. At most one may be installed. */
   def streamingProvider: Option[StreamingExecutionProvider] = None
+
+  /** Scheduled (cron) execution capability, if this module provides one. At most one may be installed. */
+  def schedulerProvider: Option[SchedulerProvider] = None
 }

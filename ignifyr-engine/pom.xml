@@ -211,11 +211,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- cron4j -->
-        <dependency>
-            <groupId>it.sauronsoftware.cron4j</groupId>
-            <artifactId>cron4j</artifactId>
-        </dependency>
+        <!-- cron4j moved to ignifyr-runtime-scheduling (scheduling capability) -->
         <!-- Kafka source + its Spark connector live in ignifyr-connector-kafka -->
         <!-- For MongoDB test container -->
         <dependency>

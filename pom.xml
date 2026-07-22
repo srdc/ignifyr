@@ -82,6 +82,7 @@
         <module>ignifyr-connector-fhir-server</module>
         <module>ignifyr-connector-kafka</module>
         <module>ignifyr-runtime-streaming</module>
+        <module>ignifyr-runtime-scheduling</module>
         <module>ignifyr-cli</module>
         <module>ignifyr-server</module>
         <module>ignifyr-server-common</module>
@@ -522,6 +523,11 @@
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-runtime-streaming_2.13</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-runtime-scheduling_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

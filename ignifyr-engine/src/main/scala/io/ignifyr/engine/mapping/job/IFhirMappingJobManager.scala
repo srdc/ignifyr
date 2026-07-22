@@ -51,27 +51,6 @@ trait IFhirMappingJobManager {
   ): Map[String, Future[StreamingQuery]]
 
   /**
-   * Schedule to execute the given mapping job with given cron expression and write the resulting FHIR resources to the given sink
-   *
-   * @param mappingJobExecution        Fhir Mapping Job execution
-   * @param sourceSettings             Source settings of the mapping job
-   * @param sinkSettings               FHIR sink settings (can be a FHIR repository, file system, kafka)
-   * @param schedulingSettings         Scheduling info
-   * @param terminologyServiceSettings Settings for terminology service to use within mappings (e.g. lookupDisplay)
-   * @param identityServiceSettings    Settings for identity service to use within mappings (e.g. resolveIdentifier)
-   * @return
-   */
-
-  def scheduleMappingJob(
-      mappingJobExecution: FhirMappingJobExecution,
-      sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
-      schedulingSettings: BaseSchedulingSettings,
-      terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
-      identityServiceSettings: Option[IdentityServiceSettings] = None
-  ): Unit
-
-  /**
    * Execute the given mapping task and write the resulting FHIR resources to the given sink
    *
    * @param mappingJobExecution        Fhir Mapping Job execution

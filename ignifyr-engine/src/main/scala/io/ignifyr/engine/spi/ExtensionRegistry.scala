@@ -75,6 +75,11 @@ object ExtensionRegistry {
     extensions.flatMap(e => e.streamingProvider.map(e.id -> _))
   )
 
+  /** The single installed scheduling execution provider, if any. More than one is a config error. */
+  lazy val scheduler: Option[SchedulerProvider] = singleCapability("scheduling execution provider")(
+    extensions.flatMap(e => e.schedulerProvider.map(e.id -> _))
+  )
+
   /** Selects at most one capability provider, failing fast (naming owners) if more than one is installed. */
   private def singleCapability[V](what: String)(entries: Seq[(String, V)]): Option[V] = {
     if (entries.size > 1) {
