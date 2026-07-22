@@ -2,7 +2,6 @@ package io.ignifyr.server.endpoint
 
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
-import io.ignifyr.engine.data.write.FileSystemWriter.SinkContentTypes
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils

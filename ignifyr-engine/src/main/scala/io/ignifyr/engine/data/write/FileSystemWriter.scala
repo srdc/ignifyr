@@ -1,8 +1,7 @@
 package io.ignifyr.engine.data.write
 
 import com.typesafe.scalalogging.Logger
-import io.ignifyr.engine.data.write.FileSystemWriter.SinkContentTypes
-import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings}
+import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings, SinkContentTypes}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem}
 import org.apache.spark.sql.functions.{col, collect_list}
@@ -247,14 +246,5 @@ class FileSystemWriter(sinkSettings: FileSystemSinkSettings) extends BaseFhirWri
       .write
       .mode(SaveMode.Append)
       .options(sinkSettings.options)
-  }
-}
-
-object FileSystemWriter {
-  object SinkContentTypes {
-    final val NDJSON = "ndjson"
-    final val CSV = "csv"
-    final val PARQUET = "parquet"
-    final val DELTA_LAKE = "delta"
   }
 }

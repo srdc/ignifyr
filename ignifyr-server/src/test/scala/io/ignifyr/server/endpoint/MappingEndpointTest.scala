@@ -1,7 +1,7 @@
 package io.ignifyr.server.endpoint
 
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
-import io.ignifyr.engine.data.write.FileSystemWriter.SinkContentTypes
+import io.ignifyr.engine.model.SinkContentTypes
 import io.ignifyr.engine.util.FileUtils.FileExtensions
 import io.ignifyr.server.util.FileOperations
 import io.ignifyr.engine.model.{

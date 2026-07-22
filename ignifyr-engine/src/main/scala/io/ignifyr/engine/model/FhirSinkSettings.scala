@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import io.onfhir.client.OnFhirNetworkClient
 import io.onfhir.client.model.IFhirRepositorySecuritySettings
 import io.onfhir.client.util.FhirClientUtil
-import io.ignifyr.engine.data.write.FileSystemWriter.SinkContentTypes
 
 /**
  * Common interface for sink settings
@@ -71,4 +70,14 @@ case class FhirRepositorySinkSettings(
    */
   def createOnFhirClient(implicit actorSystem: ActorSystem): OnFhirNetworkClient =
     FhirClientUtil.createOnFhirClient(fhirRepoUrl, securitySettings)
+}
+
+/**
+ * List of sink content types supported by ignifyr
+ */
+object SinkContentTypes {
+  final val NDJSON = "ndjson"
+  final val CSV = "csv"
+  final val PARQUET = "parquet"
+  final val DELTA_LAKE = "delta"
 }

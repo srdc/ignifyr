@@ -2,7 +2,6 @@ package io.ignifyr.server.service
 
 import com.typesafe.config.ConfigFactory
 import io.ignifyr.engine.config.{IgnifyrConfig, IgnifyrEngineConfig}
-import io.ignifyr.engine.data.write.FileSystemWriter.SinkContentTypes
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.util.FileUtils
 import io.ignifyr.server.model.ExecuteJobTask

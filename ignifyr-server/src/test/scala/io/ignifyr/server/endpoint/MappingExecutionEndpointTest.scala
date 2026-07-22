@@ -9,7 +9,6 @@ import io.onfhir.api.client.FhirBatchTransactionRequestBuilder
 import io.ignifyr.OnFhirTestContainer
 import io.onfhir.definitions.common.model.SchemaDefinition
 import io.ignifyr.engine.config.IgnifyrConfig
-import io.ignifyr.engine.data.write.FileSystemWriter.SinkContentTypes
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils
