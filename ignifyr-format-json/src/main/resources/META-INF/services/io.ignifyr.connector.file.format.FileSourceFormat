@@ -1,0 +1,2 @@
+# Enterprise JSON/NDJSON file source format handler.
+io.ignifyr.format.json.JsonSourceFormat

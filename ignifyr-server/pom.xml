@@ -203,6 +203,11 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-file_2.13</artifactId>
         </dependency>
+        <!-- Enterprise JSON/NDJSON file-source format (extends the file connector) -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-format-json_2.13</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-fhir-server_2.13</artifactId>

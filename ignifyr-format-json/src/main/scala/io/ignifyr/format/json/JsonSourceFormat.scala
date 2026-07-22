@@ -1,4 +1,4 @@
-package io.ignifyr.connector.file.format.source
+package io.ignifyr.format.json
 
 import io.ignifyr.connector.file.format.{FileSourceFormat, FileSourceReadContext}
 import io.ignifyr.engine.model.SourceContentTypes
@@ -6,10 +6,9 @@ import io.ignifyr.engine.util.SparkUtil
 import org.apache.spark.sql.DataFrame
 
 /**
- * JSON / NDJSON file source format. Each line of an NDJSON file is a separate JSON object.
- *
- * NOTE: this handler is extracted into the enterprise `ignifyr-format-json` module in a later step;
- * it lives here only while the file connector is first carved out of the engine.
+ * Enterprise JSON / NDJSON file *source* format (each line of an NDJSON file is a separate JSON
+ * object). Contributed to the file connector's format sub-SPI via ServiceLoader; kept out of the
+ * community edition per the edition split (the community file sink still writes NDJSON).
  */
 class JsonSourceFormat extends FileSourceFormat {
 
