@@ -1,9 +1,8 @@
 package io.ignifyr.test.engine.data.write
 
 import io.ignifyr.engine.config.IgnifyrConfig
-import io.ignifyr.engine.data.write.FileSystemWriter.SinkContentTypes
 import io.ignifyr.engine.data.write.FileSystemWriter
-import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings, MappedFhirResource}
+import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings, MappedFhirResource, SinkContentTypes}
 import io.ignifyr.engine.util.FileUtils
 import org.apache.spark.sql.delta.implicits.longEncoder
 import org.apache.spark.sql.functions.col
