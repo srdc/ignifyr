@@ -1,16 +1,13 @@
-package io.ignifyr.server.endpoint
+package io.ignifyr.redcap
 
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{path, _}
 import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
 import io.ignifyr.engine.Execution.actorSystem.dispatcher
+import io.ignifyr.redcap.RedCapEndpoint.{PARAMETER_RELOAD, SEGMENT_NOTIFICATION, SEGMENT_REDCAP}
 import io.ignifyr.server.common.model.IgnifyrRestCall
-import io.ignifyr.server.config.RedCapServiceConfig
-import io.ignifyr.server.endpoint.RedCapEndpoint.{PARAMETER_RELOAD, SEGMENT_NOTIFICATION, SEGMENT_REDCAP}
 import io.onfhir.definitions.common.model.Json4sSupport._
-import io.ignifyr.server.model.redcap.RedCapProjectConfig
-import io.ignifyr.server.service.RedCapService
 
 /**
  * This class defines routes for handling requests related to ignifyr-redcap service.

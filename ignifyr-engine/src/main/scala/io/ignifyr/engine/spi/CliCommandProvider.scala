@@ -16,4 +16,13 @@ trait CliCommandProvider {
 
   /** Instantiate the command. */
   def create(): Command
+
+  /**
+   * Translate Boot's parsed `--flag value` options into this command's positional arguments, for
+   * one-shot (non-interactive) invocations like `<jar> extract-redcap-schemas --data-dictionary …`.
+   */
+  def argsFromOptions(options: Map[String, String]): Seq[String] = Seq.empty
+
+  /** One help line describing this command, appended to the interactive CLI's `help` output. */
+  def helpText: Option[String] = None
 }

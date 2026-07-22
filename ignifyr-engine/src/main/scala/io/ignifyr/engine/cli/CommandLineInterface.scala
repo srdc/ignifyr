@@ -114,26 +114,13 @@ object CommandLineInterface {
   def nextArg(map: Map[String, Any], list: List[String]): Map[String, Any] = {
     list match {
       case Nil => map
-      case "--job" :: value :: tail =>
-        nextArg(map ++ Map("job" -> value), tail)
-      case "--mappings" :: value :: tail =>
-        nextArg(map ++ Map("mappings" -> value), tail)
-      case "--schemas" :: value :: tail =>
-        nextArg(map ++ Map("schemas" -> value), tail)
       case ("--db" | "--db-path") :: value :: tail =>
         nextArg(map ++ Map("db-path" -> value), tail)
-      case "--data-dictionary" :: value :: tail =>
-        nextArg(map ++ Map("data-dictionary" -> value), tail)
-      case "--definition-root-url" :: value :: tail =>
-        nextArg(map ++ Map("definition-root-url" -> value), tail)
-      case "--encoding" :: value :: tail =>
-        nextArg(map ++ Map("encoding" -> value), tail)
+      case flag :: value :: tail if flag.startsWith("--") =>
+        // Generic `--flag value` pair; command providers translate these into positional args.
+        nextArg(map ++ Map(flag.stripPrefix("--") -> value), tail)
       case str :: tail =>
         nextArg(map ++ Map("command" -> str), tail)
-      case unknown :: _ =>
-        println("Unknown argument " + unknown)
-        System.exit(1)
-        Map.empty
     }
   }
 

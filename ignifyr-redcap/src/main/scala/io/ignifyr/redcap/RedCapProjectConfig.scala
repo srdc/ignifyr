@@ -1,4 +1,4 @@
-package io.ignifyr.server.model.redcap
+package io.ignifyr.redcap
 
 /**
  * Represents the configuration details for a REDCap project.

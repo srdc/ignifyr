@@ -216,6 +216,12 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-runtime-scheduling_2.13</artifactId>
         </dependency>
+        <!-- REDCap integration: /redcap proxy endpoints, the schemas/redcap data-dictionary import
+             route, and the extract-redcap-schemas CLI command (discovered via ServiceLoader). -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-redcap_2.13</artifactId>
+        </dependency>
         <!-- Observability runtime: Logstash JSON audit encoding + Fluentd shipping (referenced from
              the server's logback.xml); carries the logstash/fluentd dependencies. -->
         <dependency>

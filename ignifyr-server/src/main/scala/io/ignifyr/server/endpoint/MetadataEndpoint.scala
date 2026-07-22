@@ -7,7 +7,7 @@ import io.onfhir.definitions.common.model.Json4sSupport._
 import io.ignifyr.engine.config.IgnifyrEngineConfig
 import io.ignifyr.server.common.config.WebServerConfig
 import io.ignifyr.server.common.model.IgnifyrRestCall
-import io.ignifyr.server.config.RedCapServiceConfig
+import io.ignifyr.server.common.spi.IgnifyrServerExtension
 import io.ignifyr.server.endpoint.MetadataEndpoint.SEGMENT_METADATA
 import io.onfhir.definitions.resource.fhir.FhirDefinitionsConfig
 import io.ignifyr.server.service.MetadataService
@@ -19,14 +19,14 @@ class MetadataEndpoint(
     ignifyrEngineConfig: IgnifyrEngineConfig,
     webServerConfig: WebServerConfig,
     fhirDefinitionsConfig: FhirDefinitionsConfig,
-    redCapServiceConfig: Option[RedCapServiceConfig]
+    serverExtensions: Seq[IgnifyrServerExtension]
 ) extends LazyLogging {
 
   val service: MetadataService = new MetadataService(
     ignifyrEngineConfig,
     webServerConfig,
     fhirDefinitionsConfig,
-    redCapServiceConfig
+    serverExtensions
   )
 
   def route(request: IgnifyrRestCall): Route = {

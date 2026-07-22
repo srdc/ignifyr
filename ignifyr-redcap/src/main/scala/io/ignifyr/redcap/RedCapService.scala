@@ -1,4 +1,4 @@
-package io.ignifyr.server.service
+package io.ignifyr.redcap
 
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.headers.RawHeader
@@ -6,8 +6,6 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequ
 import com.typesafe.scalalogging.LazyLogging
 import io.ignifyr.engine.Execution.actorSystem
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
-import io.ignifyr.server.config.RedCapServiceConfig
-import io.ignifyr.server.model.redcap.RedCapProjectConfig
 import org.json4s.DefaultFormats
 import org.json4s.jackson.{JsonMethods, Serialization}
 

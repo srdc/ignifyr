@@ -11,6 +11,7 @@ import io.ignifyr.engine.model._
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils
 import io.ignifyr.engine.util.FileUtils.FileExtensions
+import io.ignifyr.redcap.RedCapSchemaImportEndpoint
 import io.ignifyr.server.BaseEndpointTest
 import io.ignifyr.server.endpoint.SchemaDefinitionEndpoint.{QUERY_PARAM_TYPE, QUERY_PARAM_URL}
 import io.ignifyr.server.model.{ImportSchemaSettings, InferTask}
@@ -622,7 +623,7 @@ class SchemaEndpointTest extends BaseEndpointTest with OnFhirTestContainer {
       val secondSchemaId = "Additional_information"
 
       Post(
-        s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/$projectId/${SchemaDefinitionEndpoint.SEGMENT_SCHEMAS}/${SchemaDefinitionEndpoint.SEGMENT_REDCAP}?rootUrl=$definitionRootUrl&recordIdField=$recordIdField",
+        s"/${webServerConfig.baseUri}/${ProjectEndpoint.SEGMENT_PROJECTS}/$projectId/${SchemaDefinitionEndpoint.SEGMENT_SCHEMAS}/${RedCapSchemaImportEndpoint.SEGMENT_REDCAP}?rootUrl=$definitionRootUrl&recordIdField=$recordIdField",
         formData.toEntity()
       ) ~> route ~> check {
         status shouldEqual StatusCodes.OK

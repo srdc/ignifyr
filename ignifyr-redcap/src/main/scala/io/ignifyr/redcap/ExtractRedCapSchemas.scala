@@ -1,9 +1,9 @@
-package io.ignifyr.engine.cli.command
+package io.ignifyr.redcap
 
 import io.onfhir.api.Resource
 import io.onfhir.definitions.common.model.Json4sSupport.formats
+import io.ignifyr.engine.cli.command.{Command, CommandExecutionContext}
 import io.ignifyr.engine.config.IgnifyrConfig
-import io.ignifyr.engine.util.redcap.RedCapUtil
 import io.ignifyr.engine.util.{CsvUtil, FileUtils}
 import org.json4s.jackson.Serialization.writePretty
 

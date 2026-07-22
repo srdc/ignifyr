@@ -11,8 +11,10 @@ terminology systems, and to trigger executions. Package root `io.ignifyr.server`
 ## Layout (`src/main/scala/io/ignifyr/server/`)
 - `endpoint/` — one class per resource: `ProjectEndpoint`, `MappingEndpoint`, `SchemaDefinitionEndpoint`,
   `JobEndpoint`, `MappingContextEndpoint`, `TerminologyServiceManagerEndpoint`, `CodeSystemEndpoint`,
-  `ConceptMapEndpoint`, `RedCapEndpoint`, `ReloadEndpoint`, `MetadataEndpoint`,
-  `FileSystemTreeStructureEndpoint`, plus the root `IgnifyrServerEndpoint`.
+  `ConceptMapEndpoint`, `ReloadEndpoint`, `MetadataEndpoint`, `FileSystemTreeStructureEndpoint`,
+  plus the root `IgnifyrServerEndpoint`. Additional routes are contributed by installed modules via
+  the `IgnifyrServerExtension` SPI in `ignifyr-server-common` (e.g. `ignifyr-redcap`'s `/redcap`
+  proxy and `/projects/{id}/schemas/redcap` import).
 - `service/` — business logic per resource (`ProjectService`, `MappingService`, `JobService`,
   `ExecutionService`, `SchemaDefinitionService`, terminology services…).
 - `repository/` — file-backed persistence; an interface + a `*FolderRepository` impl per resource
@@ -29,7 +31,8 @@ Cross-cutting CORS/error handling and `WebServerConfig` come from `ignifyr-serve
 1. Add or extend the `*Endpoint` (route + directives), delegating to a `*Service`.
 2. Add the `*Service` logic; persist via a `*Repository` (interface `repository/<area>/I*.scala`,
    folder impl `*FolderRepository`).
-3. Register the route in `IgnifyrServerEndpoint`.
+3. Register the route in `IgnifyrServerEndpoint` — or, for an optional/edition-specific feature,
+   contribute it from its own module via `IgnifyrServerExtension` (see `ignifyr-redcap`).
 4. **Update [api.yaml](api.yaml)** (OpenAPI spec) to match the change.
 5. Add a suite extending `BaseEndpointTest` (`AnyWordSpec` + `ScalatestRouteTest`); use `createProject()`
    for tests that need an existing project.

@@ -6,6 +6,7 @@ import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.LazyLogging
 import io.ignifyr.engine.Execution.actorSystem.dispatcher
 import io.ignifyr.server.common.model.{ResourceNotFound, IgnifyrRestCall}
+import io.ignifyr.server.common.spi.IgnifyrServerExtension
 import io.ignifyr.server.endpoint.ProjectEndpoint.SEGMENT_PROJECTS
 import io.onfhir.definitions.common.model.Json4sSupport._
 import io.ignifyr.server.model.Project
@@ -27,13 +28,14 @@ class ProjectEndpoint(
     mappingRepository: IMappingRepository,
     jobRepository: IJobRepository,
     mappingContextRepository: IMappingContextRepository,
-    projectRepository: IProjectRepository
+    projectRepository: IProjectRepository,
+    serverExtensions: Seq[IgnifyrServerExtension]
 ) extends LazyLogging {
 
   val service: ProjectService =
     new ProjectService(projectRepository, jobRepository, mappingRepository, mappingContextRepository, schemaRepository)
   val schemaDefinitionEndpoint: SchemaDefinitionEndpoint =
-    new SchemaDefinitionEndpoint(schemaRepository, mappingRepository)
+    new SchemaDefinitionEndpoint(schemaRepository, mappingRepository, serverExtensions)
   val mappingEndpoint: MappingEndpoint = new MappingEndpoint(mappingRepository, jobRepository)
   val jobEndpoint: JobEndpoint = new JobEndpoint(jobRepository, mappingRepository, schemaRepository)
   val mappingContextEndpoint: MappingContextEndpoint = new MappingContextEndpoint(mappingContextRepository)

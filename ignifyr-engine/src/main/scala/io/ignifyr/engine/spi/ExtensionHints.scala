@@ -32,11 +32,23 @@ object ExtensionHints {
     classOf[FileSystemSinkSettings] -> ("file", "io.ignifyr:ignifyr-connector-file")
   )
 
+  private val cliCommandModules: Map[String, String] = Map(
+    "extract-redcap-schemas" -> "com.pontegra.ignifyr:ignifyr-redcap"
+  )
+
   def describeSource(bindingClass: Class[_]): String =
     describe("source reader", bindingClass, sourceModules)
 
   def describeSink(settingsClass: Class[_]): String =
     describe("FHIR writer", settingsClass, sinkModules)
+
+  def describeCliCommand(commandToken: String): String =
+    cliCommandModules.get(commandToken) match {
+      case Some(module) =>
+        s"Unknown command '$commandToken'. It is provided by the '$module' module; install it to enable the command."
+      case None =>
+        s"Unknown command '$commandToken'."
+    }
 
   private def describe(what: String, cls: Class[_], modules: Map[Class[_], (String, String)]): String =
     modules.get(cls) match {

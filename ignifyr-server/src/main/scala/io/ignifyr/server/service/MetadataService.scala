@@ -1,36 +1,30 @@
 package io.ignifyr.server.service
 
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse}
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.unmarshalling.Unmarshal
 import io.ignifyr.engine.config.IgnifyrEngineConfig
 import io.ignifyr.server.common.config.WebServerConfig
-import io.ignifyr.server.config.RedCapServiceConfig
+import io.ignifyr.server.common.spi.IgnifyrServerExtension
 import io.onfhir.definitions.resource.fhir.FhirDefinitionsConfig
-import io.ignifyr.engine.Execution.actorSystem
 import io.ignifyr.engine.Execution.actorSystem.dispatcher
 import io.ignifyr.engine.env.EnvironmentVariableResolver
-import io.ignifyr.server.endpoint.MetadataEndpoint.SEGMENT_METADATA
 import io.ignifyr.server.model.{Archiving, MappingExecutionConfiguration, Metadata, RepositoryNames}
 
 import java.util.Properties
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 /**
  * Service for retrieving metadata about the Ignifyr server.
  * @param ignifyrEngineConfig engine related configurations
  * @param webServerConfig web server related configurations
  * @param fhirDefinitionsConfig fhir related configurations
- * @param redCapServiceConfig redcap service related configurations
+ * @param serverExtensions installed server extension modules (queried for external component versions)
  */
 class MetadataService(
     ignifyrEngineConfig: IgnifyrEngineConfig,
     webServerConfig: WebServerConfig,
     fhirDefinitionsConfig: FhirDefinitionsConfig,
-    redCapServiceConfig: Option[RedCapServiceConfig]
+    serverExtensions: Seq[IgnifyrServerExtension]
 ) {
 
   /**
@@ -69,30 +63,18 @@ class MetadataService(
   }
 
   /**
-   * Try to connect to the ignifyr-redcap service to get the version of the Ignifyr redcap version.
-   * If no response is received, return None.
+   * Ask the installed REDCap server extension (if any) for the version of the connected
+   * ignifyr-redcap service. If no response is received, return None.
    * @return
    */
   private def getIgnifyrRedCapVersion: Option[String] = {
-    redCapServiceConfig.flatMap { redCapConfig =>
-      val proxiedRequest = HttpRequest(
-        method = HttpMethods.GET,
-        uri = s"${redCapConfig.endpoint}/$SEGMENT_METADATA",
-        headers = RawHeader("Content-Type", "application/json") :: Nil
-      )
-
-      val responseFuture: Future[HttpResponse] = Http().singleRequest(proxiedRequest)
-      val responseAsString = Try(
+    serverExtensions.find(_.id == "redcap").flatMap { extension =>
+      Try(
         Await.result(
-          responseFuture.flatMap(resp => Unmarshal(resp.entity).to[String]),
+          extension.externalComponentVersion(),
           1.seconds // increasing this leads to increase initial loading time of the Ignifyr frontend
         )
-      )
-
-      responseAsString match {
-        case Success(res) => Some(res)
-        case Failure(_) => None
-      }
+      ).toOption.flatten
     }
   }
 

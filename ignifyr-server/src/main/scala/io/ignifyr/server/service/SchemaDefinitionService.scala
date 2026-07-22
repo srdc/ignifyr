@@ -1,7 +1,5 @@
 package io.ignifyr.server.service
 
-import akka.stream.scaladsl.Source
-import akka.util.ByteString
 import com.typesafe.scalalogging.LazyLogging
 import io.onfhir.api.Resource
 import io.onfhir.client.util.FhirClientUtil
@@ -13,8 +11,7 @@ import io.ignifyr.engine.data.read.SourceHandler
 import io.ignifyr.engine.mapping.schema.SchemaConverter
 import io.ignifyr.engine.model.exception.FhirMappingException
 import io.ignifyr.engine.spi.ExtensionRegistry
-import io.ignifyr.engine.util.redcap.RedCapUtil
-import io.ignifyr.engine.util.{CsvUtil, FhirVersionUtil}
+import io.ignifyr.engine.util.FhirVersionUtil
 import io.ignifyr.server.common.model.{BadRequest, ResourceNotFound}
 import io.ignifyr.server.model.{ImportSchemaSettings, InferTask}
 import io.ignifyr.server.repository.mapping.IMappingRepository
@@ -246,29 +243,15 @@ class SchemaDefinitionService(schemaRepository: ISchemaRepository, mappingReposi
   }
 
   /**
-   * Imports a REDCap Data Dictionary file to create new schemas for the forms defined in the given file.
+   * Saves schema definitions imported by a server extension module (e.g. from a REDCap data
+   * dictionary) — the persistence half of the extensions' schema-import routes.
    *
-   * @param projectId     project id for which the schemas will be created
-   * @param byteSource    the REDCap Data Dictionary File
-   * @param rootUrl       the root URL of the schemas to be created
-   * @param recordIdField The name of the field that represents the record ID.
-   * @return
+   * @param projectId   project id for which the schemas will be created
+   * @param definitions the imported schema definitions
+   * @return the saved schema definitions
    */
-  def importREDCapDataDictionary(
-      projectId: String,
-      byteSource: Source[ByteString, Any],
-      rootUrl: String,
-      recordIdField: String
-  ): Future[Seq[SchemaDefinition]] = {
-    // read the file
-    val content: Future[Seq[Map[String, String]]] = CsvUtil.readFromCSVSource(byteSource)
-    content.flatMap(rows => {
-      // extract schema definitions
-      val definitions: Seq[SchemaDefinition] =
-        RedCapUtil.extractSchemasAsSchemaDefinitions(rows, rootUrl, recordIdField)
-      // save each schema
-      Future.sequence(definitions.map(definition => schemaRepository.saveSchema(projectId, definition)))
-    })
+  def saveImportedSchemas(projectId: String, definitions: Seq[SchemaDefinition]): Future[Seq[SchemaDefinition]] = {
+    Future.sequence(definitions.map(definition => schemaRepository.saveSchema(projectId, definition)))
   }
 
   /**

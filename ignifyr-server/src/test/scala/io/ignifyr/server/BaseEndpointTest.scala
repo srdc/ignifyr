@@ -7,8 +7,8 @@ import io.onfhir.client.OnFhirNetworkClient
 import io.onfhir.definitions.common.model.Json4sSupport.formats
 import io.ignifyr.engine.config.IgnifyrEngineConfig
 import io.ignifyr.engine.util.FileUtils
-import io.ignifyr.server.config.RedCapServiceConfig
 import io.ignifyr.server.common.config.WebServerConfig
+import io.ignifyr.server.common.spi.{IgnifyrServerExtension, IgnifyrServerExtensions}
 import io.ignifyr.server.endpoint.{ProjectEndpoint, IgnifyrServerEndpoint}
 import io.onfhir.definitions.resource.fhir.FhirDefinitionsConfig
 import io.ignifyr.server.model.Project
@@ -33,7 +33,8 @@ trait BaseEndpointTest extends AnyWordSpec with Matchers with ScalatestRouteTest
   val ignifyrEngineConfig: IgnifyrEngineConfig = new IgnifyrEngineConfig(system.settings.config.getConfig("ignifyr"))
   val webServerConfig = new WebServerConfig(system.settings.config.getConfig("webserver"))
   val fhirDefinitionsConfig = new FhirDefinitionsConfig(system.settings.config.getConfig("fhir"))
-  val redCapServiceConfig = new RedCapServiceConfig(system.settings.config.getConfig("ignifyr-redcap"))
+  // Server extension modules on the test classpath (e.g. REDCap), configured from the test config
+  val serverExtensions: Seq[IgnifyrServerExtension] = IgnifyrServerExtensions.load(system.settings.config)
   // route endpoint
   var route: Route = _
 
@@ -78,7 +79,7 @@ trait BaseEndpointTest extends AnyWordSpec with Matchers with ScalatestRouteTest
     FileUtils.getPath(fhirDefinitionsConfig.valuesetsPath.get).toFile.mkdirs()
     // initialize endpoint and route
     val endpoint =
-      new IgnifyrServerEndpoint(ignifyrEngineConfig, webServerConfig, fhirDefinitionsConfig, Some(redCapServiceConfig))
+      new IgnifyrServerEndpoint(ignifyrEngineConfig, webServerConfig, fhirDefinitionsConfig, serverExtensions)
     route = endpoint.ignifyrRoute
   }
 
