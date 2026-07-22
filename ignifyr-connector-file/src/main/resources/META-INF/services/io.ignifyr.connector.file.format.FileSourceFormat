@@ -1,5 +1,4 @@
 # File source format handlers shipped by the community file connector.
-# JSON/NDJSON source is extracted into the enterprise ignifyr-format-json module in a later step.
+# JSON/NDJSON source lives in the enterprise ignifyr-format-json module (its own service file).
 io.ignifyr.connector.file.format.source.CsvSourceFormat
 io.ignifyr.connector.file.format.source.ParquetSourceFormat
-io.ignifyr.connector.file.format.source.JsonSourceFormat

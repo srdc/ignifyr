@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.ignifyr</groupId>
+        <artifactId>ignifyr_2.13</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>ignifyr-format-json_2.13</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      Enterprise JSON/NDJSON file *source* format: contributes a FileSourceFormat handler to the file
+      connector's format sub-SPI (discovered via META-INF/services), so JSON/NDJSON files can be used
+      as mapping input. Keeping JSON/NDJSON *source* out of the community edition per the edition split
+      (the community file sink still writes NDJSON). Depends on ignifyr-connector-file for the
+      FileSourceFormat sub-SPI it implements.
+    -->
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <!-- The file connector: the FileSourceFormat / FileSourceReadContext sub-SPI this handler
+             implements (brings the engine transitively). -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-file_2.13</artifactId>
+        </dependency>
+
+        <!-- Shared test harness + fixtures + scalatest (transitively). -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>
