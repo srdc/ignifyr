@@ -2,7 +2,7 @@ package io.ignifyr.engine.data.read
 
 import io.ignifyr.engine.model.exception.FhirMappingException
 import io.ignifyr.engine.model.{MappingJobSourceSettings, MappingSourceBinding}
-import io.ignifyr.engine.spi.{ExtensionHints, ExtensionRegistry, MissingConnectorException}
+import io.ignifyr.engine.spi.{ExtensionHints, ExtensionRegistry, MissingConnectorException, MissingExtensionException}
 import org.apache.spark.sql.functions.{col, lit, when, concat, concat_ws}
 import org.apache.spark.sql.types.{DataTypes, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -62,6 +62,9 @@ object SourceHandler {
         reader
           .read(mappingSource, mappingJobSourceSettings, schema, timeRange, jobId = jobId)
       } catch {
+        // A missing plugin (e.g. an uninstalled file format) is surfaced as-is so its actionable
+        // "install the '…' module" message stays the top-level error, not buried as a nested cause.
+        case e: MissingExtensionException => throw e
         case e: Throwable =>
           throw FhirMappingException(
             s"Source cannot be read for mapping source: $mappingSource source settings: $mappingJobSourceSettings.",

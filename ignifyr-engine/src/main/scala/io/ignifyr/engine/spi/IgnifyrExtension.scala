@@ -27,6 +27,12 @@ trait IgnifyrExtension {
   /**
    * Called once during registry load with this extension's scoped configuration
    * (`ignifyr.extensions.<id>`, or an empty config if that block is absent).
+   *
+   * MUST NOT touch `IgnifyrConfig.sparkSession`: registry load is transitively triggered while the
+   * shared SparkSession is being built (the session's config consults
+   * [[ExtensionRegistry.sparkConfContributions]], which forces the extension list and hence every
+   * `initialize`), so reading the session here would re-enter its lazy initialization and self-recurse.
+   * Do Spark-dependent setup lazily, on first use, not in `initialize`.
    */
   def initialize(config: Config): Unit = ()
 

@@ -1,6 +1,6 @@
 package io.ignifyr.connector.file
 
-import io.ignifyr.connector.file.format.FileFormatRegistry
+import io.ignifyr.connector.file.format.{FileFormatRegistry, MissingFileFormatException}
 import io.ignifyr.engine.model.{
   FileSystemSinkSettings,
   FileSystemSource,
@@ -38,5 +38,17 @@ class FileConnectorExtensionSpec extends AnyFlatSpec with Matchers {
   it should "discover the community sink formats through the file format registry" in {
     FileFormatRegistry.sinkFormats.keySet should contain allElementsOf
       Seq(SinkContentTypes.NDJSON, SinkContentTypes.CSV, SinkContentTypes.PARQUET)
+  }
+
+  // The JSON/NDJSON source and Delta sink formats are enterprise (not on this module's classpath), so
+  // resolving them here exercises the missing-format install-hint UX with the exact module coordinates.
+  it should "raise a MissingFileFormatException naming the module for an uninstalled source format" in {
+    val ex = intercept[MissingFileFormatException](FileFormatRegistry.sourceFormat(SourceContentTypes.JSON))
+    ex.getMessage should include("com.pontegra.ignifyr:ignifyr-format-json")
+  }
+
+  it should "raise a MissingFileFormatException naming the module for an uninstalled sink format" in {
+    val ex = intercept[MissingFileFormatException](FileFormatRegistry.sinkFormat(SinkContentTypes.DELTA_LAKE))
+    ex.getMessage should include("com.pontegra.ignifyr:ignifyr-format-delta")
   }
 }
