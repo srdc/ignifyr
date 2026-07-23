@@ -47,14 +47,35 @@ It can be used as a library or a standalone tool for data integration. The stand
 * **Advanced Mapping:** Utilizes the [onfhir-template-engine](https://github.com/srdc/fhir-template-engine) to support 1-to-1, 1-to-many, many-to-1, and many-to-many mappings.
 * **Flexible Output:** Generate HL7 FHIR resources and persist them to a file system or directly to a FHIR endpoint (e.g., [Repofyr](https://repofyr.io)).
 
-## Modules
+## Architecture & Editions
 
-Ignifyr consists of the following modules:
-- `ignifyr-engine`: The core engine including the main mapping and transformation functionality.
-- `ignifyr-server`: A standalone web server providing a REST API to manage and run mapping jobs.
-- `ignifyr-server-common`: Shared files and configurations for server implementations.
-- `ignifyr-common`: Shared model and utility classes.
-- `ignifyr-rxnorm`: Client for RxNorm API access and FHIRPath functions for terminology integration.
+Ignifyr is a small **core engine plus plugins**. The engine reads a source, applies FHIR mappings, and
+writes the result; everything source- or edition-specific is a plugin discovered at runtime through a
+Java `ServiceLoader` service-provider interface (`IgnifyrExtension`). The engine never names a
+connector, format, or capability directly — it looks them up in its `ExtensionRegistry` by the settings
+type a job uses. The practical upshot, and the core design rule, is: **moving a feature between editions
+is a one-folder module move, with zero engine code changes.**
+
+The data flow is always the same: **read source → apply mappings → write to sink → (optionally) archive
+the input.** A mapping job's JSON *parses* everywhere (all settings and model classes live in the
+engine); if it names a plugin that isn't installed, it fails at run time with an actionable
+"install `…`" message rather than a parse error.
+
+The reactor splits into two editions. **Community** (Apache-2.0, published to Maven Central, shaded into
+the `ignifyr-cli` standalone jar) is the batch engine. **Enterprise** (private, shaded into the
+`ignifyr-server` jar) adds the REST server, streaming and scheduling, and the advanced
+connectors/formats. A `maven-enforcer` gate keeps enterprise-only libraries (Kafka, cron4j, Delta, the
+DB2 driver, Logstash/Fluentd) out of the community modules.
+
+| Edition | Modules |
+|---|---|
+| **Community** | `ignifyr-engine` (core mapping engine + CLI + the extension SPI), `ignifyr-common` (shared models/utils), `ignifyr-connector-sql` (JDBC source), `ignifyr-connector-file` (file source/sink + a pluggable file-format sub-SPI), `ignifyr-cli` (the standalone jar), `ignifyr-testkit` (test-only harness) |
+| **Enterprise** | `ignifyr-server` (REST API), `ignifyr-server-common` (web plumbing + the server SPI), `ignifyr-connector-fhir-server` (FHIR-as-source), `ignifyr-connector-kafka`, `ignifyr-format-json` (JSON/NDJSON source), `ignifyr-format-delta` (Delta sink), `ignifyr-runtime-streaming`, `ignifyr-runtime-scheduling`, `ignifyr-redcap`, `ignifyr-observability` |
+
+`ignifyr-rxnorm` (RxNorm FHIRPath functions) is standalone. Every module carries a `CLAUDE.md` with its
+layout and design reasoning; the REST contract is [ignifyr-server/api.yaml](ignifyr-server/api.yaml), and
+the reference configuration is
+[ignifyr-engine/src/main/resources/application.conf](ignifyr-engine/src/main/resources/application.conf).
 
 ## Requirements
 To run Ignifyr, you need:
@@ -71,6 +92,12 @@ Ignifyr can read data from the following data source types:
 * Apache Kafka
 * REDCap
 * FHIR Server (Repofyr, HAPI FHIR Server, Firely Server etc.)
+
+> [!NOTE]
+> The community CLI ships the File System (CSV/TSV/Parquet) and RDBMS (PostgreSQL) sources and the FHIR
+> repository **sink**. JSON-file source, Apache Kafka, REDCap, and FHIR-server-as-**source** are
+> **Enterprise** plugins, as is the Delta sink. A job naming an uninstalled source/sink parses fine and
+> fails at run time with an "install the `…` module" message.
 
 ## Usage
 
