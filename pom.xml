@@ -207,6 +207,55 @@
                     <artifactId>maven-jar-plugin</artifactId>
                     <version>3.4.1</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.5.0</version>
+                    <executions>
+                        <!--
+                          Community/Enterprise edition boundary gate. The community modules (engine, cli,
+                          connector-sql, connector-file, common, testkit) must stay free of dependencies that
+                          belong to an enterprise-only module: Kafka (ignifyr-connector-kafka), cron4j
+                          scheduling (ignifyr-runtime-scheduling), Delta Lake (ignifyr-format-delta), the DB2
+                          JCC driver, and Logstash/Fluentd log shipping (ignifyr-observability). Each community
+                          module opts in by declaring this plugin with an empty <execution id="ban-enterprise-deps"/>
+                          (it inherits the goal/phase/rules from here). Enterprise modules simply do not opt in,
+                          so they may use these libraries freely.
+
+                          NOTE: com.sndyuk:logback-more-appenders is intentionally NOT banned — the community
+                          engine legitimately uses its MapMarker type for structured logging; only the Logstash
+                          JSON encoder and Fluentd shipping are enterprise.
+                        -->
+                        <execution>
+                            <id>ban-enterprise-deps</id>
+                            <phase>validate</phase>
+                            <goals>
+                                <goal>enforce</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <bannedDependencies>
+                                        <searchTransitive>true</searchTransitive>
+                                        <excludes>
+                                            <exclude>org.apache.spark:spark-sql-kafka-0-10_${scala.binary.version}</exclude>
+                                            <exclude>it.sauronsoftware.cron4j:cron4j</exclude>
+                                            <exclude>io.delta:delta-spark_${scala.binary.version}</exclude>
+                                            <exclude>com.ibm.db2:jcc</exclude>
+                                            <exclude>net.logstash.logback:logstash-logback-encoder</exclude>
+                                            <exclude>org.fluentd:fluent-logger</exclude>
+                                        </excludes>
+                                        <message>
+                                            A community module must not depend on an enterprise-only library (Kafka,
+                                            cron4j, Delta Lake, DB2 JCC, or Logstash/Fluentd log shipping). Keep the
+                                            feature in an enterprise module behind the IgnifyrExtension SPI.
+                                        </message>
+                                    </bannedDependencies>
+                                </rules>
+                                <fail>true</fail>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
 

@@ -76,6 +76,16 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Community edition boundary gate: bans enterprise-only deps (see root pluginManagement). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-enterprise-deps</id>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- The runnable standalone (shaded) jar is produced by the downstream ignifyr-cli module,
                  which bundles this engine library together with the community connector/format plugins.
                  The engine itself is a plain library so plugin modules can depend on it without a cycle.

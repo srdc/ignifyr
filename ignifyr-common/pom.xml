@@ -51,6 +51,16 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
             </plugin>
+            <!-- Community edition boundary gate: bans enterprise-only deps (see root pluginManagement). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-enterprise-deps</id>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
