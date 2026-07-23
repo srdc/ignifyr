@@ -40,6 +40,17 @@ class FileConnectorExtensionSpec extends AnyFlatSpec with Matchers {
       Seq(SinkContentTypes.NDJSON, SinkContentTypes.CSV, SinkContentTypes.PARQUET)
   }
 
+  // The file formats live in the connector's own sub-registry, invisible to the engine; the
+  // extension surfaces them to `list-plugins` through extraCapabilities.
+  it should "summarize its source and sink formats via extraCapabilities for list-plugins" in {
+    val capabilities = new FileConnectorExtension().extraCapabilities.mkString("\n")
+    capabilities should include("file source formats")
+    capabilities should (include(SourceContentTypes.CSV) and include(SourceContentTypes.TSV) and
+      include(SourceContentTypes.PARQUET))
+    capabilities should include("file sink formats")
+    capabilities should (include(SinkContentTypes.NDJSON) and include(SinkContentTypes.PARQUET))
+  }
+
   // The JSON/NDJSON source and Delta sink formats are enterprise (not on this module's classpath), so
   // resolving them here exercises the missing-format install-hint UX with the exact module coordinates.
   it should "raise a MissingFileFormatException naming the module for an uninstalled source format" in {

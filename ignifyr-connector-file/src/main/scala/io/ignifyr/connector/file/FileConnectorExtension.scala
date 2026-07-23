@@ -55,4 +55,15 @@ class FileConnectorExtension extends IgnifyrExtension {
         new FileSystemWriter(sinkSettings.asInstanceOf[FileSystemSinkSettings])
     }
   )
+
+  /**
+   * Surface the connector-local file-format sub-registry (its own ServiceLoader) to `list-plugins`,
+   * which the engine cannot introspect on its own — so the installed source/sink formats (community
+   * csv/tsv/parquet + ndjson/csv/parquet, plus any enterprise format-* modules on the classpath)
+   * still show up in the plugin listing.
+   */
+  override def extraCapabilities: Seq[String] = Seq(
+    s"file source formats: ${FileFormatRegistry.sourceFormats.keys.toSeq.sorted.mkString(", ")}",
+    s"file sink formats: ${FileFormatRegistry.sinkFormats.keys.toSeq.sorted.mkString(", ")}"
+  )
 }

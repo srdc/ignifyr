@@ -3,7 +3,7 @@ package io.ignifyr.engine
 import com.typesafe.scalalogging.Logger
 import io.ignifyr.common.app.AppVersion
 import io.ignifyr.engine.cli.CommandLineInterface
-import io.ignifyr.engine.cli.command.CommandExecutionContext
+import io.ignifyr.engine.cli.command.{CommandExecutionContext, ListPlugins}
 import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.spi.{ExtensionHints, ExtensionRegistry}
 
@@ -39,6 +39,12 @@ object Boot extends App {
           else IgnifyrConfig.engineConfig.ignifyrDbFolderPath
 
         CommandLineInterface.runJob(ignifyrEngine, mappingJobFilePath, ignifyrDbFolderPath)
+
+      // Diagnostic: list the installed extension modules and everything they contribute. Reads only
+      // the ServiceLoader-backed registry, so it deliberately does NOT build the engine (no workspace
+      // or mapping-job config required just to inspect which plugins ship in this distribution).
+      case Some("list-plugins") =>
+        new ListPlugins().render()
 
       // One-shot execution of any registry-contributed command (e.g. the REDCap module's
       // extract-redcap-schemas); the provider translates flags into positional arguments.

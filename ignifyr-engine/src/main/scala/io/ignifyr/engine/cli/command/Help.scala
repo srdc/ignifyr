@@ -17,6 +17,7 @@ class Help extends Command {
         "\trun [<url>|<name>] - Run the task(s). Without a parameter, all task of the loaded Mapping Job are run. A specific task can be indicated with its name or URL.\n" +
         "\thelp - See the available commands and their use.\n" +
         "\tlist - Show jobs with at least one running mapping.\n" +
+        "\tlist-plugins - Show the installed extension modules and everything they contribute.\n" +
         "\tstop - Stop the execution of the Mapping Job (if any) or a specific Mapping Task associated with a job.\n" +
         extensionCommandHelp +
         "\texit|quit - Exit the program.\n"
