@@ -13,19 +13,26 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
 - `execution/MappingJobLauncher` — the single home of the batch/streaming/scheduled job dispatch;
   both the CLI (`CommandLineInterface.runJob`) and the server's `ExecutionService` launch through it.
 - CLI: `cli/CommandLineInterface` + `cli/command/*` (`Run`, `Load`, `Reload`, `Stop`, `Help`,
-  `ListRunningMappings`, …). Modules contribute commands via the `CliCommandProvider` SPI.
+  `ListRunningMappings`, `ListPlugins`, …). Modules contribute commands via the `CliCommandProvider`
+  SPI; `list-plugins` prints the installed extensions and everything they contribute (a CI gate on
+  the edition boundary).
 
 ## Layout (`src/main/scala/io/ignifyr/engine/`)
 - `config/` — `IgnifyrConfig`, `IgnifyrEngineConfig` (read the `ignifyr` HOCON block), `FunctionLibrariesConfig`.
-- `spi/` — the ServiceLoader extension SPI: `IgnifyrExtension` (one per module), `ExtensionRegistry`,
-  provider traits (`SourceConnector`, `SinkProvider`, `CliCommandProvider`, `SourceSchemaInferrer`,
-  `SourceFailureDescriptor`, `StreamingExecutionProvider`, `SchedulerProvider`), `ExtensionHints`
-  (error-message module coordinates), and `core/CoreExtension` (the engine's own registrations).
-- `data/read/` — `BaseDataSourceReader` (abstract base) + `FileDataSourceReader` (file connector not
-  yet extracted); `SourceHandler` wraps the read and dispatches via `ExtensionRegistry.sourceConnectors`.
-  SQL/Kafka/FHIR-server readers live in their `ignifyr-connector-*` modules.
-- `data/write/` — `BaseFhirWriter` with `FhirRepositoryWriter` (to a FHIR server) and `FileSystemWriter`;
-  `SinkHandler` orchestrates writes.
+- `spi/` — the ServiceLoader extension SPI: `IgnifyrExtension` (one per module; contributes source
+  connectors, sinks, CLI commands, schema inferrers, streaming/scheduling capabilities, extra
+  `sparkConfContributions`, …), `ExtensionRegistry`, the provider traits (`SourceConnector`,
+  `SinkProvider`, `CliCommandProvider`, `SourceSchemaInferrer`, `SourceFailureDescriptor`,
+  `StreamingExecutionProvider`, `SchedulerProvider`), `ExtensionHints` (error-message module
+  coordinates), and `core/CoreExtension` (the engine's own registrations).
+- `data/read/` — `BaseDataSourceReader` (abstract base) + `SourceHandler`, which wraps the read and
+  dispatches via `ExtensionRegistry.sourceConnectors`. The file reader (`FileDataSourceReader`) and the
+  SQL/Kafka/FHIR-server readers all live in their `ignifyr-connector-*` modules.
+- `data/write/` — `BaseFhirWriter` + `FhirRepositoryWriter` (the community FHIR-server sink) and
+  `SinkHandler` (orchestrates writes, dispatches via `ExtensionRegistry.sinkProviders`). The
+  file-system writer (`FileSystemWriter`) and its pluggable output formats live in
+  `ignifyr-connector-file` (a `FileSourceFormat`/`FileSinkFormat` sub-SPI); JSON-source and Delta-sink
+  formats are the enterprise `ignifyr-format-*` modules.
 - `mapping/` — `MappingTaskExecutor`, `FhirMappingService`, `job/FhirMappingJobManager` (batch +
   delegating streaming/scheduling seams), `schema/` (load/convert schemas), `context/MappingContextLoader`,
   `fhirPath/FhirPathMappingFunctions`, `service/LocalTerminologyService`. Cron scheduling itself lives
@@ -45,8 +52,8 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
 3. Register it via the module's `IgnifyrExtension` (`sourceConnectors`) and its
    `META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension` entry; add the module to the reactor
    and to the distributions that ship it (`ignifyr-cli` for community, `ignifyr-server` for enterprise).
-4. Add a lightweight registration spec in the module; heavy fixture-based suites wait for the
-   Phase-2 testkit.
+4. Add a lightweight registration spec in the module; heavy fixture-based suites depend on the
+   shared `ignifyr-testkit` (test scope) for `IgnifyrTestSpec` + `OnFhirTestContainer` + fixtures.
 
 ## Tests
 - Unit: `mvn test -pl ignifyr-engine` → suites in `io.ignifyr.test`, extending `IgnifyrTestSpec`
