@@ -25,16 +25,49 @@ mentions. Don't reintroduce `tofhir` in new code; `mapToFhir`-style identifiers 
 
 ## Modules
 
-Dependency direction: `ignifyr-common` ← `ignifyr-engine` ← `ignifyr-server`;
-`ignifyr-server-common` ← `ignifyr-server`; `ignifyr-rxnorm` is standalone.
+The reactor is being split into a public **Community Edition** (Apache-2.0, the CLI batch engine)
+and a private **Enterprise Edition** (advanced connectors, streaming/scheduling, the REST server).
+The design rule: **moving a feature between editions is a one-folder module move with zero engine
+code changes.** Every module plugs in through the `IgnifyrExtension` ServiceLoader SPI
+(`io.ignifyr.engine.spi`); the engine's `ExtensionRegistry` discovers source connectors, sinks,
+CLI commands, schema inferrers, streaming/scheduling capabilities, and extra Spark-conf entries at
+runtime — the engine never names a connector/format directly. A maven-enforcer `bannedDependencies`
+gate keeps enterprise-only libraries (Kafka, cron4j, Delta, DB2 JCC, Logstash/Fluentd) out of the
+community modules.
 
-| Module | Purpose | Detail |
-|---|---|---|
-| [`ignifyr-engine`](ignifyr-engine/CLAUDE.md) | Core mapping/transformation engine + CLI/batch entrypoint | mapping execution, source readers, sinks, scheduling |
-| [`ignifyr-server`](ignifyr-server/CLAUDE.md) | Akka-HTTP REST API to manage projects/jobs | Endpoint → Service → Repository |
-| [`ignifyr-server-common`](ignifyr-server-common/CLAUDE.md) | Shared web-server config + CORS/error interceptors | used by the server |
-| [`ignifyr-common`](ignifyr-common/CLAUDE.md) | Shared models, version, custom mapping fns, exception utils | used by every module |
-| [`ignifyr-rxnorm`](ignifyr-rxnorm/CLAUDE.md) | RxNorm API client + FHIRPath terminology functions | standalone |
+Dependency direction: `ignifyr-common` ← `ignifyr-engine` ← the connector/format/runtime plugin
+modules (each depends on the engine and is discovered at runtime); `ignifyr-server-common` ←
+`ignifyr-server`. `ignifyr-cli` (community) and `ignifyr-server` (enterprise) are the two
+**distributions** — each shades the engine plus the plugin modules that ship in its edition.
+
+**Community** (`io.ignifyr`, Maven Central; bundled into `ignifyr-cli`):
+
+| Module | Purpose |
+|---|---|
+| [`ignifyr-engine`](ignifyr-engine/CLAUDE.md) | Core mapping/transformation engine, CLI/batch entrypoint, and the extension SPI |
+| [`ignifyr-common`](ignifyr-common/CLAUDE.md) | Shared models, version, custom mapping fns, exception utils |
+| `ignifyr-connector-sql` | SQL/JDBC source connector (ships the PostgreSQL driver) |
+| `ignifyr-connector-file` | File-system source + sink; owns a pluggable file-format sub-SPI (`FileSourceFormat`/`FileSinkFormat`, its own `FileFormatRegistry`/ServiceLoader) shipping csv/tsv/parquet source + ndjson/csv/parquet sink |
+| `ignifyr-cli` | Community standalone fat-jar assembly (Main-Class `io.ignifyr.engine.Boot`) |
+| `ignifyr-testkit` | Shared test harness (`IgnifyrTestSpec`, `OnFhirTestContainer`, fixtures); test-only, never shipped |
+
+**Enterprise** (private, `com.pontegra.ignifyr` when published; bundled into `ignifyr-server`):
+
+| Module | Purpose |
+|---|---|
+| [`ignifyr-server`](ignifyr-server/CLAUDE.md) | Akka-HTTP REST API to manage projects/jobs (Endpoint → Service → Repository); the enterprise runtime |
+| [`ignifyr-server-common`](ignifyr-server-common/CLAUDE.md) | Shared web-server config, CORS/error interceptors, and the `IgnifyrServerExtension` SPI |
+| `ignifyr-connector-fhir-server` | FHIR-server-as-**source** (the FHIR sink stays community) |
+| `ignifyr-connector-kafka` | Kafka source connector |
+| `ignifyr-format-json` | JSON/NDJSON **source** file format |
+| `ignifyr-format-delta` | Delta Lake **sink** file format; contributes its Spark session/catalog wiring via the SPI's `sparkConfContributions` |
+| `ignifyr-runtime-streaming` | Streaming execution capability (`StreamingExecutionProvider`) |
+| `ignifyr-runtime-scheduling` | Cron scheduling capability (`SchedulerProvider`, cron4j) |
+| `ignifyr-redcap` | REDCap server routes + the `extract-redcap-schemas` CLI command |
+| `ignifyr-observability` | Structured (Logstash JSON) audit encoding + Fluentd log shipping |
+| `ignifyr-terminology-tools` | Offline OMOP terminology-map generator (standalone tool; not a dep of cli/server) |
+
+**Standalone:** [`ignifyr-rxnorm`](ignifyr-rxnorm/CLAUDE.md) — RxNorm API client + FHIRPath terminology functions.
 
 ## Build / test / run
 
