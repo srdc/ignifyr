@@ -1,5 +1,7 @@
 package io.ignifyr.connector.file
 
+import com.typesafe.config.Config
+import io.ignifyr.connector.file.format.FileFormatRegistry
 import io.ignifyr.engine.data.read.BaseDataSourceReader
 import io.ignifyr.engine.data.write.BaseFhirWriter
 import io.ignifyr.engine.model.{
@@ -23,6 +25,18 @@ import org.apache.spark.sql.SparkSession
 class FileConnectorExtension extends IgnifyrExtension {
 
   override val id: String = "connector-file"
+
+  /**
+   * Force the file-format registry to materialize at engine startup (this runs during
+   * `ExtensionRegistry` load), so a duplicate source/sink format registration fails fast here rather
+   * than mid-job on first read/write — mirroring the engine's `ExtensionRegistry.init()`. Only reads
+   * the classpath (ServiceLoader); does not touch the SparkSession.
+   */
+  override def initialize(config: Config): Unit = {
+    FileFormatRegistry.sourceFormats
+    FileFormatRegistry.sinkFormats
+    ()
+  }
 
   override def sourceConnectors: Seq[SourceConnector] = Seq(
     new SourceConnector {
