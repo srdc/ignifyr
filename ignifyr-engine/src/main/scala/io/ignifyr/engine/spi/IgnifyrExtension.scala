@@ -71,4 +71,11 @@ trait IgnifyrExtension {
    * touches the SparkSession avoids an initialization cycle.
    */
   def sparkConfContributions: Map[String, String] = Map.empty
+
+  /**
+   * Extra, human-readable capability lines for the `list-plugins` command — for contributions the
+   * engine's typed registries cannot introspect on their own, such as a module's own sub-registry
+   * (e.g. the file connector's discovered source/sink formats). Purely descriptive; empty by default.
+   */
+  def extraCapabilities: Seq[String] = Nil
 }

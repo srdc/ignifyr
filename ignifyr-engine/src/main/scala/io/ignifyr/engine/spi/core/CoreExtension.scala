@@ -2,7 +2,7 @@ package io.ignifyr.engine.spi.core
 
 import io.onfhir.api.service.{IFhirIdentityService, IFhirTerminologyService}
 import io.onfhir.client.{IdentityServiceClient, TerminologyServiceClient}
-import io.ignifyr.engine.cli.command.{Command, Exit, Help, ListRunningMappings, Load, Reload, Run, Stop}
+import io.ignifyr.engine.cli.command.{Command, Exit, Help, ListPlugins, ListRunningMappings, Load, Reload, Run, Stop}
 import io.ignifyr.engine.data.write.{BaseFhirWriter, FhirRepositoryWriter}
 import io.ignifyr.engine.mapping.service.LocalTerminologyService
 import io.ignifyr.engine.model._
@@ -60,6 +60,7 @@ class CoreExtension extends IgnifyrExtension {
     command("reload")(new Reload()),
     command("run", Seq("execute"))(new Run()),
     command("list")(new ListRunningMappings()),
+    command("list-plugins")(new ListPlugins()),
     command("stop")(new Stop()),
     command("exit", Seq("quit"))(new Exit())
   )
