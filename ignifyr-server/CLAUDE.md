@@ -2,11 +2,23 @@
 
 Akka-HTTP server exposing a REST API to manage Ignifyr projects, mappings, schemas, jobs,
 terminology systems, and to trigger executions. Package root `io.ignifyr.server`. Depends on
-`ignifyr-engine` and `ignifyr-server-common`.
+`ignifyr-engine`, `ignifyr-common`, `ignifyr-server-common`, and `ignifyr-rxnorm`.
+
+**It is the enterprise standalone distribution** — the analogue of the community `ignifyr-cli`. Its
+maven-shade assembly produces `target/ignifyr-server-standalone.jar` (Main-Class `io.ignifyr.server.Boot`),
+bundling the engine plus every edition plugin module it can run: community `ignifyr-connector-sql`/`-file`
+and enterprise `ignifyr-connector-fhir-server`/`-kafka`, `ignifyr-format-json`/`-delta`,
+`ignifyr-runtime-streaming`/`-scheduling`, `ignifyr-redcap`, `ignifyr-observability`. All are discovered
+at runtime through the `IgnifyrExtension` / `IgnifyrServerExtension` ServiceLoader SPIs — the server
+names none of them in code.
 
 ## Entry & wiring
 - `Boot` → `IgnifyrServer.start()` → `IgnifyrHttpServer` binds Akka-HTTP (default port **8085**, base path `/ignifyr`).
-- `endpoint/IgnifyrServerEndpoint` assembles the full route tree (`ignifyrRoute`) from the per-resource endpoints.
+- `IgnifyrServer.start()` also runs `IgnifyrServerExtensions.load(rootConfig)` and threads the discovered
+  `Seq[IgnifyrServerExtension]` into `IgnifyrServerEndpoint`, `MetadataEndpoint`, and (via `ProjectEndpoint`)
+  `SchemaDefinitionEndpoint`.
+- `endpoint/IgnifyrServerEndpoint` assembles the full route tree (`ignifyrRoute`) from the per-resource
+  endpoints, concatenating each extension's `rootRoutes` (`extensionRootRoutes`).
 
 ## Layout (`src/main/scala/io/ignifyr/server/`)
 - `endpoint/` — one class per resource: `ProjectEndpoint`, `MappingEndpoint`, `SchemaDefinitionEndpoint`,
@@ -14,7 +26,11 @@ terminology systems, and to trigger executions. Package root `io.ignifyr.server`
   `ConceptMapEndpoint`, `ReloadEndpoint`, `MetadataEndpoint`, `FileSystemTreeStructureEndpoint`,
   plus the root `IgnifyrServerEndpoint`. Additional routes are contributed by installed modules via
   the `IgnifyrServerExtension` SPI in `ignifyr-server-common` (e.g. `ignifyr-redcap`'s `/redcap`
-  proxy and `/projects/{id}/schemas/redcap` import).
+  proxy and `/projects/{id}/schemas/redcap` import). Two seams route those contributions:
+  `SchemaDefinitionEndpoint` mounts each extension's `schemaImportRoutes(SchemaImportSink)` under
+  `/projects/{id}/schemas` (the sink persists schemas without the module touching the repository
+  layer), and `MetadataEndpoint` reports each extension's `externalComponentVersion()` (e.g. the
+  connected tofhir-redcap version) in `/metadata`.
 - `service/` — business logic per resource (`ProjectService`, `MappingService`, `JobService`,
   `ExecutionService`, `SchemaDefinitionService`, terminology services…).
 - `repository/` — file-backed persistence; an interface + a `*FolderRepository` impl per resource

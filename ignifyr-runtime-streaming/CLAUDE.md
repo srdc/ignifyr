@@ -1,0 +1,37 @@
+# ignifyr-runtime-streaming — streaming execution capability
+
+Enterprise module providing Spark structured-streaming execution as an installable capability behind
+the engine's `StreamingExecutionProvider` SPI. Package root `io.ignifyr.runtime.streaming`. Bundled
+into `ignifyr-server`, **not** `ignifyr-cli`. Its only production dependency is `ignifyr-engine`
+(Spark streaming comes transitively), so it carries no enterprise-only libs.
+
+The community engine can build a streaming source dataset, but **starting and writing** the streaming
+queries lives here. Without this module a job with `asStream=true` (or streaming source settings)
+parses fine and fails at launch with `MissingCapabilityException` naming
+`com.pontegra.ignifyr:ignifyr-runtime-streaming`. This is a carve-out of code that previously lived in
+`FhirMappingJobManager.startMappingJobStream` — the "one-folder move between editions" rule in action.
+
+## Layout (`src/main/scala/io/ignifyr/runtime/streaming/`)
+- `StreamingRuntimeExtension` — the `IgnifyrExtension` impl (`id = "runtime-streaming"`); overrides
+  `streamingProvider` to `Some(new StreamingJobExecutor)`, contributes nothing else. Named in the sole
+  `META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension` file.
+- `StreamingJobExecutor` — implements `StreamingExecutionProvider.startMappingJobStream`: builds the
+  writer, runs each task through the engine's `MappingTaskPipeline.runMappingTask`, writes via
+  `StreamingSinkHandler`, logs STARTED/FAILURE, and returns `Map[taskName, Future[StreamingQuery]]`.
+- `StreamingSinkHandler` (object) — `writeStream` wraps the engine's batch `SinkHandler.writeMappingResult`
+  inside a Spark `foreachBatch`, so each micro-batch is written exactly like a batch chunk, with an
+  explicit per-job/per-mapping-task `checkpointLocation`.
+
+## Notes
+- The engine's `ExtensionRegistry.streaming` is a single-capability `Option` — **at most one** provider
+  may be installed (more is a config error).
+- Two deliberate error strategies coexist: `StreamingSinkHandler` **catches per-micro-batch exceptions
+  and only logs** (the stream survives bad chunks), while `StreamingJobExecutor`'s task-level `.recover`
+  logs FAILURE and **rethrows**.
+- Checkpoint dirs are per-job **and** per-mapping-task so distinct streams never mix Spark offsets.
+
+## Tests
+One unit suite, `StreamingSinkHandlerTest` (`AnyFlatSpec`, mockito-scala; no Docker, no testkit dep):
+drives a `rate` stream through `StreamingSinkHandler.writeStream` and asserts the catch-and-continue
+behaviour. Its package is `io.ignifyr.runtime.streaming` (not the engine's `io.ignifyr.test`
+convention). `mvn test -pl ignifyr-runtime-streaming`.
