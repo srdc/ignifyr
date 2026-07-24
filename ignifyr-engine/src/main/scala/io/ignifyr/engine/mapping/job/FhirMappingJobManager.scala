@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.Logger
 import io.onfhir.path.IFhirPathFunctionLibraryFactory
 import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.data.read.SourceHandler
-import io.ignifyr.engine.data.write.{BaseFhirWriter, FhirWriterFactory, SinkHandler}
+import io.ignifyr.engine.data.write.{BaseSinkWriter, SinkWriterFactory, SinkHandler}
 import io.ignifyr.engine.execution.log.ExecutionLogger
 import io.ignifyr.engine.mapping._
 import io.ignifyr.engine.mapping.context.IMappingContextLoader
@@ -84,13 +84,13 @@ class FhirMappingJobManager(
   override def executeMappingJob(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None,
       timeRange: Option[(LocalDateTime, LocalDateTime)] = None
   ): Future[Unit] = {
-    val fhirWriter = FhirWriterFactory.apply(sinkSettings)
-    fhirWriter.validate()
+    val sinkWriter = SinkWriterFactory.apply(sinkSettings)
+    sinkWriter.validate()
     mappingJobExecution.mappingTasks.foldLeft(Future((): Unit)) { (f, task) => // Initial empty Future
       f.flatMap { _ => // Execute the Futures in the Sequence consecutively (not in parallel)
         // log the start of the FHIR mapping task execution
@@ -103,7 +103,7 @@ class FhirMappingJobManager(
         readSourceExecuteAndWriteInChunks(
           mappingJobExecution.copy(mappingTasks = Seq(task)),
           sourceSettings,
-          fhirWriter,
+          sinkWriter,
           terminologyServiceSettings,
           identityServiceSettings,
           timeRange
@@ -171,7 +171,7 @@ class FhirMappingJobManager(
   override def startMappingJobStream(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None
   ): Map[String, Future[StreamingQuery]] =
@@ -207,12 +207,12 @@ class FhirMappingJobManager(
   override def executeMappingTask(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None
   ): Future[Unit] = {
-    val fhirWriter = FhirWriterFactory.apply(sinkSettings)
-    fhirWriter.validate()
+    val sinkWriter = SinkWriterFactory.apply(sinkSettings)
+    sinkWriter.validate()
 
     readSourceAndExecuteTask(
       mappingJobExecution.jobId,
@@ -229,7 +229,7 @@ class FhirMappingJobManager(
           mappingJobExecution,
           mappingJobExecution.mappingTasks.head.name,
           dataset,
-          fhirWriter
+          sinkWriter
         )
       }
   }
@@ -281,7 +281,7 @@ class FhirMappingJobManager(
    *
    * @param mappingJobExecution        Fhir Mapping Job execution
    * @param sourceSettings             The source settings of the mapping job
-   * @param fhirWriter                 FHIR writer
+   * @param sinkWriter                 FHIR writer
    * @param terminologyServiceSettings Terminology service settings
    * @param identityServiceSettings    Identity service settings
    * @param timeRange                  Time range for the source data to load
@@ -290,7 +290,7 @@ class FhirMappingJobManager(
   private def readSourceExecuteAndWriteInChunks(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      fhirWriter: BaseFhirWriter,
+      sinkWriter: BaseSinkWriter,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None,
       timeRange: Option[(LocalDateTime, LocalDateTime)] = None
@@ -324,7 +324,7 @@ class FhirMappingJobManager(
               executeSingleBatch(
                 mappingJobExecution.copy(mappingTasks = Seq(batchTask)),
                 sourceSettings,
-                fhirWriter,
+                sinkWriter,
                 terminologyServiceSettings,
                 identityServiceSettings,
                 timeRange,
@@ -341,7 +341,7 @@ class FhirMappingJobManager(
         executeSingleBatch(
           mappingJobExecution,
           sourceSettings,
-          fhirWriter,
+          sinkWriter,
           terminologyServiceSettings,
           identityServiceSettings,
           timeRange,
@@ -359,7 +359,7 @@ class FhirMappingJobManager(
    *
    * @param mappingJobExecution        Fhir Mapping Job execution
    * @param sourceSettings             The source settings of the mapping job
-   * @param fhirWriter                 FHIR writer
+   * @param sinkWriter                 FHIR writer
    * @param terminologyServiceSettings Terminology service settings
    * @param identityServiceSettings    Identity service settings
    * @param timeRange                  Time range for the source data to load
@@ -372,7 +372,7 @@ class FhirMappingJobManager(
   private def executeSingleBatch(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      fhirWriter: BaseFhirWriter,
+      sinkWriter: BaseSinkWriter,
       terminologyServiceSettings: Option[TerminologyServiceSettings],
       identityServiceSettings: Option[IdentityServiceSettings],
       timeRange: Option[(LocalDateTime, LocalDateTime)],
@@ -415,7 +415,7 @@ class FhirMappingJobManager(
           Some(mappingJobExecution.projectId)
         )
           .map(dataset =>
-            SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, fhirWriter)
+            SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, sinkWriter)
           ) // Write the created FHIR Resources to the FhirWriter
       case Some(chunkSize) if sizeOfDf < chunkSize =>
         logger.debug(s"Executing the mapping ${mappingTask.name}$batchInfo within job ${mappingJobExecution.jobId} ...")
@@ -431,7 +431,7 @@ class FhirMappingJobManager(
           Some(mappingJobExecution.projectId)
         )
           .map(dataset =>
-            SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, fhirWriter)
+            SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, sinkWriter)
           ) // Write the created FHIR Resources to the FhirWriter
       // Otherwise divide the data into chunks
       case Some(chunkSize) =>
@@ -457,7 +457,7 @@ class FhirMappingJobManager(
                 projectId = Some(mappingJobExecution.projectId)
               )
                 .map(dataset =>
-                  SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, fhirWriter)
+                  SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTask.name, dataset, sinkWriter)
                 )
                 .map(_ =>
                   logger.debug(

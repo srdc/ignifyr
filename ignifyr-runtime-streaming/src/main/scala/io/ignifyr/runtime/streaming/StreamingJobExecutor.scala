@@ -1,12 +1,12 @@
 package io.ignifyr.runtime.streaming
 
 import com.typesafe.scalalogging.Logger
-import io.ignifyr.engine.data.write.FhirWriterFactory
+import io.ignifyr.engine.data.write.SinkWriterFactory
 import io.ignifyr.engine.execution.log.ExecutionLogger
 import io.ignifyr.engine.model.{
   FhirMappingJobExecution,
   FhirMappingJobResult,
-  FhirSinkSettings,
+  SinkSettings,
   IdentityServiceSettings,
   MappingJobSourceSettings,
   TerminologyServiceSettings
@@ -30,12 +30,12 @@ class StreamingJobExecutor extends StreamingExecutionProvider {
       pipeline: MappingTaskPipeline,
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings],
       identityServiceSettings: Option[IdentityServiceSettings]
   )(implicit ec: ExecutionContext): Map[String, Future[StreamingQuery]] = {
-    val fhirWriter = FhirWriterFactory.apply(sinkSettings)
-    fhirWriter.validate()
+    val sinkWriter = SinkWriterFactory.apply(sinkSettings)
+    sinkWriter.validate()
     mappingJobExecution.mappingTasks
       .map(t => {
         logger.debug(
@@ -57,7 +57,7 @@ class StreamingJobExecutor extends StreamingExecutionProvider {
               projectId = Some(mappingJobExecution.projectId)
             )
             .map(ts =>
-              StreamingSinkHandler.writeStream(pipeline.sparkSession, mappingJobExecution, ts, fhirWriter, t.name)
+              StreamingSinkHandler.writeStream(pipeline.sparkSession, mappingJobExecution, ts, sinkWriter, t.name)
             )
             .recover { case e: Throwable =>
               // log the execution status as "FAILURE"

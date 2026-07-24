@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.ignifyr</groupId>
+        <artifactId>ignifyr_2.13</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>ignifyr-sink-fhir_2.13</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      Community FHIR-repository sink. Contributes the FhirRepositoryWriter to the engine through the
+      IgnifyrExtension SPI (discovered via META-INF/services), plus the onfhir-client-backed
+      terminology/identity service providers keyed by FhirRepositorySinkSettings (the same server
+      connection doubles as both). With this module extracted, the engine itself ships no concrete
+      sinks. Note the extraction is structural, not dependency-driven: FhirRepositorySinkSettings is
+      an engine model class referencing onfhir-client types, so onfhir-client stays an engine
+      dependency regardless.
+    -->
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <!-- Unit phase: the no-Docker registration spec only. -->
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.sink.fhir</wildcardSuites>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Community edition boundary gate: bans enterprise-only deps (see root pluginManagement). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-enterprise-deps</id>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <!-- Engine library: SPI, base sink writer, models -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-engine_2.13</artifactId>
+        </dependency>
+
+        <!-- onFHIR client: the FHIR batch/transaction requests plus the terminology/identity service clients -->
+        <dependency>
+            <groupId>io.onfhir</groupId>
+            <artifactId>onfhir-client_${scala.binary.version}</artifactId>
+        </dependency>
+
+        <!-- Shared test harness (scalatest transitively); hosts the no-Docker registration spec. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

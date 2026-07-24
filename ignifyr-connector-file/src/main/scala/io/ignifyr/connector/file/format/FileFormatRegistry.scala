@@ -6,15 +6,16 @@ import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
 
 /**
- * Registry of the installed file source/sink [[FileSourceFormat]] / [[FileSinkFormat]] handlers,
- * discovered via [[java.util.ServiceLoader]] over the classpath and keyed by content type. This is
- * the file connector's own extensibility seam, parallel to the engine's `ExtensionRegistry` but for
- * the sub-formats of the single `file` connector/sink.
+ * Registry of the installed file source [[FileSourceFormat]] handlers, discovered via
+ * [[java.util.ServiceLoader]] over the classpath and keyed by content type. This is the file
+ * connector's own extensibility seam, parallel to the engine's `ExtensionRegistry` but for the
+ * sub-formats of the single `file` connector (the sink-format twin lives in `ignifyr-sink-file`'s
+ * `FileSinkFormatRegistry`).
  *
- * Maps are built once, on first access; a content type claimed by more than one handler is a
+ * The map is built once, on first access; a content type claimed by more than one handler is a
  * configuration error and fails fast, naming both owners. A content type with no handler is not an
  * error here — it surfaces as a [[MissingFileFormatException]] at the call site (so a job naming an
- * uninstalled format parses fine and fails only when it tries to read/write).
+ * uninstalled format parses fine and fails only when it tries to read).
  */
 object FileFormatRegistry {
 
@@ -30,28 +31,11 @@ object FileFormatRegistry {
         .flatMap(format => format.contentTypes.map(_ -> format))
     )
 
-  lazy val sinkFormats: Map[String, FileSinkFormat] =
-    indexUnique("file sink format")(
-      ServiceLoader
-        .load(classOf[FileSinkFormat], classOf[FileSinkFormat].getClassLoader)
-        .iterator()
-        .asScala
-        .toSeq
-        .flatMap(format => format.contentTypes.map(_ -> format))
-    )
-
   /** Resolves the source-format handler for a content type, or fails with an install hint. */
   def sourceFormat(contentType: String): FileSourceFormat =
     sourceFormats.getOrElse(
       contentType,
       throw MissingFileFormatException(FileFormatHints.describeSourceFormat(contentType))
-    )
-
-  /** Resolves the sink-format handler for a content type, or fails with an install hint. */
-  def sinkFormat(contentType: String): FileSinkFormat =
-    sinkFormats.getOrElse(
-      contentType,
-      throw MissingFileFormatException(FileFormatHints.describeSinkFormat(contentType))
     )
 
   private def indexUnique[V](what: String)(entries: Seq[(String, V)]): Map[String, V] = {

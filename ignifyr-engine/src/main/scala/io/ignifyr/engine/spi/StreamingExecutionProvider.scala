@@ -2,7 +2,7 @@ package io.ignifyr.engine.spi
 
 import io.ignifyr.engine.model.{
   FhirMappingJobExecution,
-  FhirSinkSettings,
+  SinkSettings,
   IdentityServiceSettings,
   MappingJobSourceSettings,
   TerminologyServiceSettings
@@ -30,7 +30,7 @@ trait StreamingExecutionProvider {
       pipeline: MappingTaskPipeline,
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings],
       identityServiceSettings: Option[IdentityServiceSettings]
   )(implicit ec: ExecutionContext): Map[String, Future[StreamingQuery]]

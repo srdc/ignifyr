@@ -80,6 +80,8 @@
         <module>ignifyr-engine</module>
         <module>ignifyr-connector-sql</module>
         <module>ignifyr-connector-file</module>
+        <module>ignifyr-sink-fhir</module>
+        <module>ignifyr-sink-file</module>
         <module>ignifyr-format-json</module>
         <module>ignifyr-format-delta</module>
         <module>ignifyr-connector-fhir-server</module>
@@ -567,6 +569,16 @@
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-connector-file_2.13</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-sink-fhir_2.13</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.ignifyr</groupId>
+                <artifactId>ignifyr-sink-file_2.13</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

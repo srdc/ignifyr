@@ -1,7 +1,12 @@
 package io.ignifyr.connector.fhirserver
 
 import io.ignifyr.engine.data.read.BaseDataSourceReader
-import io.ignifyr.engine.model.{FhirServerSource, FhirServerSourceSettings, MappingJobSourceSettings, MappingSourceBinding}
+import io.ignifyr.engine.model.{
+  FhirServerSource,
+  FhirServerSourceSettings,
+  MappingJobSourceSettings,
+  MappingSourceBinding
+}
 import io.ignifyr.engine.spi.{IgnifyrExtension, SourceConnector}
 import org.apache.spark.sql.SparkSession
 

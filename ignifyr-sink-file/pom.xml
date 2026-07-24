@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.ignifyr</groupId>
+        <artifactId>ignifyr_2.13</artifactId>
+        <version>${revision}</version>
+    </parent>
+
+    <artifactId>ignifyr-sink-file_2.13</artifactId>
+    <packaging>jar</packaging>
+
+    <!--
+      Community file-system sink. Contributes the FileSystemWriter to the engine through the
+      IgnifyrExtension SPI (discovered via META-INF/services) and owns a module-local FileSinkFormat
+      sub-SPI (its own ServiceLoader registry) shipping the ndjson/csv/parquet output formats; the
+      enterprise ignifyr-format-delta plugs its Delta writer into that sub-SPI. The file-system
+      *source* lives in ignifyr-connector-file.
+    -->
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala</testSourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <!-- Unit phase: the registration spec + the writer tests (no Docker). -->
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.sink.file</wildcardSuites>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- Community edition boundary gate: bans enterprise-only deps (see root pluginManagement). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-enterprise-deps</id>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <!-- Engine library: SPI, base sink writer, models -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-engine_2.13</artifactId>
+        </dependency>
+
+        <!-- Shared test harness (IgnifyrTestSpec fixtures + scalatest transitively). -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

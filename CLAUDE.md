@@ -35,7 +35,7 @@ runtime — the engine never names a connector/format directly. A maven-enforcer
 gate keeps enterprise-only libraries (Kafka, cron4j, Delta, DB2 JCC, Logstash/Fluentd) out of the
 community modules.
 
-Dependency direction: `ignifyr-common` ← `ignifyr-engine` ← the connector/format/runtime plugin
+Dependency direction: `ignifyr-common` ← `ignifyr-engine` ← the connector/sink/format/runtime plugin
 modules (each depends on the engine and is discovered at runtime); `ignifyr-server-common` ←
 `ignifyr-server`. `ignifyr-cli` (community) and `ignifyr-server` (enterprise) are the two
 **distributions** — each shades the engine plus the plugin modules that ship in its edition.
@@ -47,7 +47,9 @@ modules (each depends on the engine and is discovered at runtime); `ignifyr-serv
 | [`ignifyr-engine`](ignifyr-engine/CLAUDE.md) | Core mapping/transformation engine, CLI/batch entrypoint, and the extension SPI |
 | [`ignifyr-common`](ignifyr-common/CLAUDE.md) | Shared models, version, custom mapping fns, exception utils |
 | `ignifyr-connector-sql` | SQL/JDBC source connector (ships the PostgreSQL driver) |
-| `ignifyr-connector-file` | File-system source + sink; owns a pluggable file-format sub-SPI (`FileSourceFormat`/`FileSinkFormat`, its own `FileFormatRegistry`/ServiceLoader) shipping csv/tsv/parquet source + ndjson/csv/parquet sink |
+| `ignifyr-connector-file` | File-system source; owns a pluggable source-format sub-SPI (`FileSourceFormat`, its own `FileFormatRegistry`/ServiceLoader) shipping csv/tsv/parquet |
+| `ignifyr-sink-fhir` | FHIR-repository sink writer (the flagship output) + the FHIR-server-backed terminology/identity service providers |
+| `ignifyr-sink-file` | File-system sink; owns the pluggable sink-format sub-SPI (`FileSinkFormat`, its own `FileSinkFormatRegistry`/ServiceLoader) shipping ndjson/csv/parquet |
 | `ignifyr-cli` | Community standalone fat-jar assembly (Main-Class `io.ignifyr.engine.Boot`) |
 | `ignifyr-testkit` | Shared test harness (`IgnifyrTestSpec`, `OnFhirTestContainer`, fixtures); test-only, never shipped |
 

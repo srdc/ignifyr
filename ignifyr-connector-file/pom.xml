@@ -14,12 +14,12 @@
     <packaging>jar</packaging>
 
     <!--
-      Community file-system connector: the FileDataSourceReader and FileSystemWriter, contributed to
-      the engine through the IgnifyrExtension SPI (discovered via META-INF/services). It also owns a
-      connector-local file-format sub-SPI (FileSourceFormat / FileSinkFormat, discovered through their
-      own ServiceLoader) and ships the community formats: csv/tsv/parquet source and ndjson/csv/parquet
-      sink (FHIR bulk output). JSON/NDJSON *source* and the Delta *sink* are split into enterprise
-      format-* modules; the reader/writer stay format-agnostic. Apache-2.0-clean.
+      Community file-system source connector: the FileDataSourceReader, contributed to the engine
+      through the IgnifyrExtension SPI (discovered via META-INF/services). It also owns a
+      connector-local source-format sub-SPI (FileSourceFormat, discovered through its own
+      ServiceLoader) and ships the community formats: csv/tsv/parquet. The JSON/NDJSON *source*
+      format is the enterprise ignifyr-format-json; the reader stays format-agnostic. The
+      file-system *sink* lives in ignifyr-sink-file. Apache-2.0-clean.
     -->
 
     <build>
@@ -83,6 +83,14 @@
         <dependency>
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-testkit_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- The integration test writes its mapped resources to the onFHIR container, so the
+             FHIR-repository sink module must be on the test classpath. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-fhir_2.13</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -8,7 +8,7 @@ import io.onfhir.client.util.FhirClientUtil
 /**
  * Common interface for sink settings
  */
-trait FhirSinkSettings
+trait SinkSettings
 
 /**
  * Settings to write mapped FHIR resources to file system
@@ -32,7 +32,7 @@ case class FileSystemSinkSettings(
     options: Map[String, String] = Map.empty[String, String],
     partitionByResourceType: Boolean = false,
     partitioningColumns: Map[String, List[String]] = Map.empty[String, List[String]]
-) extends FhirSinkSettings {
+) extends SinkSettings {
 
   /**
    * Retrieves the partition columns for a given resource type.
@@ -58,7 +58,7 @@ case class FhirRepositorySinkSettings(
     fhirRepoUrl: String,
     securitySettings: Option[IFhirRepositorySecuritySettings] = None,
     returnMinimal: Boolean = true
-) extends FhirSinkSettings
+) extends SinkSettings
     with IdentityServiceSettings
     with TerminologyServiceSettings {
 

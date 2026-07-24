@@ -1,7 +1,7 @@
 package io.ignifyr.runtime.streaming
 
 import io.ignifyr.engine.config.IgnifyrConfig
-import io.ignifyr.engine.data.write.BaseFhirWriter
+import io.ignifyr.engine.data.write.BaseSinkWriter
 import io.ignifyr.engine.model.{
   DataProcessingSettings,
   FhirMappingJob,
@@ -62,7 +62,7 @@ class StreamingSinkHandlerTest extends AnyFlatSpec with BeforeAndAfterAll {
 
     // Configure the mock writer such that it would throw an exception for the first chunk but not for the subsequent chunks
     var chunkCount = 0
-    val mockWriter: BaseFhirWriter = mock[BaseFhirWriter]
+    val mockWriter: BaseSinkWriter = mock[BaseSinkWriter]
     when(
       mockWriter.write(
         ArgumentMatchers.any(),

@@ -28,11 +28,11 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
 - `data/read/` — `BaseDataSourceReader` (abstract base) + `SourceHandler`, which wraps the read and
   dispatches via `ExtensionRegistry.sourceConnectors`. The file reader (`FileDataSourceReader`) and the
   SQL/Kafka/FHIR-server readers all live in their `ignifyr-connector-*` modules.
-- `data/write/` — `BaseFhirWriter` + `FhirRepositoryWriter` (the community FHIR-server sink) and
-  `SinkHandler` (orchestrates writes, dispatches via `ExtensionRegistry.sinkProviders`). The
-  file-system writer (`FileSystemWriter`) and its pluggable output formats live in
-  `ignifyr-connector-file` (a `FileSourceFormat`/`FileSinkFormat` sub-SPI); JSON-source and Delta-sink
-  formats are the enterprise `ignifyr-format-*` modules.
+- `data/write/` — `BaseSinkWriter` + `SinkWriterFactory` and `SinkHandler` (orchestrates writes,
+  dispatches via `ExtensionRegistry.sinkProviders`). Every concrete sink lives in its own
+  `ignifyr-sink-*` module: the FHIR-repository writer in `ignifyr-sink-fhir`, the file-system
+  writer and its pluggable output formats in `ignifyr-sink-file` (a `FileSinkFormat` sub-SPI);
+  JSON-source and Delta-sink formats are the enterprise `ignifyr-format-*` modules.
 - `mapping/` — `MappingTaskExecutor`, `FhirMappingService`, `job/FhirMappingJobManager` (batch +
   delegating streaming/scheduling seams), `schema/` (load/convert schemas), `context/MappingContextLoader`,
   `fhirPath/FhirPathMappingFunctions`, `service/LocalTerminologyService`. Cron scheduling itself lives

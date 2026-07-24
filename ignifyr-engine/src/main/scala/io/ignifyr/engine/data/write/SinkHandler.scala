@@ -26,7 +26,7 @@ object SinkHandler {
       mappingJobExecution: FhirMappingJobExecution,
       mappingTaskName: String,
       df: Dataset[FhirMappingResult],
-      resourceWriter: BaseFhirWriter
+      resourceWriter: BaseSinkWriter
   ): Unit = {
     // Cache the dataframe
     df.cache()

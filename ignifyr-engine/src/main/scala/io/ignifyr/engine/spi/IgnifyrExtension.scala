@@ -39,7 +39,7 @@ trait IgnifyrExtension {
   /** Data-source readers this module contributes, keyed at registration by their binding class. */
   def sourceConnectors: Seq[SourceConnector] = Nil
 
-  /** FHIR sink writers this module contributes, keyed at registration by their sink-settings class. */
+  /** Sink writers this module contributes, keyed at registration by their sink-settings class. */
   def sinkProviders: Seq[SinkProvider] = Nil
 
   /** Terminology-service providers, keyed at registration by their settings class. */
