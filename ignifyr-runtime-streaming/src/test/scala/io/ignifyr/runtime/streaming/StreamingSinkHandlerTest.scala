@@ -9,18 +9,34 @@ import io.ignifyr.engine.model.{
   FhirMappingResult,
   FileSystemSourceSettings
 }
+import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.mockito.ArgumentMatchers
 import org.mockito.MockitoSugar._
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.io.File
 import java.sql.Timestamp
 import java.time.Instant
 import scala.language.postfixOps
 
-class StreamingSinkHandlerTest extends AnyFlatSpec {
+class StreamingSinkHandlerTest extends AnyFlatSpec with BeforeAndAfterAll {
 
   val sparkSession: SparkSession = IgnifyrConfig.sparkSession
+
+  /**
+   * The streaming query below writes Spark offset/commit logs under a fixed checkpoint path
+   * (jobId / mapping-task hash). Leftover logs from a previous run make the next run fail with
+   * CONCURRENT_STREAM_LOG_UPDATE, so wipe the checkpoint directory around the suite — beforeAll
+   * guards against a prior interrupted run, afterAll keeps the working tree clean.
+   */
+  private def clearCheckpointDirectory(): Unit =
+    FileUtils.deleteQuietly(new File(IgnifyrConfig.sparkCheckpointDirectory))
+
+  override def beforeAll(): Unit = clearCheckpointDirectory()
+
+  override def afterAll(): Unit = clearCheckpointDirectory()
 
   "StreamingSinkHandler" should "continue processing subsequent chunks for streaming queries after a chunk throws an exception" in { //
     // A mock
