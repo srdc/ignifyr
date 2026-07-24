@@ -48,7 +48,6 @@ object FileSinkSupport {
       singleColumnJson: Boolean,
       writeGroup: (DataFrameWriter[Row], String) => Unit
   ): Unit = {
-    import spark.implicits._
     // Check if the sink path is for HDFS
     if (sinkSettings.path.startsWith("hdfs://")) {
       writePartitionedToHdfs(df, sinkSettings)
@@ -63,38 +62,60 @@ object FileSinkSupport {
           val resourceType = rDf.getAs[String]("resourceType")
           // Convert the mutable ArraySeq (default in Spark) to an immutable List
           val resourcesSeq = rDf.getAs[Seq[String]]("resources").toList
-          val partitionColumns = sinkSettings.getPartitioningColumns(resourceType)
-
-          val resourcesDF = if (singleColumnJson) {
-            // Single-column frame of raw JSON strings (NDJSON output).
-            resourcesSeq.toDF("mappedResourceJson")
+          if (resourceType == null) {
+            // A mapped output without a `resourceType` discriminator (e.g. a flat/tabular mapping result)
+            // cannot be routed to a per-type directory — skip it instead of writing a literal "null" folder.
+            logger.warn(
+              s"Skipping ${resourcesSeq.size} mapped result(s) without a 'resourceType' discriminator while " +
+                s"writing partitioned by resource type to '${sinkSettings.path}'."
+            )
           } else {
-            // Parse the JSON strings into a multi-column frame (parquet/delta output).
-            val resourcesDS = spark.createDataset(resourcesSeq)
-            val parsed = spark.read.json(resourcesDS)
-            if (partitionColumns.isEmpty) {
-              parsed
-            } else {
-              // Some partition columns may not exist in the frame (e.g. nested fields like
-              // `subject.reference`); add the missing ones so Spark can partition accordingly.
-              val existingColumns = parsed.columns
-              val filteredPartitionColumns =
-                partitionColumns.filterNot(pc => existingColumns.exists(_.contentEquals(pc)))
-              val allColumnsWithPartition =
-                existingColumns.map(col) ++ filteredPartitionColumns.map(c => col(c).as(c))
-              parsed.select(allColumnsWithPartition: _*)
-            }
+            writeResourceTypeGroup(spark, resourceType, resourcesSeq, sinkSettings, singleColumnJson, writeGroup)
           }
-
-          // Define the output path based on the resourceType, ensuring each type is in its own folder.
-          val outputPath = s"${sinkSettings.path}/$resourceType"
-          val writer = getWriter(resourcesDF, sinkSettings)
-          // Apply partitioning if partition columns are specified
-          val partitionedWriter =
-            if (partitionColumns.nonEmpty) writer.partitionBy(partitionColumns: _*) else writer
-          writeGroup(partitionedWriter, outputPath)
         })
     }
+  }
+
+  /** Writes one resource-type group of the local partition-by-resource-type layout. */
+  private def writeResourceTypeGroup(
+      spark: SparkSession,
+      resourceType: String,
+      resourcesSeq: List[String],
+      sinkSettings: FileSystemSinkSettings,
+      singleColumnJson: Boolean,
+      writeGroup: (DataFrameWriter[Row], String) => Unit
+  ): Unit = {
+    import spark.implicits._
+    val partitionColumns = sinkSettings.getPartitioningColumns(resourceType)
+
+    val resourcesDF = if (singleColumnJson) {
+      // Single-column frame of raw JSON strings (NDJSON output).
+      resourcesSeq.toDF("mappedResourceJson")
+    } else {
+      // Parse the JSON strings into a multi-column frame (parquet/delta output).
+      val resourcesDS = spark.createDataset(resourcesSeq)
+      val parsed = spark.read.json(resourcesDS)
+      if (partitionColumns.isEmpty) {
+        parsed
+      } else {
+        // Some partition columns may not exist in the frame (e.g. nested fields like
+        // `subject.reference`); add the missing ones so Spark can partition accordingly.
+        val existingColumns = parsed.columns
+        val filteredPartitionColumns =
+          partitionColumns.filterNot(pc => existingColumns.exists(_.contentEquals(pc)))
+        val allColumnsWithPartition =
+          existingColumns.map(col) ++ filteredPartitionColumns.map(c => col(c).as(c))
+        parsed.select(allColumnsWithPartition: _*)
+      }
+    }
+
+    // Define the output path based on the resourceType, ensuring each type is in its own folder.
+    val outputPath = s"${sinkSettings.path}/$resourceType"
+    val writer = getWriter(resourcesDF, sinkSettings)
+    // Apply partitioning if partition columns are specified
+    val partitionedWriter =
+      if (partitionColumns.nonEmpty) writer.partitionBy(partitionColumns: _*) else writer
+    writeGroup(partitionedWriter, outputPath)
   }
 
   /**
@@ -110,7 +131,16 @@ object FileSinkSupport {
     df.foreachPartition((partition: Iterator[FhirMappingResult]) => {
       val fhirMappingResults: Seq[FhirMappingResult] = partition.toSeq
       if (fhirMappingResults.nonEmpty) {
-        fhirMappingResults.groupBy(_.resourceType.get).foreach { case (resourceType, fhirResources) =>
+        // Results without a `resourceType` discriminator cannot be routed to a per-type directory —
+        // skip them instead of failing the whole partition on `resourceType.get`.
+        val (routable, unrouted) = fhirMappingResults.partition(_.resourceType.isDefined)
+        if (unrouted.nonEmpty) {
+          logger.warn(
+            s"Skipping ${unrouted.size} mapped result(s) without a 'resourceType' discriminator while " +
+              s"writing partitioned by resource type to '${sinkSettings.path}'."
+          )
+        }
+        routable.groupBy(_.resourceType.get).foreach { case (resourceType, fhirResources) =>
           logger.debug("Will write {} {} resources to HDFS.", fhirResources.length, resourceType)
           val data = fhirResources.map(_.mappedFhirResource.get.mappedResource.get).mkString("\n")
 

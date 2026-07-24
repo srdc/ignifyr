@@ -37,10 +37,10 @@ object ExtensionHints {
   )
 
   def describeSource(bindingClass: Class[_]): String =
-    describe("source reader", bindingClass, sourceModules)
+    describe("source reader", "source type", bindingClass, sourceModules)
 
   def describeSink(settingsClass: Class[_]): String =
-    describe("FHIR writer", settingsClass, sinkModules)
+    describe("FHIR writer", "sink type", settingsClass, sinkModules)
 
   def describeCliCommand(commandToken: String): String =
     cliCommandModules.get(commandToken) match {
@@ -50,10 +50,10 @@ object ExtensionHints {
         s"Unknown command '$commandToken'."
     }
 
-  private def describe(what: String, cls: Class[_], modules: Map[Class[_], (String, String)]): String =
+  private def describe(what: String, kind: String, cls: Class[_], modules: Map[Class[_], (String, String)]): String =
     modules.get(cls) match {
       case Some((label, module)) =>
-        s"No $what registered for source type '$label'. Install the '$module' module."
+        s"No $what registered for $kind '$label'. Install the '$module' module."
       case None =>
         s"No $what registered for '${cls.getSimpleName}'. The module providing it is not installed."
     }

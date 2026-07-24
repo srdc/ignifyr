@@ -114,6 +114,36 @@ class FileSystemWriterTest extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   /**
+   * Tests that results whose mapped output carries no `resourceType` discriminator (e.g. flat/tabular
+   * mapping outputs) are skipped — not crashed on and not written to a literal "null" directory — when
+   * partitioning by resource type.
+   */
+  it should "skip results without a resourceType discriminator when partitioning by resource type" in {
+    val outputFolderPath = s"${IgnifyrConfig.engineConfig.contextPath}/output-ndjson-unrouted"
+    // Two results lack the discriminator; the rest of the fixture dataset is routable as usual
+    val undiscriminated = df.limit(2).collect().map(_.copy(resourceType = None)).toSeq
+    val dfWithUnrouted = df.union(sparkSession.createDataset(undiscriminated))
+    val fileSystemWriter = new FileSystemWriter(sinkSettings =
+      FileSystemSinkSettings(
+        path = outputFolderPath,
+        contentType = SinkContentTypes.NDJSON,
+        partitionByResourceType = true
+      )
+    )
+    fileSystemWriter.write(
+      sparkSession,
+      dfWithUnrouted,
+      sparkSession.sparkContext.collectionAccumulator[FhirMappingResult]
+    )
+
+    // Only the two known resource types are written — no "null" directory for the unrouted results
+    val writtenDirs = new java.io.File(outputFolderPath).listFiles().filter(_.isDirectory).map(_.getName).toSet
+    writtenDirs shouldBe Set("Patient", "Condition")
+    sparkSession.read.json(s"$outputFolderPath/Patient").count() shouldBe 10
+    sparkSession.read.json(s"$outputFolderPath/Condition").count() shouldBe 5
+  }
+
+  /**
    * Tests whether FileSystemWriter can write a DataFrame into a Parquet file.
    *
    * The test uses the following FileSystemSinkSettings:
