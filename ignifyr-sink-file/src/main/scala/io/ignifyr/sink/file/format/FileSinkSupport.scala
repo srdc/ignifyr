@@ -1,4 +1,4 @@
-package io.ignifyr.connector.file.format
+package io.ignifyr.sink.file.format
 
 import com.typesafe.scalalogging.Logger
 import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings}

@@ -6,7 +6,7 @@ import io.ignifyr.engine.mapping.job.IFhirMappingJobManager
 import io.ignifyr.engine.model.{
   BaseSchedulingSettings,
   FhirMappingJobExecution,
-  FhirSinkSettings,
+  SinkSettings,
   IdentityServiceSettings,
   MappingJobSourceSettings,
   SchedulingSettings,
@@ -46,7 +46,7 @@ class Cron4jSchedulerProvider extends SchedulerProvider {
       ignifyrDbFolderPath: String,
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       schedulingSettings: BaseSchedulingSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings],
       identityServiceSettings: Option[IdentityServiceSettings]
@@ -126,7 +126,7 @@ class Cron4jSchedulerProvider extends SchedulerProvider {
       mappingJobExecution: FhirMappingJobExecution,
       startTime: LocalDateTime,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings],
       identityServiceSettings: Option[IdentityServiceSettings],
       schedulingSettings: BaseSchedulingSettings

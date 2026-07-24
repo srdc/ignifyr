@@ -1,6 +1,6 @@
-package io.ignifyr.connector.file.format.sink
+package io.ignifyr.sink.file.format.sink
 
-import io.ignifyr.connector.file.format.{FileSinkFormat, FileSinkSupport}
+import io.ignifyr.sink.file.format.{FileSinkFormat, FileSinkSupport}
 import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings, SinkContentTypes}
 import org.apache.spark.sql.{Dataset, SparkSession}
 

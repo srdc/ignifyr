@@ -5,7 +5,7 @@ import io.ignifyr.engine.mapping.job.IFhirMappingJobManager
 import io.ignifyr.engine.model.{
   BaseSchedulingSettings,
   FhirMappingJobExecution,
-  FhirSinkSettings,
+  SinkSettings,
   IdentityServiceSettings,
   MappingJobSourceSettings,
   TerminologyServiceSettings
@@ -41,7 +41,7 @@ trait SchedulerProvider {
       ignifyrDbFolderPath: String,
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       schedulingSettings: BaseSchedulingSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings],
       identityServiceSettings: Option[IdentityServiceSettings]

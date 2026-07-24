@@ -1,4 +1,4 @@
-package io.ignifyr.engine.data.write
+package io.ignifyr.sink.fhir
 
 import akka.http.scaladsl.model.Uri
 import com.typesafe.scalalogging.Logger
@@ -10,6 +10,7 @@ import io.onfhir.client.OnFhirNetworkClient
 import io.onfhir.definitions.common.model.Json4sSupport.formats
 import io.ignifyr.engine.Execution
 import io.ignifyr.engine.config.IgnifyrConfig
+import io.ignifyr.engine.data.write.BaseSinkWriter
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.model.exception.InvalidFhirRepositoryUrlException
 import org.apache.hadoop.shaded.org.apache.http.HttpStatus
@@ -27,7 +28,7 @@ import scala.concurrent.{Await, ExecutionContext}
  *
  * @param sinkSettings Settings for the FHIR repository
  */
-class FhirRepositoryWriter(sinkSettings: FhirRepositorySinkSettings) extends BaseFhirWriter(sinkSettings) {
+class FhirRepositoryWriter(sinkSettings: FhirRepositorySinkSettings) extends BaseSinkWriter(sinkSettings) {
 
   private val logger: Logger = Logger(this.getClass)
 

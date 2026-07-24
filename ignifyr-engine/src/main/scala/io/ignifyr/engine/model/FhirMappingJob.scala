@@ -27,7 +27,7 @@ case class FhirMappingJob(
     name: Option[String] = None,
     description: Option[String] = None,
     sourceSettings: Map[String, MappingJobSourceSettings],
-    sinkSettings: FhirSinkSettings,
+    sinkSettings: SinkSettings,
     terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
     identityServiceSettings: Option[IdentityServiceSettings] = None,
     mappings: Seq[FhirMappingTask],

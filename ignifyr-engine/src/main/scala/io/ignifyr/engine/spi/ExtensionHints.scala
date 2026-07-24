@@ -28,8 +28,8 @@ object ExtensionHints {
   )
 
   private val sinkModules: Map[Class[_], (String, String)] = Map(
-    classOf[FhirRepositorySinkSettings] -> ("fhir-repository", "io.ignifyr:ignifyr-engine"),
-    classOf[FileSystemSinkSettings] -> ("file", "io.ignifyr:ignifyr-connector-file")
+    classOf[FhirRepositorySinkSettings] -> ("fhir-repository", "io.ignifyr:ignifyr-sink-fhir"),
+    classOf[FileSystemSinkSettings] -> ("file", "io.ignifyr:ignifyr-sink-file")
   )
 
   private val cliCommandModules: Map[String, String] = Map(
@@ -40,7 +40,7 @@ object ExtensionHints {
     describe("source reader", "source type", bindingClass, sourceModules)
 
   def describeSink(settingsClass: Class[_]): String =
-    describe("FHIR writer", "sink type", settingsClass, sinkModules)
+    describe("sink writer", "sink type", settingsClass, sinkModules)
 
   def describeCliCommand(commandToken: String): String =
     cliCommandModules.get(commandToken) match {

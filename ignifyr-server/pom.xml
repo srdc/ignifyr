@@ -203,6 +203,16 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-file_2.13</artifactId>
         </dependency>
+        <!-- Community FHIR-repository sink + its FHIR-server-backed terminology/identity providers -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-fhir_2.13</artifactId>
+        </dependency>
+        <!-- Community file-system sink (ndjson/csv/parquet sink formats) -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-file_2.13</artifactId>
+        </dependency>
         <!-- Enterprise JSON/NDJSON file-source format (extends the file connector) -->
         <dependency>
             <groupId>io.ignifyr</groupId>

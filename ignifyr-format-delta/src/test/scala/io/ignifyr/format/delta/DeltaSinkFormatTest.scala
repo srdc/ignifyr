@@ -1,8 +1,8 @@
 package io.ignifyr.format.delta
 
 import io.ignifyr.FhirMappingResultFixtures
-import io.ignifyr.connector.file.FileSystemWriter
-import io.ignifyr.connector.file.format.FileFormatRegistry
+import io.ignifyr.sink.file.FileSystemWriter
+import io.ignifyr.sink.file.format.FileSinkFormatRegistry
 import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings, SinkContentTypes}
 import io.ignifyr.engine.util.FileUtils
@@ -28,7 +28,7 @@ class DeltaSinkFormatTest extends AnyFlatSpec with BeforeAndAfterAll with Matche
   val df: Dataset[FhirMappingResult] = FhirMappingResultFixtures.sampleFhirMappingResults(sparkSession)
 
   "The Delta format" should "be discovered for the delta content type" in {
-    FileFormatRegistry.sinkFormats.keySet should contain(SinkContentTypes.DELTA_LAKE)
+    FileSinkFormatRegistry.sinkFormats.keySet should contain(SinkContentTypes.DELTA_LAKE)
   }
 
   it should "write DataFrame into a Delta Lake file" in {

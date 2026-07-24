@@ -41,7 +41,7 @@ class TerminologyServiceManagerEndpointTest extends BaseEndpointTest {
   )
 
   // Create job for test update on job terminology
-  val sinkSettings: FhirSinkSettings =
+  val sinkSettings: SinkSettings =
     FileSystemSinkSettings(path = "http://example.com/fhir", contentType = SinkContentTypes.CSV)
   val terminologyServiceSettings: TerminologyServiceSettings = LocalFhirTerminologyServiceSettings(
     s"/${ignifyrEngineConfig.terminologySystemFolderPath}/${terminologySystem1.id}",

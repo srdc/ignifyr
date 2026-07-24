@@ -89,6 +89,14 @@
             <artifactId>ignifyr-testkit_2.13</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- The integration test writes its mapped resources to the onFHIR container, so the
+             FHIR-repository sink module must be on the test classpath. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-fhir_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>

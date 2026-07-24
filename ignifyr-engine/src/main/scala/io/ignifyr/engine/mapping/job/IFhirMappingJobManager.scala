@@ -26,7 +26,7 @@ trait IFhirMappingJobManager {
   def executeMappingJob(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None,
       timeRange: Option[(LocalDateTime, LocalDateTime)] = None
@@ -45,7 +45,7 @@ trait IFhirMappingJobManager {
   def startMappingJobStream(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None
   ): Map[String, Future[StreamingQuery]]
@@ -63,7 +63,7 @@ trait IFhirMappingJobManager {
   def executeMappingTask(
       mappingJobExecution: FhirMappingJobExecution,
       sourceSettings: Map[String, MappingJobSourceSettings],
-      sinkSettings: FhirSinkSettings,
+      sinkSettings: SinkSettings,
       terminologyServiceSettings: Option[TerminologyServiceSettings] = None,
       identityServiceSettings: Option[IdentityServiceSettings] = None
   ): Future[Unit]

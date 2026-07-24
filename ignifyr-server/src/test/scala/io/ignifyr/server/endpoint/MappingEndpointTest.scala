@@ -9,7 +9,7 @@ import io.ignifyr.engine.model.{
   FhirMappingContextDefinition,
   FhirMappingJob,
   FhirMappingTask,
-  FhirSinkSettings,
+  SinkSettings,
   FileSystemSinkSettings
 }
 import io.ignifyr.engine.util.FileUtils
@@ -48,7 +48,7 @@ class MappingEndpointTest extends BaseEndpointTest {
     mapping = Seq.empty
   )
   // job using mapping2
-  val sinkSettings: FhirSinkSettings =
+  val sinkSettings: SinkSettings =
     FileSystemSinkSettings(path = "http://example.com/fhir", contentType = SinkContentTypes.CSV)
   val job: FhirMappingJob = FhirMappingJob(
     name = Some("mappingJob"),

@@ -1,7 +1,7 @@
 package io.ignifyr.runtime.streaming
 
 import com.typesafe.scalalogging.Logger
-import io.ignifyr.engine.data.write.{BaseFhirWriter, SinkHandler}
+import io.ignifyr.engine.data.write.{BaseSinkWriter, SinkHandler}
 import io.ignifyr.engine.model.{FhirMappingJobExecution, FhirMappingResult}
 import org.apache.spark.sql.streaming.StreamingQuery
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -24,7 +24,7 @@ object StreamingSinkHandler {
       spark: SparkSession,
       mappingJobExecution: FhirMappingJobExecution,
       df: Dataset[FhirMappingResult],
-      resourceWriter: BaseFhirWriter,
+      resourceWriter: BaseSinkWriter,
       mappingTaskName: String
   ): StreamingQuery = {
     val datasetWrite = (dataset: Dataset[FhirMappingResult], _: Long) =>

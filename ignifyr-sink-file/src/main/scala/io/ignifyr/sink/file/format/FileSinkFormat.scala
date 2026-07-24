@@ -1,4 +1,4 @@
-package io.ignifyr.connector.file.format
+package io.ignifyr.sink.file.format
 
 import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings}
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -8,7 +8,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
  * resources to the file system in one content type (e.g. `ndjson`, `csv`, `parquet`, `delta`).
  *
  * Like [[FileSourceFormat]] this is a sub-SPI owned by `ignifyr-connector-file` and discovered via
- * its own [[java.util.ServiceLoader]] (a `META-INF/services/io.ignifyr.connector.file.format.FileSinkFormat`
+ * its own [[java.util.ServiceLoader]] (a `META-INF/services/io.ignifyr.sink.file.format.FileSinkFormat`
  * entry per module). The community connector ships the ndjson/csv/parquet writers (FHIR bulk output);
  * the enterprise `ignifyr-format-delta` contributes the Delta writer and carries the delta-spark
  * dependency, so it stays out of the community jar. Shared write machinery (the partition-by-resource-type

@@ -82,7 +82,7 @@ object Load {
     val sinkSettingsStr = mj.sinkSettings match {
       case settings: FhirRepositorySinkSettings =>
         s"\tFHIR Repository URL: ${settings.fhirRepoUrl}\n"
-      case _: FhirSinkSettings => "\tNo Sink Settings\n"
+      case _: SinkSettings => "\tNo Sink Settings\n"
     }
 
     val tasks = context.mappingNameUrlMap

@@ -24,7 +24,7 @@ class JobEndpointTest extends BaseEndpointTest {
   )
 
   // first job to be created
-  val sinkSettings: FhirSinkSettings =
+  val sinkSettings: SinkSettings =
     FileSystemSinkSettings(path = "http://example.com/fhir", contentType = SinkContentTypes.CSV)
   val job1: FhirMappingJob = FhirMappingJob(
     name = Some("mappingJob1"),

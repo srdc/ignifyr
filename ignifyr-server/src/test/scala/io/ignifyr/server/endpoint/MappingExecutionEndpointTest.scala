@@ -53,7 +53,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
           Paths.get(getClass.getResource("/test-data").toURI).normalize().toAbsolutePath.toString
         )
     )
-  var sinkSettings: FhirSinkSettings =
+  var sinkSettings: SinkSettings =
     FileSystemSinkSettings(path = s"./$fsSinkFolderName/job1_1", SinkContentTypes.NDJSON)
   val patientMappingTask: FhirMappingTask = FhirMappingTask(
     name = "patient-mapping",
@@ -81,7 +81,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
   val patientStreamingFolderName = "patients"
   val patientStreamingFolder: File = new File(patientStreamingFolderName)
 
-  var sinkSettingsForStreaming: FhirSinkSettings =
+  var sinkSettingsForStreaming: SinkSettings =
     FileSystemSinkSettings(path = s"./$fsSinkFolderName/job3", SinkContentTypes.NDJSON)
   val streamingMappingJobSourceSettings: Map[String, MappingJobSourceSettings] =
     Map(

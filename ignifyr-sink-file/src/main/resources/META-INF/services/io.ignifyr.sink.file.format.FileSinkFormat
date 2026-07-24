@@ -1,5 +1,5 @@
 # File sink format handlers shipped by the community file connector (FHIR bulk output).
 # The Delta sink lives in the enterprise ignifyr-format-delta module (its own service file).
-io.ignifyr.connector.file.format.sink.NdjsonSinkFormat
-io.ignifyr.connector.file.format.sink.CsvSinkFormat
-io.ignifyr.connector.file.format.sink.ParquetSinkFormat
+io.ignifyr.sink.file.format.sink.NdjsonSinkFormat
+io.ignifyr.sink.file.format.sink.CsvSinkFormat
+io.ignifyr.sink.file.format.sink.ParquetSinkFormat

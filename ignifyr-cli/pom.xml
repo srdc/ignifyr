@@ -31,12 +31,23 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-sql_2.13</artifactId>
         </dependency>
-        <!-- Community file connector (file-system source + sink; community csv/tsv/parquet source and
-             ndjson/csv/parquet sink formats). Enterprise JSON-source / Delta-sink format modules are
-             not bundled here. -->
+        <!-- Community file connector (file-system source; csv/tsv/parquet source formats). The
+             enterprise JSON-source format module is not bundled here. -->
         <dependency>
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-connector-file_2.13</artifactId>
+        </dependency>
+        <!-- Community FHIR-repository sink (the flagship output) + its FHIR-server-backed
+             terminology/identity service providers -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-fhir_2.13</artifactId>
+        </dependency>
+        <!-- Community file-system sink (ndjson/csv/parquet sink formats). The enterprise Delta-sink
+             format module is not bundled here. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-file_2.13</artifactId>
         </dependency>
     </dependencies>
 

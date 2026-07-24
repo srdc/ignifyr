@@ -4,7 +4,7 @@ import io.ignifyr.engine.model.{
   FhirMappingJob,
   FhirMappingTask,
   FhirRepositorySinkSettings,
-  FhirSinkSettings,
+  SinkSettings,
   FileSystemSourceSettings,
   KafkaSource,
   KafkaSourceSettings,
@@ -106,10 +106,10 @@ object EnvironmentVariableResolver {
   /**
    * Resolves environment variables in FhirRepositorySinkSettings.
    *
-   * @param sinkSettings FhirSinkSettings instance.
-   * @return FhirSinkSettings with resolved fhirRepoUrl, if applicable.
+   * @param sinkSettings SinkSettings instance.
+   * @return SinkSettings with resolved fhirRepoUrl, if applicable.
    */
-  private def resolveSinkSettings(sinkSettings: FhirSinkSettings): FhirSinkSettings = {
+  private def resolveSinkSettings(sinkSettings: SinkSettings): SinkSettings = {
     sinkSettings match {
       case fr: FhirRepositorySinkSettings =>
         fr.copy(fhirRepoUrl = resolveEnvironmentVariables(fr.fhirRepoUrl))

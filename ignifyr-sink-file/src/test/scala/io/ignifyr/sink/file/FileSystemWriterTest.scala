@@ -1,4 +1,4 @@
-package io.ignifyr.connector.file
+package io.ignifyr.sink.file
 
 import io.ignifyr.FhirMappingResultFixtures
 import io.ignifyr.engine.config.IgnifyrConfig

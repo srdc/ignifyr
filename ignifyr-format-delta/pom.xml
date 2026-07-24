@@ -15,10 +15,10 @@
 
     <!--
       Enterprise Delta Lake file *sink* format: contributes a FileSinkFormat handler to the file
-      connector's format sub-SPI, and (via its IgnifyrExtension) the Spark-session wiring Delta needs
+      sink's format sub-SPI, and (via its IgnifyrExtension) the Spark-session wiring Delta needs
       (spark.sql.extensions + the Delta catalog) through the sparkConfContributions hook. It carries
       the delta-spark dependency, keeping it and the Delta wiring out of the community engine and jar.
-      Depends on ignifyr-connector-file for the FileSinkFormat sub-SPI + FileSinkSupport it reuses.
+      Depends on ignifyr-sink-file for the FileSinkFormat sub-SPI + FileSinkSupport it reuses.
     -->
 
     <build>
@@ -37,11 +37,11 @@
     </build>
 
     <dependencies>
-        <!-- The file connector: the FileSinkFormat sub-SPI + FileSinkSupport this handler reuses
+        <!-- The file sink: the FileSinkFormat sub-SPI + FileSinkSupport this handler reuses
              (brings the engine transitively). -->
         <dependency>
             <groupId>io.ignifyr</groupId>
-            <artifactId>ignifyr-connector-file_2.13</artifactId>
+            <artifactId>ignifyr-sink-file_2.13</artifactId>
         </dependency>
 
         <!-- Delta Lake for Spark: the runtime behind the Delta sink + the DeltaSparkSessionExtension /
