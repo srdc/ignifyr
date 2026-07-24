@@ -213,6 +213,11 @@
             <groupId>io.ignifyr</groupId>
             <artifactId>ignifyr-sink-file_2.13</artifactId>
         </dependency>
+        <!-- Enterprise OMOP sink (placeholder skeleton for the map-to-OMOP feature) -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-omop_2.13</artifactId>
+        </dependency>
         <!-- Enterprise JSON/NDJSON file-source format (extends the file connector) -->
         <dependency>
             <groupId>io.ignifyr</groupId>

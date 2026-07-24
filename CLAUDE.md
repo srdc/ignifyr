@@ -63,6 +63,7 @@ modules (each depends on the engine and is discovered at runtime); `ignifyr-serv
 | `ignifyr-connector-kafka` | Kafka source connector |
 | `ignifyr-format-json` | JSON/NDJSON **source** file format |
 | `ignifyr-format-delta` | Delta Lake **sink** file format; contributes its Spark session/catalog wiring via the SPI's `sparkConfContributions` |
+| `ignifyr-sink-omop` | OMOP sink — placeholder skeleton for the upcoming map-to-OMOP feature (versioned CDM schemas, FK-ordered table writes, OMOP-vocabulary terminology) |
 | `ignifyr-runtime-streaming` | Streaming execution capability (`StreamingExecutionProvider`) |
 | `ignifyr-runtime-scheduling` | Cron scheduling capability (`SchedulerProvider`, cron4j) |
 | `ignifyr-redcap` | REDCap server routes + the `extract-redcap-schemas` CLI command |
