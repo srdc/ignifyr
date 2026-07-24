@@ -1,2 +1,2 @@
-# Community file connector: file-system source reader + sink writer (with a pluggable file-format sub-SPI).
+# Community file connector: file-system source reader (with a pluggable source-format sub-SPI).
 io.ignifyr.connector.file.FileConnectorExtension
