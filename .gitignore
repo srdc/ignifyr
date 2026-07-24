@@ -16,6 +16,7 @@ test-context-conf/
 
 # AI Support
 .claude
+.agents
 
 # Spark
 checkpoint/
