@@ -252,6 +252,9 @@ object MappingTaskExecutor {
                 ),
                 executionId = executionId,
                 projectId = fhirMappingService.projectId,
+                // Sink-routing discriminator (see FhirMappingResult.resourceType): whatever the mapped
+                // output declares as its `resourceType` — a FHIR resource type or a non-FHIR target/table
+                // name — deliberately optional and never validated here.
                 resourceType = (r \ "resourceType").extractOpt[String]
               )
             )
