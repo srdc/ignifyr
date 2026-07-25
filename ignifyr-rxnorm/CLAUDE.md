@@ -3,18 +3,53 @@
 Standalone module: a client for the public RxNorm REST API plus a FHIRPath function library so
 mappings can call RxNorm lookups. Package root `io.ignifyr.rxnorm`. It is **not** an `IgnifyrExtension`
 SPI plugin and is **not** ServiceLoader-discovered — it plugs in through onFHIR's FHIRPath
-function-library config: `functionLibraries { rxn { className = "io.ignifyr.rxnorm.RxNormApiFunctionLibraryFactory", args = ["https://rxnav.nlm.nih.gov", 2] } }` (active in `ignifyr-server`'s `application.conf`, a commented example in `ignifyr-engine`'s). Bundled into `ignifyr-server` (enterprise) only, **not** `ignifyr-cli`; depends on `ignifyr-common` + onFHIR + opencsv.
+function-library config (note the `ignifyr` parent block; the key is
+`ignifyr.functionLibraries.rxn.className`):
 
+```hocon
+ignifyr {
+  functionLibraries {
+    rxn {
+      className = "io.ignifyr.rxnorm.RxNormApiFunctionLibraryFactory"
+      args = ["https://rxnav.nlm.nih.gov", 2]
+    }
+  }
+}
+```
+
+That block is active in `ignifyr-server`'s `application.conf` and a commented example in
+`ignifyr-engine`'s. Bundled into `ignifyr-server` only, **not** `ignifyr-cli`.
+
+**Why a module:** it is an artifact boundary, not a code dependency. **Nothing in the repo compiles
+against it** — no file outside the module imports `io.ignifyr.rxnorm`, and the module itself imports no
+Ignifyr code at all (only onFHIR). Attaching or removing the `rxn:` functions is a config string plus a
+jar on the classpath. Keeping it separate also keeps a blocking live-network HTTP client (global
+singleton `ActorSystem`, `Await.result` per call) and `opencsv` out of the engine.
+
+Two edition oddities worth knowing: its declared `ignifyr-common` dependency is **unused by main code**
+(its only effect is dragging in `onfhir-definition-commons`, which a *test* needs), and although it
+inherits the community `io.ignifyr` groupId it does **not** opt into the `ban-enterprise-deps` enforcer
+gate the community modules all declare, while only the enterprise server bundles it. Its edition
+placement is genuinely unsettled rather than principled.
+
+## Contents (3 files in `src/main/scala/io/ignifyr/rxnorm/`)
 - `RxNormApiClient` — HTTP client for RxNorm endpoints.
 - `RxNormApiFunctionLibrary` — the `rxn:`-prefixed FHIRPath functions backed by the client
   (`findRxConceptIdsByNdc`, `getMedicationDetails`, `findIngredientsOfDrug`, `getATC`; keep them
-  `@FhirPathFunction`-annotated).
-- `RxNormApiFunctionLibraryFactory` — the onFHIR `IFhirPathFunctionLibraryFactory` that is the actual
-  registration entry point (constructed with `rxNormApiRootUrl`, `timeoutInSec`); this is the class
-  named in config, not the library directly.
+  `@FhirPathFunction`-annotated). `RxNormApiFunctionLibraryFactory` — the onFHIR
+  `IFhirPathFunctionLibraryFactory` that is the actual registration entry point (constructed with
+  `rxNormApiRootUrl`, `timeoutInSec`) — is declared at the **bottom of this same file**, not in one of
+  its own.
 - `PullRxNormNdcMedDetails` — utility/runner for bulk NDC → medication-detail pulls.
 
+It pins `com.opencsv:opencsv` to 5.5.1 inline, overriding the root-managed `opencsv.version`.
+
 ## Tests
-`RxNormApiClientTest`, `RxNormApiFunctionLibraryTest` (in `src/test/scala`). ⚠️ These call the
-**live RxNorm API** — failures are usually network/availability, not regressions. Run:
-`mvn test -pl ignifyr-rxnorm`.
+`RxNormApiClientTest`, `RxNormApiFunctionLibraryTest`. ⚠️ These call the **live RxNorm API** — failures
+are usually network/availability, not regressions.
+
+⚠️ **They do not run under Maven.** This module declares no `scalatest-maven-plugin` (every other
+test-bearing module does) and root surefire is skipped, so `mvn test -pl ignifyr-rxnorm` compiles the
+suites and runs zero of them — there is no `target/surefire-reports`. Both suites also sit in the
+**default package** (no `package` declaration), so they would not match the repo-standard
+`wildcardSuites=io.ignifyr.test` even if the plugin were added. They are IDE-only today.

@@ -2,18 +2,30 @@
 
 Community connector that contributes the file-system **source reader** to the engine through the
 `IgnifyrExtension` SPI, and owns a connector-local **source-format sub-SPI** so the readable formats
-are pluggable. Package root `io.ignifyr.connector.file`. Depends only on `ignifyr-engine`; bundled
-into `ignifyr-cli` (community). Apache-2.0-clean — subject to the `ban-enterprise-deps`
-maven-enforcer gate. The file-system **sink** lives in its own module, `ignifyr-sink-file`.
+are pluggable. Package root `io.ignifyr.connector.file`. Its only compile dependency is
+`ignifyr-engine` (plus test-scope `ignifyr-testkit` and `ignifyr-sink-fhir`); **both** distributions
+bundle it — `ignifyr-cli` and `ignifyr-server` — since community modules ship in the enterprise server
+too. Apache-2.0-clean — subject to the `ban-enterprise-deps` maven-enforcer gate. The file-system
+**sink** lives in its own module, `ignifyr-sink-file`.
+
+It carries no third-party dependency of its own (Spark's csv/parquet readers arrive with `spark-sql`,
+which the engine has), so this module is not about dependency isolation: it exists so the engine ships no
+concrete reader, and to be the seam that makes file formats pluggable.
 
 ## The two-level SPI (the mental model)
 The engine's `ExtensionRegistry` discovers this connector; the connector then runs its **own**
 ServiceLoader (`FileFormatRegistry`) to discover source formats keyed by content type. **The engine
-is entirely ignorant of file formats** — only this connector dispatches on source `contentType`. So
+never resolves a format handler** — only this connector dispatches on source `contentType`. So
 adding a format is a pure module move: the enterprise `ignifyr-format-json` (JSON/NDJSON source)
 plugs in via its own `META-INF/services` file with zero changes here. The reader stays
 format-agnostic. (The sink-format twin — `FileSinkFormat`/`FileSinkFormatRegistry` — lives in
 `ignifyr-sink-file`.)
+
+Two qualifications, so you don't over-trust the seam: the engine *does* name file formats — its
+`io.ignifyr.engine.model.SourceContentTypes` hardcodes `csv`/`tsv`/`parquet`/`json`/`ndjson`, including
+the two whose handlers are enterprise-only — and it names this module's Maven coordinates in
+`ExtensionHints`. A genuinely new content type is a pure module move only if it reuses an existing
+constant or the job passes a raw string.
 
 ## Layout (`src/main/scala/io/ignifyr/connector/file/`)
 - top level — `FileConnectorExtension` (the `IgnifyrExtension` impl), `FileDataSourceReader` (source).

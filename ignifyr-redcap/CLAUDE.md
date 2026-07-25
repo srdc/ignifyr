@@ -5,6 +5,13 @@ data-dictionary CSV into FHIR `StructureDefinition` schemas, and (2) server REST
 sibling **tofhir-redcap** service plus a per-project data-dictionary schema-import route. Package root
 `io.ignifyr.redcap` (flat). Bundled into `ignifyr-server`, **not** `ignifyr-cli`.
 
+**Why a module:** dependency *direction*, not dependency isolation (its pom declares no third-party
+compile dependency at all). It is the only plugin in the reactor depending on **both**
+`ignifyr-engine` and `ignifyr-server-common`; living in the engine would force the engine to depend on
+server code and invert the layering. It is also the only consumer of the `IgnifyrServerExtension` seam —
+the module that justifies that SPI existing. Being enterprise, it does not opt into
+`ban-enterprise-deps`.
+
 ## Defining trait: it registers against BOTH SPIs
 Two `META-INF/services` files, one per SPI — this is the module's whole point (REDCap plugs into both
 the engine and the server with zero core changes):
@@ -19,13 +26,20 @@ the engine and the server with zero core changes):
 - `RedCapServerExtension` — server `IgnifyrServerExtension`; `initialize` best-effort parses the
   optional `ignifyr-redcap` HOCON block; `rootRoutes` contributes the `/redcap` proxy **only when that
   block is present**; `schemaImportRoutes` **always** contributes the import route;
-  `externalComponentVersion()` GETs the tofhir-redcap version for `/metadata`.
+  `externalComponentVersion()` GETs `<endpoint>/metadata` and returns the **entire unparsed response
+  body** as the version string, with no timeout of its own — the 1-second bound and the
+  swallow-on-failure live in the server's `MetadataService`, which files the result under
+  `Metadata.ignifyrRedcapVersion`.
 - `ExtractRedCapSchemas` — the CLI `Command`: reads the dictionary CSV, calls `RedCapUtil`, writes each
   `<Type>.StructureDefinition.json` into the schema repository folder (warns + overwrites on collision).
-- `RedCapUtil` — pure extraction (object): one `SchemaDefinition` per REDCap Form; `getDataType` /
+- `RedCapUtil` — the extraction object: one `SchemaDefinition` per REDCap Form; `getDataType` /
   `getCardinality` map REDCap field & text-validation types to FHIR; injects a record-id field if
   absent. `RedCapDataDictionaryColumns` / `RedCapDataTypes` / `RedCapTextValidationTypes` hold the
-  column/value constants.
+  column/value constants. Only `extractSchemasAsSchemaDefinitions` is pure — `extractSchemas` also reads
+  `IgnifyrConfig.engineConfig.schemaRepositoryFhirVersion`.
+  ⚠️ `recordIdField` defaults to `""`, and the CLI path takes that default — so CLI-extracted schemas get
+  a record-identifier field with an empty `id` and a `"<Schema>."` path. Only the server import route
+  passes a real value (a query parameter).
 - `RedCapEndpoint` + `RedCapService` + `RedCapServiceConfig` — the `/redcap` proxy (projects,
   delete-with-reload, notification) to tofhir-redcap; `RedCapSchemaImportEndpoint` — the multipart
   `/projects/{id}/schemas/redcap` import (persists via the server-provided `SchemaImportSink`);
