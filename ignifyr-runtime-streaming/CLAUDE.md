@@ -32,6 +32,9 @@ parses fine and fails at launch with `MissingCapabilityException` naming
 
 ## Tests
 One unit suite, `StreamingSinkHandlerTest` (`AnyFlatSpec`, mockito-scala; no Docker, no testkit dep):
-drives a `rate` stream through `StreamingSinkHandler.writeStream` and asserts the catch-and-continue
-behaviour. Its package is `io.ignifyr.runtime.streaming` (not the engine's `io.ignifyr.test`
-convention). `mvn test -pl ignifyr-runtime-streaming`.
+drives a `rate` stream through `StreamingSinkHandler.writeStream` to exercise the catch-and-continue
+behaviour. Note it contains **no explicit expectation** — it starts the query, `awaitTermination(5000)`,
+`stop()`, so the only failure signal is `awaitTermination` rethrowing if the query died. It fails if a
+micro-batch exception escapes; it cannot assert that one was swallowed. Its package is
+`io.ignifyr.runtime.streaming` (not the engine's `io.ignifyr.test` convention).
+`mvn test -pl ignifyr-runtime-streaming`.

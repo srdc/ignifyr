@@ -25,33 +25,52 @@ mentions. Don't reintroduce `tofhir` in new code; `mapToFhir`-style identifiers 
 
 ## Modules
 
-The reactor is being split into a public **Community Edition** (Apache-2.0, the CLI batch engine)
-and a private **Enterprise Edition** (advanced connectors, streaming/scheduling, the REST server).
-The design rule: **moving a feature between editions is a one-folder module move with zero engine
-code changes.** Every module plugs in through the `IgnifyrExtension` ServiceLoader SPI
-(`io.ignifyr.engine.spi`); the engine's `ExtensionRegistry` discovers source connectors, sinks,
-CLI commands, schema inferrers, streaming/scheduling capabilities, and extra Spark-conf entries at
-runtime — the engine never names a connector/format directly. A maven-enforcer `bannedDependencies`
-gate keeps enterprise-only libraries (Kafka, cron4j, Delta, DB2 JCC, Logstash/Fluentd) out of the
-community modules.
+The reactor is split (in-repo; the physical repo split is still pending) into a public **Community
+Edition** (Apache-2.0, the CLI batch engine) and a private **Enterprise Edition** (advanced
+connectors, streaming/scheduling, the REST server). The design rule: **moving a feature between
+editions is a one-folder module move with zero engine code changes.**
 
-Dependency direction: `ignifyr-common` ← `ignifyr-engine` ← the connector/sink/format/runtime plugin
-modules (each depends on the engine and is discovered at runtime); `ignifyr-server-common` ←
-`ignifyr-server`. `ignifyr-cli` (community) and `ignifyr-server` (enterprise) are the two
-**distributions** — each shades the engine plus the plugin modules that ship in its edition.
+Every plugin module plugs in through the `IgnifyrExtension` ServiceLoader SPI
+(`io.ignifyr.engine.spi`) — one implementation and one `META-INF/services` entry per jar. Its full
+contribution surface is `sourceConnectors`, `sinkProviders`, `terminologyServiceProviders`,
+`identityServiceProviders`, `cliCommands`, `sourceFailureDescriptors`, `schemaInferrers`,
+`streamingProvider`, `schedulerProvider`, `sparkConfContributions`, `extraCapabilities`, plus
+`initialize(config)` (scoped to `ignifyr.extensions.<id>`; it must **not** touch
+`IgnifyrConfig.sparkSession` — registry load runs while the session is being built). The engine's
+`ExtensionRegistry` indexes these by settings/binding **class**, fail-fast on duplicate keys
+(`streamingProvider`/`schedulerProvider` are single-capability `Option`s) — the engine never names a
+connector, sink, or format directly. **The engine ships no concrete I/O:** `CoreExtension`
+contributes only the built-in CLI commands and the CSV-backed `LocalTerminologyService`. A missing
+plugin surfaces through `ExtensionHints`, which maps a model class to the Maven coordinates to
+install; a maven-enforcer `bannedDependencies` gate (`ban-enterprise-deps`, opted into by 8 community
+modules) keeps Kafka, cron4j, Delta, DB2 JCC, and Logstash/Fluentd out of them.
+
+Dependency direction: `ignifyr-common` ← `ignifyr-engine` ← the connector/sink/runtime plugin modules
+(each depends on the engine and is discovered at runtime). Three edges deviate and matter: the
+`ignifyr-format-*` modules depend on the **module whose sub-SPI they extend** (`format-json` →
+`connector-file`, `format-delta` → `sink-file`) rather than on the engine directly; `ignifyr-redcap`
+is the only plugin depending on **both** the engine and `ignifyr-server-common`; and
+`ignifyr-server-common` declares **no** Ignifyr dependency at all, so a server plugin can implement
+its SPI without pulling in the engine or Spark. `ignifyr-cli` (community) and `ignifyr-server`
+(enterprise) are the two **distributions** — each shades the engine plus the plugin modules of its
+edition, so *the edition of a feature is one line in one of those two POMs*. `ignifyr-testkit` is a
+community artifact consumed at test scope by both editions' suites.
+
+Artifact naming: everything is `ignifyr-*_2.13` **except** `ignifyr-common` and
+`ignifyr-server-common`, which carry no Scala suffix.
 
 **Community** (`io.ignifyr`, Maven Central; bundled into `ignifyr-cli`):
 
 | Module | Purpose |
 |---|---|
 | [`ignifyr-engine`](ignifyr-engine/CLAUDE.md) | Core mapping/transformation engine, CLI/batch entrypoint, and the extension SPI |
-| [`ignifyr-common`](ignifyr-common/CLAUDE.md) | Shared models, version, custom mapping fns, exception utils |
-| `ignifyr-connector-sql` | SQL/JDBC source connector (ships the PostgreSQL driver) |
-| `ignifyr-connector-file` | File-system source; owns a pluggable source-format sub-SPI (`FileSourceFormat`, its own `FileFormatRegistry`/ServiceLoader) shipping csv/tsv/parquet |
-| `ignifyr-sink-fhir` | FHIR-repository sink writer (the flagship output) + the FHIR-server-backed terminology/identity service providers |
-| `ignifyr-sink-file` | File-system sink; owns the pluggable sink-format sub-SPI (`FileSinkFormat`, its own `FileSinkFormatRegistry`/ServiceLoader) shipping ndjson/csv/parquet |
-| `ignifyr-cli` | Community standalone fat-jar assembly (Main-Class `io.ignifyr.engine.Boot`) |
-| `ignifyr-testkit` | Shared test harness (`IgnifyrTestSpec`, `OnFhirTestContainer`, fixtures); test-only, never shipped |
+| [`ignifyr-common`](ignifyr-common/CLAUDE.md) | Spark-free helper layer: version reader, onFHIR schema→StructureDefinition conversion, exception flattening, the `cst:` FHIRPath library. No model classes |
+| `ignifyr-connector-sql` | SQL/JDBC source connector (ships the PostgreSQL driver) + the JDBC-metadata schema inferrer |
+| [`ignifyr-connector-file`](ignifyr-connector-file/CLAUDE.md) | File-system source; owns a pluggable source-format sub-SPI (`FileSourceFormat`, its own `FileFormatRegistry`/ServiceLoader) shipping csv/tsv/parquet |
+| [`ignifyr-sink-fhir`](ignifyr-sink-fhir/CLAUDE.md) | FHIR-repository sink writer (the flagship output) + the FHIR-server-backed terminology/identity service providers |
+| [`ignifyr-sink-file`](ignifyr-sink-file/CLAUDE.md) | File-system sink; owns the pluggable sink-format sub-SPI (`FileSinkFormat`, its own `FileSinkFormatRegistry`/ServiceLoader) shipping ndjson/csv/parquet |
+| [`ignifyr-cli`](ignifyr-cli/CLAUDE.md) | Community standalone fat-jar assembly (Main-Class `io.ignifyr.engine.Boot`); no source of its own |
+| [`ignifyr-testkit`](ignifyr-testkit/CLAUDE.md) | Shared test harness (`IgnifyrTestSpec`, `OnFhirTestContainer`, fixtures); test-only, never shipped |
 
 **Enterprise** (private, `com.pontegra.ignifyr` when published; bundled into `ignifyr-server`):
 
@@ -59,18 +78,26 @@ modules (each depends on the engine and is discovered at runtime); `ignifyr-serv
 |---|---|
 | [`ignifyr-server`](ignifyr-server/CLAUDE.md) | Akka-HTTP REST API to manage projects/jobs (Endpoint → Service → Repository); the enterprise runtime |
 | [`ignifyr-server-common`](ignifyr-server-common/CLAUDE.md) | Shared web-server config, CORS/error interceptors, and the `IgnifyrServerExtension` SPI |
-| `ignifyr-connector-fhir-server` | FHIR-server-as-**source** (the FHIR sink stays community) |
-| `ignifyr-connector-kafka` | Kafka source connector |
-| `ignifyr-format-json` | JSON/NDJSON **source** file format |
-| `ignifyr-format-delta` | Delta Lake **sink** file format; contributes its Spark session/catalog wiring via the SPI's `sparkConfContributions` |
+| `ignifyr-connector-fhir-server` | FHIR-server-as-**source** (the FHIR sink stays community); sole carrier of the spark-on-fhir data source |
+| `ignifyr-connector-kafka` | Kafka source connector; also the repo's only `SourceFailureDescriptor` |
+| `ignifyr-format-json` | JSON/NDJSON **source** file format (plugs into `connector-file`'s sub-SPI, not the engine) |
+| `ignifyr-format-delta` | Delta Lake **sink** file format (plugs into `sink-file`'s sub-SPI); contributes its Spark session/catalog wiring via the SPI's `sparkConfContributions` |
 | `ignifyr-sink-omop` | OMOP sink — placeholder skeleton for the upcoming map-to-OMOP feature (versioned CDM schemas, FK-ordered table writes, OMOP-vocabulary terminology) |
-| `ignifyr-runtime-streaming` | Streaming execution capability (`StreamingExecutionProvider`) |
-| `ignifyr-runtime-scheduling` | Cron scheduling capability (`SchedulerProvider`, cron4j) |
-| `ignifyr-redcap` | REDCap server routes + the `extract-redcap-schemas` CLI command |
+| [`ignifyr-runtime-streaming`](ignifyr-runtime-streaming/CLAUDE.md) | Streaming execution capability (`StreamingExecutionProvider`) |
+| [`ignifyr-runtime-scheduling`](ignifyr-runtime-scheduling/CLAUDE.md) | Cron scheduling capability (`SchedulerProvider`, cron4j) |
+| [`ignifyr-redcap`](ignifyr-redcap/CLAUDE.md) | REDCap server routes + the `extract-redcap-schemas` CLI command; the only consumer of the server SPI |
 | `ignifyr-observability` | Structured (Logstash JSON) audit encoding + Fluentd log shipping |
 | `ignifyr-terminology-tools` | Offline OMOP terminology-map generator (standalone tool; not a dep of cli/server) |
 
 **Standalone:** [`ignifyr-rxnorm`](ignifyr-rxnorm/CLAUDE.md) — RxNorm API client + FHIRPath terminology functions.
+
+Modules linked above have their own `CLAUDE.md`. The rest are deliberately without one: they are 1–3
+file plugins whose whole story is "registers X" and whose rationale is in their pom's header comment —
+`connector-sql`, `connector-kafka`, `connector-fhir-server`, `sink-omop`, `format-json`, `format-delta`,
+`observability`, `terminology-tools`. Don't add a guide for a thin plugin; extend the table row instead.
+Two of those carry a caveat worth stating once here: `terminology-tools` embeds hard-coded dev Postgres
+credentials (which is why it ships in no distribution), and `connector-sql`'s inferrer returns `None` for
+a `preprocessSql` source so the engine falls back to Spark-read inference.
 
 ## Build / test / run
 
@@ -82,12 +109,21 @@ Run everything from the repo root with Maven.
   `ignifyr-server/target/ignifyr-server-standalone.jar`.
 
 **Test** — ScalaTest via the `scalatest-maven-plugin` (surefire is disabled).
-- `mvn test` — **unit tests** (suites under `io.ignifyr.test`). Fast loop, no Docker.
-- `mvn -B verify` — full build **incl. integration tests** (`io.ignifyr.integrationtest`).
+- `mvn test` — **unit tests**. Each module pins its own `wildcardSuites` (the engine's is
+  `io.ignifyr.test`, a plugin module's is its own package, e.g. `io.ignifyr.sink.file`).
+  ⚠️ **Not Docker-free at the reactor level:** `ignifyr-server` declares the plugin bare (no
+  `wildcardSuites`), so its endpoint suites run in the `test` phase and three of them start onFHIR +
+  MongoDB containers. `mvn test -pl <a plugin module>` *is* Docker-free.
+- `mvn -B verify` — full build **incl. integration tests** (`membersOnlySuites=io.ignifyr.integrationtest`
+  in `connector-file`, `connector-sql`, `runtime-scheduling`).
   ⚠️ Requires **Docker running** (TestContainers spins up MongoDB, Kafka, onFHIR r5).
   This is exactly what CI runs.
 - One module: `mvn test -pl ignifyr-engine`.
-- One suite: `mvn test -pl ignifyr-engine -DwildcardSuites=io.ignifyr.test.engine.data.read.FileDataSourceReaderTest`.
+- One suite: `mvn test -pl ignifyr-engine -Dsuffixes='.*ListPluginsTest'`. Use `-Dsuffixes` (a regex on
+  the suite name) — `-DwildcardSuites` and `-Dsuites` are **silently ignored**, because an explicit
+  value in the module POM beats the command-line property.
+- `ignifyr-rxnorm` declares no `scalatest-maven-plugin`, so its two suites never run under Maven —
+  they are IDE-only today.
 - **Run `mvn test` and report the result before claiming a change works.**
 
 **Format** — scalafmt, config in [.scalafmt.conf](.scalafmt.conf).
@@ -107,15 +143,31 @@ Run everything from the repo root with Maven.
 
 - ScalaTest 3.2 styles: `AnyFlatSpec` (unit), `AnyWordSpec` (endpoints), `AsyncFlatSpec`.
   Mocking: mockito-scala. In-memory DB: H2.
-- Engine unit tests extend the shared `IgnifyrTestSpec` trait
-  ([ignifyr-engine/src/test/scala/io/ignifyr/IgnifyrTestSpec.scala](ignifyr-engine/src/test/scala/io/ignifyr/IgnifyrTestSpec.scala))
-  — provides a `SparkSession`, mapping/schema repositories, a context loader, and a `RunningJobRegistry`.
+- The shared harness lives in **`ignifyr-testkit`**, in `src/main` (not a test-jar):
+  [`IgnifyrTestSpec`](ignifyr-testkit/src/main/scala/io/ignifyr/IgnifyrTestSpec.scala) provides a
+  `SparkSession`, mapping/schema repositories, a context loader, and a `RunningJobRegistry`;
+  `OnFhirTestContainer` provides the onFHIR + MongoDB containers; fixtures live on its classpath.
+  Depend on it at **test** scope — that one dependency also brings scalatest/mockito/H2/Testcontainers,
+  which the testkit declares at compile scope on purpose.
+  - A consumer of `IgnifyrTestSpec` **must** set `ignifyr.mappings.repository.folder-path` and
+    `ignifyr.mappings.schemas.repository.folder-path` in its own `src/test/resources/application.conf` —
+    the spec reads them from config rather than hardcoding the fixture roots. This is the usual
+    first-failure for a new module.
+  - The **engine's own** suites do not use the harness (the engine must never depend on the testkit —
+    that would cycle); all six are self-contained `AnyFlatSpec`s.
+  - Resolve a shared fixture folder with `IgnifyrTestSpec.testResourceFolderPath`, never
+    `Paths.get(getClass.getResource(...).toURI)` — the reactor serves testkit fixtures from the jar.
 - Server endpoint tests extend `BaseEndpointTest`
   ([ignifyr-server/src/test/scala/io/ignifyr/server/BaseEndpointTest.scala](ignifyr-server/src/test/scala/io/ignifyr/server/BaseEndpointTest.scala))
-  — boots the Akka-HTTP route via `ScalatestRouteTest` with a MongoDB TestContainer.
-- The unit (`io.ignifyr.test`) vs integration (`io.ignifyr.integrationtest`) split is configured
-  per module in the `scalatest-maven-plugin` (see `ignifyr-engine/pom.xml`). Integration tests need
-  Docker; treat live-network failures (e.g. the RxNorm API) as environment issues, not regressions.
+  — boots the Akka-HTTP route via `ScalatestRouteTest`. It starts **no** container itself; the three
+  suites that need onFHIR/MongoDB mix in the testkit's `OnFhirTestContainer`.
+- The unit (`io.ignifyr.test`, or the module's own package) vs integration (`io.ignifyr.integrationtest`)
+  split is configured per module in the `scalatest-maven-plugin` (see `ignifyr-engine/pom.xml`).
+  Integration tests need Docker; treat live-network failures (e.g. the RxNorm API) as environment
+  issues, not regressions.
+- Before `mvn -B verify`, clear stale Spark checkpoint state or the streaming suites fail with
+  `CONCURRENT_STREAM_LOG_UPDATE`: `rm -rf ignifyr-server/test-context-conf ignifyr-server/logs
+  ignifyr-runtime-streaming/checkpoint ignifyr-runtime-streaming/logs`.
 
 ## Commit & PR conventions (SRDC semantic commits)
 
@@ -144,11 +196,20 @@ Format: `<emoji> <type>(<scope>): <subject>. <issue-ref>`
 
 - HOCON (Typesafe Config). Engine reference config:
   [ignifyr-engine/src/main/resources/application.conf](ignifyr-engine/src/main/resources/application.conf)
-  — settings live under `ignifyr { … }` (`mappings`, `mapping-jobs`, `schemas`,
-  `terminology-systems`, `archiving`, `fhir-server-writer`, `db-path`) plus `spark { … }` and `akka { … }`.
-- The server adds `webserver`, `fhir`, and `ignifyr-redcap` blocks.
+  — settings live under `ignifyr { … }`: `context-path`, `mappings` (which **nests** `schemas` and
+  `contexts` — there is no top-level `ignifyr.schemas`), `mapping-jobs`, `terminology-systems`,
+  `archiving`, `fhir-server-writer`, `db-path`, and the commented-out `functionLibraries` block (where
+  `ignifyr-rxnorm`'s `rxn:` and `ignifyr-common`'s `cst:` FHIRPath libraries are attached by class name).
+  Plus `spark { … }` and `akka { … }`.
+- `ignifyr.extensions.<id>` is the per-module SPI subtree handed to `IgnifyrExtension.initialize`. It is
+  absent from the reference config by design — an extension gets an empty `Config` when its block is
+  missing.
+- The server adds `webserver`, `fhir`, and `ignifyr-redcap` blocks, and *activates* the
+  `functionLibraries` entries the engine leaves commented out.
 - Override at runtime with `-Dconfig.file=<path>` or single keys `-D<key>=<value>`.
-- Test config: `*/src/test/resources/application.conf`.
+- Test config: `*/src/test/resources/application.conf`. A module whose suites use `IgnifyrTestSpec` must
+  point `ignifyr.mappings.repository.folder-path` / `…mappings.schemas.repository.folder-path` at the
+  testkit fixtures there.
 
 ## Environment notes
 

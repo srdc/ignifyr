@@ -5,9 +5,11 @@ the engine's `SchedulerProvider` SPI, so the community engine carries **no** sch
 Package root `io.ignifyr.runtime.scheduling`. Bundled into `ignifyr-server`, **not** `ignifyr-cli`.
 
 It owns the cron4j scheduler, per-job last-synchronization bookkeeping (for incremental source syncs),
-and the registry of scheduled executions — logic consolidated out of the engine's
-`FhirMappingJobManager` + the old `MappingJobScheduler`. A job carrying `schedulingSettings` with no
-provider installed parses fine and fails with `MissingCapabilityException`.
+and the registry of scheduled executions — logic physically moved out of the engine's
+`FhirMappingJobManager` (`scheduleMappingJob`/`runnableMappingJob`/`getScheduledTimeRange`) and a
+now-deleted `MappingJobScheduler` class (don't go looking for it — it exists only in git history). A job
+carrying `schedulingSettings` with no provider installed parses fine and fails with
+`MissingCapabilityException`.
 
 ## Layout (`src/main/scala/io/ignifyr/runtime/scheduling/`)
 - `SchedulingRuntimeExtension` — the `IgnifyrExtension` impl (`id = "runtime-scheduling"`); overrides
@@ -25,8 +27,11 @@ provider installed parses fine and fails with `MissingCapabilityException`.
 
 ## Notes
 - **cron4j (`it.sauronsoftware.cron4j`) is enterprise-only** and banned from community modules by the
-  root `ban-enterprise-deps` enforcer gate; this module and `ignifyr-server` are the only ones allowed
-  to carry it.
+  root `ban-enterprise-deps` enforcer gate. This module is its **sole declaration site** outside root
+  `dependencyManagement` — `ignifyr-server` never declares it and only gets it transitively through this
+  module. Note the gate is **opt-in, not a whitelist**: only the 8 poms declaring the
+  `ban-enterprise-deps` execution are constrained, so any other enterprise module could carry cron4j and
+  simply doesn't.
 - Incremental-sync state is a filesystem convention: one append-only file per job at
   `<ignifyrDbFolderPath>/scheduler/<jobId>.txt` whose last line is the previous sync timestamp;
   missing file → seed from `initialTime` (default epoch 0).
@@ -38,5 +43,7 @@ scalatest split. **Unit** (`wildcardSuites=io.ignifyr.runtime.scheduling`, no Do
 `SchedulingRuntimeExtensionSpec` (ServiceLoader discovery + empty-registry state). **Integration**
 (`membersOnlySuites=io.ignifyr.integrationtest`, Docker): `SchedulingTest` drives a full cron/SQL→FHIR
 incremental sync against H2 + an onFHIR TestContainer (sleeps ~61s for one every-minute fire, then
-deschedules). Test-scope deps: `ignifyr-testkit` (harness + fixtures) and `ignifyr-connector-sql` (so
-the SqlSource reader is ServiceLoader-discovered on the test classpath).
+deschedules). **Three** test-scope Ignifyr deps, all needed for ServiceLoader discovery on the test
+classpath: `ignifyr-testkit` (harness + fixtures), `ignifyr-connector-sql` (the `SqlSource` reader) and
+`ignifyr-sink-fhir` (the test writes to the onFHIR container via `FhirRepositorySinkSettings`, and since
+the sink split that writer is no longer in the engine).
