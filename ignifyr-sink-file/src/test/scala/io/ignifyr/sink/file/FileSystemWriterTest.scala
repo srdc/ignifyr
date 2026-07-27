@@ -231,6 +231,38 @@ class FileSystemWriterTest extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   /**
+   * Tests that a scheme-qualified path is written in the *requested* content type when partitioning by
+   * resource type. This is the invariant an earlier `hdfs://` special case broke: it bypassed the format
+   * handler and wrote newline-joined raw text, so a parquet (or Delta) sink pointed at an `hdfs://` path
+   * silently produced `.txt` files — and it ignored `numOfPartitions`, `options` and `partitioningColumns`
+   * for ndjson as well.
+   *
+   * `file://` stands in for the scheme-handling path here: exercising literal `hdfs://` needs a Hadoop
+   * mini-cluster, which this community module deliberately does not depend on. Spark's DataFrameWriter
+   * resolves both through the same Hadoop FileSystem abstraction, and there is no longer any per-scheme
+   * branch in FileSinkSupport for a scheme to fall into.
+   * */
+  it should "write partitioned parquet in the requested format for a scheme-qualified URI path" in {
+    val outputUri = FileUtils.getPath("output-parquet-file-uri").toAbsolutePath.toUri.toString.stripSuffix("/")
+    val fileSystemWriter = new FileSystemWriter(sinkSettings =
+      FileSystemSinkSettings(
+        path = outputUri,
+        contentType = SinkContentTypes.PARQUET,
+        partitionByResourceType = true,
+        partitioningColumns = Map("Patient" -> List("gender"))
+      )
+    )
+    fileSystemWriter.write(sparkSession, df, sparkSession.sparkContext.collectionAccumulator[FhirMappingResult])
+
+    // Reading the output back as parquet must succeed — under the old raw-text path these were .txt files
+    sparkSession.read.parquet(s"$outputUri/Condition").count() shouldBe 5
+    sparkSession.read.parquet(s"$outputUri/Patient").count() shouldBe 10
+    // ...and the configured partitioning columns must be honoured on a scheme-qualified path too
+    sparkSession.read.parquet(s"$outputUri/Patient/gender=female").count() shouldBe 5
+    sparkSession.read.parquet(s"$outputUri/Patient/gender=male").count() shouldBe 5
+  }
+
+  /**
    * Tests whether FileSystemWriter can write a DataFrame into a parquet file, partitioned by different columns.
    *
    * The test uses the following FileSystemSinkSettings:
