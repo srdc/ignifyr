@@ -2,23 +2,26 @@ package io.ignifyr.sink.file.format
 
 import com.typesafe.scalalogging.Logger
 import io.ignifyr.engine.model.{FhirMappingResult, FileSystemSinkSettings}
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem}
-import org.apache.spark.sql.functions.{col, collect_list}
+import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.{DataFrameWriter, Dataset, Row, SaveMode, SparkSession}
-
-import java.net.URI
 
 /**
  * Shared write helpers for the file sink formats. Owns the FHIR-aware "partition by resource type"
- * layout (both the local grouped write and the HDFS raw-text write) plus the configured
- * [[DataFrameWriter]] factory, so each [[FileSinkFormat]] — including the enterprise Delta writer in
- * a separate module — reuses the same machinery and only supplies the terminal, format-specific
- * write (`.text` / `.parquet` / `.format("delta").save`).
+ * layout plus the configured [[DataFrameWriter]] factory, so each [[FileSinkFormat]] — including the
+ * enterprise Delta writer in a separate module — reuses the same machinery and only supplies the
+ * terminal, format-specific write (`.text` / `.parquet` / `.format("delta").save`).
+ *
+ * Paths are handed to Spark's [[DataFrameWriter]] as given, so any Hadoop-supported scheme
+ * (`hdfs://`, `s3a://`, a plain local path, …) works and is written in the requested format. There is
+ * deliberately no per-scheme branch here: an earlier `hdfs://` special case wrote raw text regardless
+ * of the content type, silently turning parquet/delta output into `.txt` files.
  */
 object FileSinkSupport {
 
   private val logger: Logger = Logger(this.getClass)
+
+  /** The mapped output payload — a JSON string — inside a [[FhirMappingResult]]. */
+  private val MappedResourceColumn = "mappedFhirResource.mappedResource"
 
   /**
    * Creates a configured [[DataFrameWriter]] for a dataset from the sink settings (partition count,
@@ -35,6 +38,9 @@ object FileSinkSupport {
    * Writes the mapped resources partitioned by FHIR resource type: one directory per resource type.
    * Shared by the ndjson/parquet/delta sink formats.
    *
+   * Each resource type is written from its own filtered [[Dataset]], so the mapped payloads stay
+   * distributed and are never collected to the driver.
+   *
    * @param singleColumnJson when true the per-resource-type frame is a single `mappedResourceJson`
    *                         string column (NDJSON); otherwise the JSON strings are parsed into a
    *                         multi-column frame (parquet/delta) with any missing partition columns added.
@@ -48,53 +54,55 @@ object FileSinkSupport {
       singleColumnJson: Boolean,
       writeGroup: (DataFrameWriter[Row], String) => Unit
   ): Unit = {
-    // Check if the sink path is for HDFS
-    if (sinkSettings.path.startsWith("hdfs://")) {
-      writePartitionedToHdfs(df, sinkSettings)
-    } else {
-      // Group the DataFrame by resourceType to aggregate all resources of the same type.
-      val groupedDFs =
-        df.groupBy("resourceType").agg(collect_list("mappedFhirResource.mappedResource").as("resources"))
-      // Iterate through each group (by resourceType) and write the data to separate folders.
-      groupedDFs
-        .collect()
-        .foreach(rDf => {
-          val resourceType = rDf.getAs[String]("resourceType")
-          // Convert the mutable ArraySeq (default in Spark) to an immutable List
-          val resourcesSeq = rDf.getAs[Seq[String]]("resources").toList
-          if (resourceType == null) {
-            // A mapped output without a `resourceType` discriminator (e.g. a flat/tabular mapping result)
-            // cannot be routed to a per-type directory — skip it instead of writing a literal "null" folder.
-            logger.warn(
-              s"Skipping ${resourcesSeq.size} mapped result(s) without a 'resourceType' discriminator while " +
-                s"writing partitioned by resource type to '${sinkSettings.path}'."
-            )
-          } else {
-            writeResourceTypeGroup(spark, resourceType, resourcesSeq, sinkSettings, singleColumnJson, writeGroup)
-          }
-        })
-    }
+    import spark.implicits._
+
+    // Results carrying a mapped payload, narrowed to the two columns the write needs. A result without
+    // a payload is nothing to write, so it is dropped here as it always has been.
+    // It is scanned once per resource type below, so materialize it first: what sits upstream is a whole
+    // mapping pipeline, not a cheap file scan. Persisting this narrowed frame leaves any cache the
+    // caller holds on `df` untouched.
+    val payloads = df
+      .filter(col(MappedResourceColumn).isNotNull)
+      .select(col("resourceType"), col(MappedResourceColumn).as("mappedResourceJson"))
+    payloads.persist()
+    try {
+      // One small aggregate gives both the resource types present and how many results cannot be routed;
+      // only these per-type counts reach the driver, never the payloads themselves.
+      val (unroutable, routableTypes) = payloads.groupBy("resourceType").count().collect().partition(_.isNullAt(0))
+      unroutable.foreach(row =>
+        // A mapped output without a `resourceType` discriminator (e.g. a flat/tabular mapping result)
+        // cannot be routed to a per-type directory — skip it instead of writing a literal "null" folder.
+        logger.warn(
+          s"Skipping ${row.getLong(1)} mapped result(s) without a 'resourceType' discriminator while " +
+            s"writing partitioned by resource type to '${sinkSettings.path}'."
+        )
+      )
+      routableTypes.map(_.getString(0)).sorted.foreach { resourceType =>
+        val resourceJson =
+          payloads.filter(col("resourceType") === resourceType).select("mappedResourceJson").as[String]
+        writeResourceTypeGroup(spark, resourceType, resourceJson, sinkSettings, singleColumnJson, writeGroup)
+      }
+    } finally
+      payloads.unpersist()
   }
 
-  /** Writes one resource-type group of the local partition-by-resource-type layout. */
+  /** Writes one resource-type group of the partition-by-resource-type layout. */
   private def writeResourceTypeGroup(
       spark: SparkSession,
       resourceType: String,
-      resourcesSeq: List[String],
+      resourceJson: Dataset[String],
       sinkSettings: FileSystemSinkSettings,
       singleColumnJson: Boolean,
       writeGroup: (DataFrameWriter[Row], String) => Unit
   ): Unit = {
-    import spark.implicits._
     val partitionColumns = sinkSettings.getPartitioningColumns(resourceType)
 
     val resourcesDF = if (singleColumnJson) {
       // Single-column frame of raw JSON strings (NDJSON output).
-      resourcesSeq.toDF("mappedResourceJson")
+      resourceJson.toDF("mappedResourceJson")
     } else {
       // Parse the JSON strings into a multi-column frame (parquet/delta output).
-      val resourcesDS = spark.createDataset(resourcesSeq)
-      val parsed = spark.read.json(resourcesDS)
+      val parsed = spark.read.json(resourceJson)
       if (partitionColumns.isEmpty) {
         parsed
       } else {
@@ -116,66 +124,5 @@ object FileSinkSupport {
     val partitionedWriter =
       if (partitionColumns.nonEmpty) writer.partitionBy(partitionColumns: _*) else writer
     writeGroup(partitionedWriter, outputPath)
-  }
-
-  /**
-   * HDFS variant of the partition-by-resource-type write: within each partition, group by resource
-   * type and write the newline-joined mapped resources to `<path>/<resourceType>/<uuid>.txt` through
-   * the Hadoop FileSystem API.
-   */
-  private def writePartitionedToHdfs(df: Dataset[FhirMappingResult], sinkSettings: FileSystemSinkSettings): Unit = {
-    // Extract the scheme and authority from the sink path
-    val uri = new URI(sinkSettings.path)
-    val defaultFS = s"${uri.getScheme}://${uri.getAuthority}"
-
-    df.foreachPartition((partition: Iterator[FhirMappingResult]) => {
-      val fhirMappingResults: Seq[FhirMappingResult] = partition.toSeq
-      if (fhirMappingResults.nonEmpty) {
-        // Results without a `resourceType` discriminator cannot be routed to a per-type directory —
-        // skip them instead of failing the whole partition on `resourceType.get`.
-        val (routable, unrouted) = fhirMappingResults.partition(_.resourceType.isDefined)
-        if (unrouted.nonEmpty) {
-          logger.warn(
-            s"Skipping ${unrouted.size} mapped result(s) without a 'resourceType' discriminator while " +
-              s"writing partitioned by resource type to '${sinkSettings.path}'."
-          )
-        }
-        routable.groupBy(_.resourceType.get).foreach { case (resourceType, fhirResources) =>
-          logger.debug("Will write {} {} resources to HDFS.", fhirResources.length, resourceType)
-          val data = fhirResources.map(_.mappedFhirResource.get.mappedResource.get).mkString("\n")
-
-          val conf = new Configuration()
-          conf.set("fs.defaultFS", defaultFS)
-          val fs = FileSystem.get(conf)
-
-          val dirPath = new org.apache.hadoop.fs.Path(s"${sinkSettings.path}/$resourceType")
-          val uniqueFilePath =
-            new org.apache.hadoop.fs.Path(dirPath, s"${java.util.UUID.randomUUID().toString}.txt")
-
-          var outputStream: FSDataOutputStream = null
-          try {
-            if (!fs.exists(dirPath)) {
-              fs.mkdirs(dirPath)
-            }
-            outputStream = fs.create(uniqueFilePath, true)
-            outputStream.writeBytes(data)
-            logger.info(s"Successfully wrote data to $uniqueFilePath")
-          } catch {
-            case e: Exception =>
-              logger.error(s"Failed to write data to $uniqueFilePath: ${e.getMessage}", e)
-              throw e
-          } finally {
-            if (outputStream != null) {
-              try outputStream.close()
-              catch {
-                case e: Exception =>
-                  logger.error(s"Failed to close output stream for $uniqueFilePath: ${e.getMessage}", e)
-                  throw e
-              }
-            }
-          }
-        }
-      }
-    })
   }
 }
