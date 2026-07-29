@@ -31,6 +31,29 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <!-- Unit phase: the no-Docker mechanics spec (StreamingSinkHandlerTest). -->
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.runtime.streaming</wildcardSuites>
+                        </configuration>
+                    </execution>
+                    <!-- Integration phase: the folder-watch + Kafka streaming E2E tests (onFHIR + Kafka containers). -->
+                    <execution>
+                        <id>integration-test</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <membersOnlySuites>io.ignifyr.integrationtest</membersOnlySuites>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -51,6 +74,42 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-scala_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Shared test harness (IgnifyrTestSpec + OnFhirTestContainer) + testkit fixtures
+             (patient-mapping, Ext-patient schema), plus scalatest / testcontainers transitively. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-testkit_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- The folder-watch E2E reads a FileSystemSource, so the file connector must be on the
+             test classpath for its reader to be ServiceLoader-discovered. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-file_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- The Kafka E2E reads a KafkaSource, so the Kafka connector (and, transitively,
+             spark-sql-kafka + kafka-clients for the test producer) must be on the test classpath. -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-connector-kafka_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Both E2E tests write to a FhirRepositorySinkSettings. After the sink split the FHIR sink
+             writer lives in ignifyr-sink-fhir, so it must be on the test classpath to be
+             ServiceLoader-discovered (mirrors connector-file / runtime-scheduling). -->
+        <dependency>
+            <groupId>io.ignifyr</groupId>
+            <artifactId>ignifyr-sink-fhir_2.13</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Kafka broker container for the Kafka streaming E2E (version from testcontainers-bom). -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
