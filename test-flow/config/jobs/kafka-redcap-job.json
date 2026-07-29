@@ -1,0 +1,35 @@
+{
+  "id": "kafka-redcap-job",
+  "sourceSettings": {
+    "source": {
+      "jsonClass": "KafkaSourceSettings",
+      "name": "redcap-kafka-source",
+      "sourceUri": "https://ignifyr.io/test-flow/redcap-kafka",
+      "bootstrapServers": "kafka:9092",
+      "asStream": true
+    }
+  },
+  "sinkSettings": {
+    "jsonClass": "FhirRepositorySinkSettings",
+    "fhirRepoUrl": "http://repofyr:8080/fhir"
+  },
+  "mappings": [
+    {
+      "name": "patient-mapping",
+      "mappingRef": "https://aiccelerate.eu/fhir/mappings/patient-mapping",
+      "sourceBinding": {
+        "source": {
+          "jsonClass": "KafkaSource",
+          "topicName": "redcap-patients",
+          "options": {
+            "startingOffsets": "earliest"
+          }
+        }
+      }
+    }
+  ],
+  "dataProcessingSettings": {
+    "saveErroneousRecords": false,
+    "archiveMode": "off"
+  }
+}

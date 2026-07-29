@@ -1,0 +1,6 @@
+pid,gender,birthDate,deceasedDateTime,homePostalCode
+sp1,male,1990-04-12,,S01000
+sp2,female,1988-09-03,,S02000
+sp3,male,1975-01-20,,S03000
+sp4,female,2001-06-30,,S04000
+sp5,male,1963-11-11,,S05000

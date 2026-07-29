@@ -1,0 +1,33 @@
+{
+  "id": "streaming-watch-job",
+  "sourceSettings": {
+    "source": {
+      "jsonClass": "FileSystemSourceSettings",
+      "name": "watch-source",
+      "sourceUri": "https://ignifyr.io/test-flow/stream",
+      "dataFolderPath": "/workspace/watch",
+      "asStream": true
+    }
+  },
+  "sinkSettings": {
+    "jsonClass": "FhirRepositorySinkSettings",
+    "fhirRepoUrl": "http://repofyr:8080/fhir"
+  },
+  "mappings": [
+    {
+      "name": "patient-mapping",
+      "mappingRef": "https://aiccelerate.eu/fhir/mappings/patient-mapping",
+      "sourceBinding": {
+        "source": {
+          "jsonClass": "FileSystemSource",
+          "path": "patients",
+          "contentType": "csv"
+        }
+      }
+    }
+  ],
+  "dataProcessingSettings": {
+    "saveErroneousRecords": false,
+    "archiveMode": "off"
+  }
+}
