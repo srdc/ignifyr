@@ -1,0 +1,32 @@
+{
+  "id": "archive-file-job",
+  "sourceSettings": {
+    "source": {
+      "jsonClass": "FileSystemSourceSettings",
+      "name": "archive-source",
+      "sourceUri": "https://ignifyr.io/test-flow/archive",
+      "dataFolderPath": "/workspace/archive-input"
+    }
+  },
+  "sinkSettings": {
+    "jsonClass": "FhirRepositorySinkSettings",
+    "fhirRepoUrl": "http://repofyr:8080/fhir"
+  },
+  "mappings": [
+    {
+      "name": "patient-mapping",
+      "mappingRef": "https://aiccelerate.eu/fhir/mappings/patient-mapping",
+      "sourceBinding": {
+        "source": {
+          "jsonClass": "FileSystemSource",
+          "path": "patients.csv",
+          "contentType": "csv"
+        }
+      }
+    }
+  ],
+  "dataProcessingSettings": {
+    "saveErroneousRecords": false,
+    "archiveMode": "archive"
+  }
+}

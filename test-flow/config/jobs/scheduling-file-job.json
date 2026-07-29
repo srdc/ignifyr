@@ -1,0 +1,36 @@
+{
+  "id": "scheduling-file-job",
+  "schedulingSettings": {
+    "jsonClass": "SchedulingSettings",
+    "cronExpression": "* * * * *"
+  },
+  "sourceSettings": {
+    "source": {
+      "jsonClass": "FileSystemSourceSettings",
+      "name": "scheduled-source",
+      "sourceUri": "https://ignifyr.io/test-flow/scheduled",
+      "dataFolderPath": "/workspace/data"
+    }
+  },
+  "sinkSettings": {
+    "jsonClass": "FhirRepositorySinkSettings",
+    "fhirRepoUrl": "http://repofyr:8080/fhir"
+  },
+  "mappings": [
+    {
+      "name": "patient-mapping",
+      "mappingRef": "https://aiccelerate.eu/fhir/mappings/patient-mapping",
+      "sourceBinding": {
+        "source": {
+          "jsonClass": "FileSystemSource",
+          "path": "patients.csv",
+          "contentType": "csv"
+        }
+      }
+    }
+  ],
+  "dataProcessingSettings": {
+    "saveErroneousRecords": false,
+    "archiveMode": "off"
+  }
+}

@@ -1,0 +1,159 @@
+# Self-contained test stack for the Ignifyr manual E2E flow.
+# Brought up by test-flow/run-manual-flow.sh. Everything needed to exercise batch, folder-watch
+# streaming, scheduling, archiving and (simulated-REDCap) Kafka streaming lives here — no external
+# network or the real tofhir-redcap service required.
+#
+#   mongo    -> backing store for the FHIR server
+#   repofyr  -> onFHIR/repofyr R5 FHIR server (the mapping sink) at :8080
+#   kafka    -> single-node KRaft broker at :9092 (REDCap-simulation topic)
+#   ignifyr  -> ignifyr-server (enterprise edition: streaming+scheduling+kafka+redcap plugins) at :8085
+#
+# The ignifyr-server image is built by the driver script (mvn + docker/server/Dockerfile).
+
+name: ignifyr-test-flow
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: itf-mongo
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+    networks: [itf-net]
+
+  repofyr:
+    image: srdc/onfhir:r5
+    container_name: itf-repofyr
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - DB_EMBEDDED=false
+      - DB_HOST=mongo:27017
+      - SERVER_PORT=8080
+      - SERVER_BASE_URI=fhir
+      - FHIR_ROOT_URL=http://repofyr:8080/fhir
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/fhir/metadata"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    networks: [itf-net]
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: itf-kafka
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    ports:
+      - "9092:9092"
+    networks: [itf-net]
+
+  ignifyr:
+    image: srdc/ignifyr-server:latest
+    container_name: itf-ignifyr
+    depends_on:
+      repofyr:
+        condition: service_healthy
+    environment:
+      - APP_CONF_FILE=/workspace/config/ignifyr-server.conf
+      # Empty unless the flow runs with --with-efk (then set to "fluentd"); the entrypoint only wires
+      # -Defk.fluent-host when non-empty, so with EFK off the server ships no logs and stays quiet.
+      - FLUENT_HOST=${ITF_FLUENT_HOST:-}
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./workspace:/workspace
+      - ./config:/workspace/config:ro
+      - ./data:/workspace/data
+      - ./watch:/workspace/watch
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f -X OPTIONS http://localhost:8085/ignifyr/projects || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 18
+    networks: [itf-net]
+
+  # Web UI + reverse proxy (only used when the flow is run with web enabled). Serves the host-built
+  # Angular SPA from ./web-dist and proxies the API to the ignifyr server, so the whole thing is
+  # reachable at http://localhost/dt4h/ignifyr with no CORS.
+  proxy:
+    image: nginx:1.25
+    container_name: itf-proxy
+    depends_on:
+      ignifyr:
+        condition: service_started
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./web-dist:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+    networks: [itf-net]
+
+  # ---- EFK stack (opt-in: `--profile efk`, wired by run-manual-flow.sh --with-efk) --------------
+  # Collects the server's mapping-execution logs so the web UI's Executions/Kibana dashboard works.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.19
+    container_name: itf-elasticsearch
+    profiles: ["efk"]
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx1g
+    networks: [itf-net]
+    volumes:
+      - itf-es-data:/usr/share/elasticsearch/data
+
+  fluentd:
+    build:
+      context: ..
+      dockerfile: docker/fluentd/Dockerfile
+    image: srdc/ignifyr-fluentd:latest
+    container_name: itf-fluentd
+    profiles: ["efk"]
+    depends_on:
+      elasticsearch:
+        condition: service_started
+    environment:
+      - FORWARD_PORT=24224
+      - HOST=elasticsearch
+      - PORT=9200
+    networks: [itf-net]
+
+  kibana:
+    build:
+      context: ..
+      dockerfile: docker/kibana/Dockerfile
+    image: srdc/ignifyr-kibana:latest
+    container_name: itf-kibana
+    profiles: ["efk"]
+    depends_on:
+      elasticsearch:
+        condition: service_started
+    environment:
+      # basePath makes Kibana generate /dt4h/ignifyr/kibana-prefixed URLs; rewriteBasePath stays
+      # false (default) so Kibana still serves at root internally — its init-script polls
+      # localhost:5601/api/status and imports the dashboard. The nginx proxy strips the prefix.
+      - SERVER_BASEPATH=/dt4h/ignifyr/kibana
+    networks: [itf-net]
+
+networks:
+  itf-net:
+    name: itf-net
+
+volumes:
+  itf-es-data:
+    driver: local
