@@ -5,12 +5,10 @@
 # Complements the CommunityEditionSeparationSpec (which checks the registry on the community *test*
 # classpath) by inspecting the actually-shipped fat jars and the community CLI's runtime behavior:
 #
-#   #2 jar content  — the community jar must contain NONE of the enterprise packages/libs; the
-#                     server jar must contain them.
-#   #4 SPI manifest — the merged META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension in the
-#                     community jar lists only community extensions; the server jar lists the rest.
-#   #1 behavior     — the community CLI refuses enterprise jobs with an actionable MissingX error
-#                     (streaming -> MissingCapabilityException, Kafka -> MissingConnectorException).
+#   SPI manifest — the merged META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension in the community
+#                  jar lists only community extensions; the server jar lists the rest.
+#   behavior     — the community CLI refuses enterprise jobs with an actionable MissingX error
+#                  (streaming -> MissingCapabilityException, Kafka -> MissingConnectorException).
 #
 # Needs both fat jars; builds them (tests skipped) if missing. Usage: test-flow/check-editions.sh
 set -uo pipefail
@@ -46,23 +44,55 @@ log "(Re)building the community + server fat jars (always fresh — stale jars g
 [ -f "$CLI_JAR" ] && [ -f "$SRV_JAR" ] || { echo "jars missing after build" >&2; exit 1; }
 command -v unzip >/dev/null 2>&1 || { echo "unzip required" >&2; exit 1; }
 
-# ---- #2 jar content ----------------------------------------------------------
-log "#2 Jar content: enterprise code/libs excluded from community, present in server"
-# The server fat jar is large (Spark) and can be zip64 with >65535 entries — Info-ZIP `unzip -l`
-# truncates/empties its listing there, which would falsely report everything as "missing". Prefer the
-# JDK `jar` tool (handles large/zip64), falling back to zipinfo, then unzip.
-list_jar() { jar tf "$1" 2>/dev/null || unzip -Z1 "$1" 2>/dev/null || unzip -l "$1" 2>/dev/null; }
+# ---- jar content (best-effort, non-fatal) ------------------------------------
+log "Jar content: enterprise code/libs excluded from community, present in server"
+# The community fat jar is a zip64 archive with ~96k entries, which Info-ZIP cannot enumerate; the JDK
+# `jar` tool and Python's zipfile can. Collect candidate `jar` binaries (PATH, then the running JVM's
+# java.home, then $JAVA_HOME); cygpath/CRLF handling keeps it working under Git Bash.
+u() { command -v cygpath >/dev/null 2>&1 && cygpath -u "$1" 2>/dev/null || echo "$1"; }
+JAR_CANDS=()
+p="$(command -v jar 2>/dev/null || true)"; [ -n "$p" ] && JAR_CANDS+=("$p")
+JHOME="$(java -XshowSettings:properties -version 2>&1 | sed -n 's/.*java\.home = *//p' | head -1 | tr -d '\r')"
+[ -n "$JHOME" ] && { jh="$(u "$JHOME")"; JAR_CANDS+=("$jh/bin/jar" "$jh/bin/jar.exe"); }
+[ -n "${JAVA_HOME:-}" ] && { jh="$(u "$JAVA_HOME")"; JAR_CANDS+=("$jh/bin/jar" "$jh/bin/jar.exe"); }
+echo "  (jar candidates: ${JAR_CANDS[*]:-none})"
+# First lister that yields NON-EMPTY output wins (a tool that exits 0 but prints nothing must not stop
+# the cascade). Native Windows tools (jar.exe, Windows python) get a Windows path; MSYS tools a POSIX one.
+list_jar() {
+  local out c py z posix="$1" nat="$1"
+  command -v cygpath >/dev/null 2>&1 && nat="$(cygpath -m "$posix" 2>/dev/null || echo "$posix")"
+  for c in "${JAR_CANDS[@]:-}"; do
+    [ -n "$c" ] || continue
+    out="$("$c" tf "$nat" 2>/dev/null)"; [ -n "$out" ] && { printf '%s\n' "$out"; return 0; }
+  done
+  for py in python3 python; do
+    command -v "$py" >/dev/null 2>&1 || continue
+    out="$("$py" -c 'import zipfile,sys; [print(n) for n in zipfile.ZipFile(sys.argv[1]).namelist()]' "$nat" 2>/dev/null)"; [ -n "$out" ] && { printf '%s\n' "$out"; return 0; }
+  done
+  for z in "zipinfo -1" "unzip -Z1" "unzip -l"; do
+    out="$($z "$posix" 2>/dev/null)"; [ -n "$out" ] && { printf '%s\n' "$out"; return 0; }
+  done
+  return 1
+}
 CLI_ENTRIES="$(list_jar "$CLI_JAR")"
 SRV_ENTRIES="$(list_jar "$SRV_JAR")"
+# Skip (non-fatal) unless a lister actually enumerated each jar.
+guard_ok=1
+echo "$CLI_ENTRIES" | grep -q "io/ignifyr/engine/" || { warn "no jar lister could enumerate the community jar here — skipping this best-effort section (the SPI manifest + enforcer gate are authoritative)"; guard_ok=0; }
+echo "$SRV_ENTRIES" | grep -q "io/ignifyr/server/" || { guard_ok=0; }
+if [ "$guard_ok" -eq 0 ]; then
+  echo "  (skipping jar-content checks — non-fatal; the ServiceLoader manifest and behavior checks below still run)"
+else
 for marker in "${ENTERPRISE_CLASSES[@]}" "${ENTERPRISE_LIBS[@]}"; do
   if echo "$CLI_ENTRIES" | grep -q "$marker"; then bad "community jar unexpectedly contains '$marker'"; else ok "community jar excludes '$marker'"; fi
 done
 for marker in "${ENTERPRISE_CLASSES[@]}"; do
   if echo "$SRV_ENTRIES" | grep -q "$marker"; then ok "server jar contains '$marker'"; else bad "server jar missing '$marker'"; fi
 done
+fi
 
-# ---- #4 SPI manifest ---------------------------------------------------------
-log "#4 ServiceLoader manifest (io.ignifyr.engine.spi.IgnifyrExtension)"
+# ---- SPI manifest ------------------------------------------------------------
+log "ServiceLoader manifest (io.ignifyr.engine.spi.IgnifyrExtension)"
 CLI_SPI="$(unzip -p "$CLI_JAR" META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension 2>/dev/null)"
 SRV_SPI="$(unzip -p "$SRV_JAR" META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension 2>/dev/null)"
 for ext in "${COMMUNITY_EXT[@]}"; do
@@ -73,23 +103,57 @@ for ext in "${ENTERPRISE_EXT[@]}"; do
   echo "$SRV_SPI" | grep -q "$ext" && ok "server SPI lists '$ext'" || bad "server SPI missing '$ext'"
 done
 
-# ---- #1 community CLI runtime behavior --------------------------------------
-log "#1 Community CLI refuses enterprise jobs with an actionable error"
+# ---- community CLI runtime behavior -----------------------------------------
+log "Community CLI refuses enterprise jobs with an actionable error"
 if command -v java >/dev/null 2>&1; then
   WS="$(mktemp -d)"; mkdir -p "$WS/mappings" "$WS/schemas"
   cp "$REPO_ROOT/ignifyr-testkit/src/main/resources/test-mappings/some-folder-1/patient-mapping.json" "$WS/mappings/"
   cp "$REPO_ROOT/ignifyr-testkit/src/main/resources/test-schemas/some-folder-1/Ext-patient.StructureDefinition.json" "$WS/schemas/"
-  run_cli() { # <job-file>
-    java -Dignifyr.mappings.repository.folder-path="$WS/mappings" \
-         -Dignifyr.mappings.schemas.repository.folder-path="$WS/schemas" \
-         -jar "$CLI_JAR" run --job "$1" 2>&1
+  # The community CLI builds a SparkSession before it can report a missing capability; on JDK 17+ that
+  # needs Spark's module opens (harmless on JDK 11). Give them to the forked JVM.
+  JAVA_MAJOR="$(java -version 2>&1 | awk -F'"' '/version/{print $2; exit}' | awk -F'[._]' '{print ($1==1?$2:$1)}')"
+  SPARK_OPENS=()
+  if [ "${JAVA_MAJOR:-0}" -ge 17 ]; then
+    echo "  (JDK $JAVA_MAJOR detected — adding Spark --add-opens for the forked CLI JVM)"
+    SPARK_OPENS=(
+      --add-opens=java.base/java.lang=ALL-UNNAMED
+      --add-opens=java.base/java.lang.invoke=ALL-UNNAMED
+      --add-opens=java.base/java.io=ALL-UNNAMED
+      --add-opens=java.base/java.net=ALL-UNNAMED
+      --add-opens=java.base/java.nio=ALL-UNNAMED
+      --add-opens=java.base/java.util=ALL-UNNAMED
+      --add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+      --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+      --add-opens=java.base/sun.security.action=ALL-UNNAMED
+    )
+  fi
+  # Run an enterprise job on the community CLI and classify the outcome:
+  #   names the missing capability/connector -> PASS
+  #   timeout (rc 124: the CLI actually started the job) -> FAIL (leak)
+  #   Spark/env could not start -> WARN
+  #   ran but said nothing -> FAIL
+  expect_refusal() { # <job-file> <grep-pattern> <label>
+    local out rc
+    out="$(timeout 300 java "${SPARK_OPENS[@]}" \
+                            -Dignifyr.mappings.repository.folder-path="$WS/mappings" \
+                            -Dignifyr.mappings.schemas.repository.folder-path="$WS/schemas" \
+                            -jar "$CLI_JAR" run --job "$1" 2>&1)"; rc=$?
+    if echo "$out" | grep -q "$2"; then
+      ok "$3"
+    elif [ "$rc" -eq 124 ]; then
+      bad "$3 — CLI did NOT refuse the job; it started running it (enterprise capability leaked)"
+    elif echo "$out" | grep -qiE 'winutils|HADOOP_HOME|UnsatisfiedLinkError|NativeIO|failed to create a child event loop|Unable to establish loopback|IllegalAccessError|does not export|add-opens'; then
+      warn "$3 — could not evaluate (Spark environment failed to start; the registry is authoritatively checked by CommunityEditionSeparationSpec)"
+    else
+      bad "$3 — CLI ran but never reported the missing capability/connector"
+    fi
   }
-  out="$(run_cli "$SCRIPT_DIR/config/jobs/streaming-watch-job.json")"
-  echo "$out" | grep -q "MissingCapabilityException\|runtime-streaming" && ok "streaming job -> MissingCapabilityException (streaming)" || warn "streaming job did not clearly report the missing streaming capability (registry is authoritatively checked by CommunityEditionSeparationSpec)"
-  out="$(run_cli "$SCRIPT_DIR/config/jobs/kafka-redcap-job.json")"
-  echo "$out" | grep -q "MissingConnectorException\|connector-kafka" && ok "Kafka job -> MissingConnectorException (kafka)" || warn "Kafka job did not clearly report the missing Kafka connector (see CommunityEditionSeparationSpec)"
+  expect_refusal "$SCRIPT_DIR/config/jobs/streaming-watch-job.json" "MissingCapabilityException\|runtime-streaming" "streaming job -> MissingCapabilityException (streaming)"
+  # Kafka job is a stream, so it's refused at the missing streaming capability before connector
+  # resolution — accept either enterprise-gap error.
+  expect_refusal "$SCRIPT_DIR/config/jobs/kafka-redcap-job.json"   "MissingConnectorException\|connector-kafka\|MissingCapabilityException\|runtime-streaming" "Kafka streaming job -> refused (missing streaming capability or Kafka connector)"
   # list-plugins must not advertise enterprise plugins on the community jar.
-  lp="$(java -jar "$CLI_JAR" list-plugins 2>/dev/null)"
+  lp="$(java "${SPARK_OPENS[@]}" -jar "$CLI_JAR" list-plugins 2>/dev/null)"
   echo "$lp" | grep -qi "runtime-streaming\|connector-kafka\|redcap" && bad "list-plugins advertises an enterprise plugin on the community jar" || ok "list-plugins shows no enterprise plugins on the community jar"
   rm -rf "$WS"
 else
