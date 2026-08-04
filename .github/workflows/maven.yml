@@ -2,13 +2,19 @@
 #
 #   short  ->  mvn -B test                      fast, NO Docker
 #   long   ->  mvn -B verify -DskipITs=false     integration tier (TestContainers: MongoDB + srdc/onfhir:r5 + Kafka) + the packaged edition checks
+#
+# The long tier is opt-in locally (`${skipITs}` defaults to true, so a plain `mvn install`/`verify`
+# stays short and Docker-free; run `mvn verify -DskipITs=false` when you want it) and mandatory on
+# every pull request. Pushes only get the two fast jobs, since anything reaching a protected branch
+# has already been through a PR that ran the long tier.
 
 name: Java CI with Maven
 
 on:
-  push:
-    branches: [ main ]
+  # No branch filter: a PR into *any* base branch must run the long tier. Restricting this to `main`
+  # silently disables CI for the integration/feature branches we actually open PRs against.
   pull_request:
+  push:
     branches: [ main ]
   workflow_dispatch:
 
@@ -39,10 +45,13 @@ jobs:
       - name: Unit tests
         run: mvn -B test
 
-  # Gated on the two fast jobs: `verify` re-runs the unit tier anyway
+  # Pull requests only (plus a manual dispatch escape hatch) — a push to main would just repeat the
+  # tier its own PR already ran. Gated on the two fast jobs so an obvious break fails in ~1 minute
+  # instead of after the containers come up; `verify` re-runs the unit tier anyway.
   long:
     name: Long tier (integration + edition checks)
     needs: [ tiers, short ]
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
