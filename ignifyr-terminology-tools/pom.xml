@@ -31,6 +31,9 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <configuration>
+                    <wildcardSuites>io.ignifyr.tools.terminology</wildcardSuites>
+                </configuration>
             </plugin>
         </plugins>
     </build>

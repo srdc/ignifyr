@@ -52,6 +52,7 @@
                             <goal>test</goal>
                         </goals>
                         <configuration>
+                            <skipTests>${skipITs}</skipTests>
                             <membersOnlySuites>io.ignifyr.integrationtest</membersOnlySuites>
                         </configuration>
                     </execution>

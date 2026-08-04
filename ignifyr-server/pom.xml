@@ -34,6 +34,32 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <!-- SHORT tier: the Docker-free endpoint/service suites (io.ignifyr.server.**). -->
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.server</wildcardSuites>
+                        </configuration>
+                    </execution>
+                    <!-- LONG tier: the three endpoint suites that mix in OnFhirTestContainer
+                         (onFHIR + MongoDB containers). -->
+                    <execution>
+                        <id>integration-test</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Long tier: skipped unless the build opts in with -DskipITs=false (root pom property). -->
+                            <skipTests>${skipITs}</skipTests>
+                            <membersOnlySuites>io.ignifyr.integrationtest</membersOnlySuites>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
