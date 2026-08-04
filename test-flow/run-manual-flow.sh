@@ -298,7 +298,7 @@ fi
 if want kafka; then
   log "Kafka streaming (REDCap simulated via raw Kafka)"
   # Publish REDCap-shaped records to the topic through the broker container's console producer.
-  docker exec -i itf-kafka /opt/kafka/bin/kafka-console-producer.sh \
+  MSYS_NO_PATHCONV=1 docker exec -i itf-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 --topic redcap-patients \
     < "$SCRIPT_DIR/data/redcap-patients.ndjson" || fail "could not publish to Kafka"
   run_job kafka kafka-redcap-job.json -d
