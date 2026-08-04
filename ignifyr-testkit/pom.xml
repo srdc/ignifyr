@@ -40,6 +40,9 @@
             <plugin>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest-maven-plugin</artifactId>
+                <configuration>
+                    <wildcardSuites>io.ignifyr.test</wildcardSuites>
+                </configuration>
             </plugin>
             <!-- Community edition boundary gate: bans enterprise-only deps (see root pluginManagement). -->
             <plugin>
