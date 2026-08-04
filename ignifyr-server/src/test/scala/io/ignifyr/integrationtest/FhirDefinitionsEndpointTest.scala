@@ -1,4 +1,4 @@
-package io.ignifyr.server.endpoint
+package io.ignifyr.integrationtest
 
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import io.onfhir.definitions.resource.endpoint.FhirDefinitionsEndpoint
