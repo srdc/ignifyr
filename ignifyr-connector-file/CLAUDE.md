@@ -50,8 +50,9 @@ constant or the job passes a raw string.
   engine can't introspect the sub-registry itself).
 
 ## Tests
-scalatest split (surefire disabled). **Unit** (`wildcardSuites=io.ignifyr.connector.file`, no Docker):
+Tier-split (surefire disabled). **Short** (`wildcardSuites=io.ignifyr.connector.file`, no Docker):
 `FileDataSourceReaderTest`, `FileConnectorExtensionSpec` (discovery, `extraCapabilities`, and the
-missing-format install-hint UX). **Integration** (`membersOnlySuites=io.ignifyr.integrationtest`,
-Docker/onFHIR): `FhirMappingJobManagerTest` (writes through the FHIR sink, so `ignifyr-sink-fhir` is
-a test-scope dep). The shared harness + fixtures come from `ignifyr-testkit` (test scope).
+missing-format install-hint UX). **Long** (`membersOnlySuites=io.ignifyr.integrationtest`, gated on
+`${skipITs}`, Docker/onFHIR): `FhirMappingJobManagerTest` — writes through the FHIR sink, so
+`ignifyr-sink-fhir` is a test-scope dep. Run it with `mvn -B verify -pl ignifyr-connector-file
+-DskipITs=false`. The shared harness + fixtures come from `ignifyr-testkit` (test scope).

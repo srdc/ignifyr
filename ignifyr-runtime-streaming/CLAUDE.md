@@ -31,10 +31,24 @@ parses fine and fails at launch with `MissingCapabilityException` naming
 - Checkpoint dirs are per-job **and** per-mapping-task so distinct streams never mix Spark offsets.
 
 ## Tests
-One unit suite, `StreamingSinkHandlerTest` (`AnyFlatSpec`, mockito-scala; no Docker, no testkit dep):
-drives a `rate` stream through `StreamingSinkHandler.writeStream` to exercise the catch-and-continue
-behaviour. Note it contains **no explicit expectation** — it starts the query, `awaitTermination(5000)`,
-`stop()`, so the only failure signal is `awaitTermination` rethrowing if the query died. It fails if a
-micro-batch exception escapes; it cannot assert that one was swallowed. Its package is
-`io.ignifyr.runtime.streaming` (not the engine's `io.ignifyr.test` convention).
-`mvn test -pl ignifyr-runtime-streaming`.
+Tier-split, one execution each.
+
+**Short** (`wildcardSuites=io.ignifyr.runtime.streaming`, no Docker) — `StreamingSinkHandlerTest`
+(`AnyFlatSpec`, mockito-scala): drives a `rate` stream through `StreamingSinkHandler.writeStream` to
+exercise the catch-and-continue behaviour. Note it contains **no explicit expectation** — it starts the
+query, `awaitTermination(5000)`, `stop()`, so the only failure signal is `awaitTermination` rethrowing if
+the query died. It fails if a micro-batch exception escapes; it cannot assert that one was swallowed.
+
+**Long** (`membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`, Docker) — two
+end-to-end suites that exercise the real capability seam rather than the mechanics:
+- `StreamingFolderWatchTest` — a CSV dropped into a watched directory *after* the query starts must flow
+  through the testkit's `patient-mapping` and land as FHIR Patients in the onFHIR container. Uses
+  `archiveMode = off` so it does not depend on the archiver timer (which only `IgnifyrEngine` starts).
+- `KafkaStreamingRedcapTest` — a `KafkaContainer` stands in for the external `tofhir-redcap` service:
+  REDCap-shaped JSON records are published to a topic and consumed through an ordinary `KafkaSource`.
+
+Both mix in `IgnifyrTestSpec` + `OnFhirTestContainer`, so the module test-depends on `ignifyr-testkit`,
+`ignifyr-connector-file`, `ignifyr-connector-kafka` and `ignifyr-sink-fhir` — the connectors and the sink
+must be on the test classpath to be ServiceLoader-discovered, which is the same seam the production
+edition boundary uses. Run them with `mvn -B verify -pl ignifyr-runtime-streaming -DskipITs=false`, and
+clear `checkpoint/` + `logs/` first or the streaming suites trip `CONCURRENT_STREAM_LOG_UPDATE`.
