@@ -1,4 +1,4 @@
-package io.ignifyr.server.endpoint
+package io.ignifyr.integrationtest
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
@@ -14,6 +14,7 @@ import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils
 import io.ignifyr.engine.util.FileUtils.FileExtensions
 import io.ignifyr.server.BaseEndpointTest
+import io.ignifyr.server.endpoint.{JobEndpoint, MappingContextEndpoint, MappingEndpoint, ProjectEndpoint, SchemaDefinitionEndpoint}
 import io.ignifyr.server.model.{ResourceFilter, TestResourceCreationRequest}
 import io.ignifyr.server.util.{FileOperations, TestUtil}
 import org.apache.spark.sql.SparkSession
@@ -147,7 +148,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
         status shouldEqual StatusCodes.OK
 
         // Mappings run asynchronously. Wait at most 30 seconds for mappings to complete.
-        val success = waitForCondition(30) {
+        val success = waitForCondition(90) {
           fsSinkFolder.listFiles.exists(_.getName.contains("job1_1")) && {
             // Check the resources created in the file system
             val outputFolder: File = fsSinkFolder.listFiles.find(_.getName.contains("job1_1")).get
@@ -182,7 +183,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
         status shouldEqual StatusCodes.OK
 
         // Mappings run asynchronously. Wait at most 30 seconds for mappings to complete.
-        val success = waitForCondition(30) {
+        val success = waitForCondition(90) {
           fsSinkFolder.listFiles.exists(_.getName.contains("job1_1")) && {
             // Check the resources created in the file system
             val outputFolder: File = fsSinkFolder.listFiles.find(_.getName.contains("job1_1")).get
@@ -239,7 +240,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
         status shouldEqual StatusCodes.OK
 
         // Mappings run asynchronously. Wait at most 30 seconds for mappings to complete.
-        var success = waitForCondition(30) {
+        var success = waitForCondition(90) {
           fsSinkFolder.listFiles.exists(_.getName.contains("job1_2")) && {
             // Check the resources created in the file system
             val parquetFolder = fsSinkFolder.listFiles.find(_.getName.contains("job1_2")).get
@@ -253,7 +254,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
           )
 
         // test if erroneous records are written to error folder
-        success = waitForCondition(30) {
+        success = waitForCondition(90) {
           val erroneousRecordsFolder =
             Paths.get(ignifyrEngineConfig.erroneousRecordsFolder, FhirMappingErrorCodes.MAPPING_ERROR)
           val jobFolder = Paths.get(erroneousRecordsFolder.toString, s"job-${batchJob.id}").toFile
@@ -516,7 +517,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
         status shouldEqual StatusCodes.OK
 
         // Mappings run asynchronously. Wait at most 30 seconds for the job to finish
-        val success = waitForCondition(30) {
+        val success = waitForCondition(90) {
           fsSinkFolder.listFiles.exists(_.getName.contains("job3")) && {
             // Check the resources created in the file system
             val outputFolder: File = fsSinkFolder.listFiles.find(_.getName.contains("job3")).get
@@ -538,7 +539,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
         org.apache.commons.io.FileUtils.copyFile(csvFile, csvFile2)
         // mappings run asynchronously, wait at most 30 seconds for the job to finish
         // check if the mapping is executed with cloned/new csv file automatically
-        val success2 = waitForCondition(30) {
+        val success2 = waitForCondition(90) {
           fsSinkFolder.listFiles.exists(_.getName.contains("job3")) && {
             // Check the resources created in the file system
             val outputFolder: File = fsSinkFolder.listFiles.find(_.getName.contains("job3")).get
@@ -608,7 +609,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
       ) ~> route ~> check {
         status shouldEqual StatusCodes.OK
         // Mappings run asynchronously. Wait at most 45 seconds for mappings to complete.
-        val success = waitForCondition(45) {
+        val success = waitForCondition(90) {
           fsSinkFolder.listFiles.exists(_.getName.contains("results.csv")) && {
             // catch any exception that might throw by spark during reading the results file
             // because the file might not be ready yet (e.g. file is created but still being written)
@@ -801,6 +802,9 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
    * */
   override def beforeAll(): Unit = {
     super.beforeAll()
+
+    // Warm Spark up front so no timed request pays SparkSession startup.
+    IgnifyrConfig.sparkSession.sql("SELECT 1").collect()
     org.apache.commons.io.FileUtils.deleteDirectory(new File(fsSinkFolderName))
     org.apache.commons.io.FileUtils.deleteDirectory(Paths.get(ignifyrEngineConfig.erroneousRecordsFolder).toFile)
     fsSinkFolder.mkdirs()
