@@ -3,7 +3,6 @@ package io.ignifyr.server
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import io.onfhir.client.OnFhirNetworkClient
 import io.onfhir.definitions.common.model.Json4sSupport.formats
 import io.ignifyr.engine.config.IgnifyrEngineConfig
 import io.ignifyr.engine.util.FileUtils
@@ -18,14 +17,8 @@ import org.json4s.jackson.Serialization.writePretty
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.testcontainers.containers.{GenericContainer, MongoDBContainer}
-import org.testcontainers.containers.wait.strategy.Wait
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.containers.Network
-import org.testcontainers.utility.DockerImageName
 
 import java.io.File
-import java.time.Duration
 import java.util.UUID
 
 trait BaseEndpointTest extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {

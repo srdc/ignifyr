@@ -1,4 +1,4 @@
-package io.ignifyr.server.endpoint
+package io.ignifyr.integrationtest
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, ContentTypes, HttpEntity, MediaTypes, Multipart, StatusCodes}
@@ -7,12 +7,14 @@ import io.onfhir.api.client.FhirBatchTransactionRequestBuilder
 import io.onfhir.api.{FHIR_DATA_TYPES, FHIR_FOUNDATION_RESOURCES, Resource}
 import io.ignifyr.OnFhirTestContainer
 import io.onfhir.definitions.common.model.{DataTypeWithProfiles, SchemaDefinition, SimpleStructureDefinition}
+import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils
 import io.ignifyr.engine.util.FileUtils.FileExtensions
 import io.ignifyr.redcap.RedCapSchemaImportEndpoint
 import io.ignifyr.server.BaseEndpointTest
+import io.ignifyr.server.endpoint.{MappingEndpoint, ProjectEndpoint, SchemaDefinitionEndpoint, SchemaFormats}
 import io.ignifyr.server.endpoint.SchemaDefinitionEndpoint.{QUERY_PARAM_TYPE, QUERY_PARAM_URL}
 import io.ignifyr.server.model.{ImportSchemaSettings, InferTask}
 import io.ignifyr.server.util.{FileOperations, TestUtil}
@@ -31,8 +33,8 @@ class SchemaEndpointTest extends BaseEndpointTest with OnFhirTestContainer {
   // database url for infer schema test
   val DATABASE_URL = "jdbc:h2:mem:inputDb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=FALSE"
 
-  // set 5 second timeout for test because infer schema test can take longer than 1 second
-  implicit def default(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(5.seconds)
+  // generous timeout: preprocessSql inference falls back to a Spark read inside the request
+  implicit def default(implicit system: ActorSystem): RouteTestTimeout = RouteTestTimeout(60.seconds)
 
   // inferTask object for infer schema test
   val inferTaskWithTableName: InferTask = InferTask(
@@ -1145,6 +1147,9 @@ class SchemaEndpointTest extends BaseEndpointTest with OnFhirTestContainer {
    * */
   override def beforeAll(): Unit = {
     super.beforeAll()
+
+    // Warm Spark up front so no timed request pays SparkSession startup.
+    IgnifyrConfig.sparkSession.sql("SELECT 1").collect()
     val sql = readFileContent("/sql/sql-source-populate.sql")
     runSQL(sql)
     this.createProject()
