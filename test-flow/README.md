@@ -4,11 +4,28 @@ Tests are organized into the **standard tiers**:
 
 - **Short (unit)** — fast, no Docker. `test-flow/run-automated-tests.sh --short` (= `mvn test`).
 - **Long (integration)** — real services in throwaway Docker containers, plus the edition checks.
-  `test-flow/run-automated-tests.sh --long` (= `mvn -B verify` + the edition checks).
+  `test-flow/run-automated-tests.sh --long` (= `mvn -B verify -DskipITs=false` + the checks).
 - **E2E (live smoke)** — a full running stack; a separate command because it builds images and leaves
   a stack up. `test-flow/run-manual-flow.sh`.
 
 Use **short** for quick feedback, **long** before merging/releasing, **E2E** to smoke-test the packaged runtime.
+
+### The long tier is opt-in
+
+The root pom defines `<skipITs>true</skipITs>`, and **every** `integration-test`-phase execution is
+gated on it. So none of the ordinary local build commands start a container:
+
+| Command | Runs |
+|---|---|
+| `mvn test` | short only |
+| `mvn package` | short only |
+| `mvn install` | short only — the `integration-test`/`verify` phases execute but skip their suites |
+| `mvn verify` | short only |
+| `mvn verify -DskipITs=false` | **short + long** |
+
+`-DskipITs=false` is the single switch. CI is the only thing that flips it by default
+(`.github/workflows/maven.yml`), which is why opening a PR runs the long tier and building locally
+does not.
 
 ---
 
@@ -32,11 +49,12 @@ Compiles everything and runs the quick, in-memory unit suites. No containers.
 ## Long tier — full verification (Docker required)
 
 ```bash
-test-flow/run-automated-tests.sh --long      # = mvn -B verify + the edition checks
+test-flow/run-automated-tests.sh --long      # = mvn -B verify -DskipITs=false + the checks
 ```
 
-Runs the unit tests **plus** the integration tests (which start MongoDB + a FHIR server + Kafka), then
-the packaged edition-separation checks (`check-editions.sh`, `check-enforcer-gate.sh`).
+Runs the tier gate (`check-test-tiers.sh`), then the unit tests **plus** the integration tests (which
+start MongoDB + a FHIR server + Kafka), then the packaged edition-separation checks
+(`check-editions.sh`, `check-enforcer-gate.sh`).
 
 ## E2E tier — live smoke (separate)
 
@@ -55,6 +73,7 @@ Builds the server image, stands up a real stack, runs each behavior against it, 
 | Build only, skip tests | `mvn -DskipTests install` |
 | Short (unit, no Docker) | `test-flow/run-automated-tests.sh --short` |
 | Long (unit + integration + edition) | `test-flow/run-automated-tests.sh --long` |
+| Tier integrity gate (seconds, no JDK) | `test-flow/check-test-tiers.sh` |
 | One area only | `test-flow/run-automated-tests.sh --behavior NAME` |
 | Edition jars + SPI | `test-flow/check-editions.sh` |
 | Edition enforcer gate | `test-flow/check-enforcer-gate.sh` |
@@ -78,11 +97,13 @@ Builds the server image, stands up a real stack, runs each behavior against it, 
 | `CommunityEditionSeparationSpec` | short | The free edition genuinely does not contain the paid features | no |
 | `check-editions.sh` | long | The built free/paid jars contain the right things; the free CLI refuses paid jobs | no* |
 | `check-enforcer-gate.sh` | long | Adding a banned (paid) library to a free module makes the build fail | no |
+| `check-test-tiers.sh` | short | No container-backed suite can hide in the short tier; no module leaves its suites unpinned; every integration execution is gated on `skipITs` | no |
 | `SchedulingTest` | long | A timer-scheduled job actually fires and writes data | yes |
 | `FileStreamInputArchiverTest` | short | Processed input files get archived/deleted as configured | no |
 | Connector specs (file / SQL / FHIR-server) | short + long | Each input source reads correctly | some |
 | Sink specs (fhir / file / omop) | short | Each output writes correctly | no |
-| Server endpoint suites | long | The REST API (projects, jobs, executions) behaves | yes |
+| Server endpoint suites (9 of 12) | short | The REST API (projects, jobs, mappings, terminology) behaves | no |
+| `SchemaEndpointTest`, `MappingExecutionEndpointTest`, `FhirDefinitionsEndpointTest` | long | The three endpoint suites that need a real FHIR server | yes |
 
 \* `check-editions.sh` builds the jars itself (no live containers).
 
@@ -108,6 +129,11 @@ data in the FHIR server.
 
 ## Notes
 
+- **Which tier does a suite belong to?** Its package decides. A short-tier suite lives in its module's
+  own package (pinned by `<wildcardSuites>`); a long-tier suite lives in `io.ignifyr.integrationtest`
+  (selected by `<membersOnlySuites>` in an `integration-test` execution gated on `${skipITs}`).
+  `check-test-tiers.sh` enforces this, so putting a Testcontainers suite in the wrong package fails CI
+  rather than quietly slowing everyone's `mvn test` down.
 - Build and test on **JDK 11**
 - Integration failures are usually environment, not code: Docker not running, a container still
   pulling, or (Windows) `winutils`/`HADOOP_HOME` not set.
