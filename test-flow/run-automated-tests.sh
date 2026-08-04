@@ -5,8 +5,13 @@
 # Follows the usual Maven split (Surefire-style unit @ `test`, Failsafe-style integration @ `verify`):
 #
 #   --short   Unit tests only  ->  `mvn test`.   Fast, NO Docker. Quick-feedback / smoke run.
-#   --long    Full verification ->  `mvn -B verify` (unit + integration via TestContainers:
-#             MongoDB + srdc/onfhir:r5 + Kafka) PLUS the packaged edition checks. DOCKER REQUIRED.
+#   --long    Full verification ->  `mvn -B verify -DskipITs=false` (unit + integration via
+#             TestContainers: MongoDB + srdc/onfhir:r5 + Kafka) PLUS the tier gate and the
+#             packaged edition checks. DOCKER REQUIRED.
+#
+#             The long tier is opt-in: the root pom defaults `skipITs` to true, so a plain
+#             `mvn test` / `mvn package` / `mvn install` stays on the short tier. `-DskipITs=false`
+#             is what turns the integration executions on.
 #
 #   --behavior X   Run one area only: streaming | scheduling | kafka | archiving | connectors |
 #                  sinks | endpoints | editions.
@@ -44,27 +49,30 @@ case "$MODE" in
   long)
     log "LONG tier — full verification (Docker required)"
     docker info >/dev/null 2>&1 || { echo "Docker must be running for the integration tier" >&2; exit 1; }
+    log "Test-tier integrity (no container-backed suite hiding in the short tier)"
+    bash "$SCRIPT_DIR/check-test-tiers.sh"
     log "Unit + integration tests (TestContainers: Mongo + onFHIR + Kafka)"
-    mvn -B verify
+    mvn -B verify -DskipITs=false
     log "Edition separation — packaged jars + SPI + community-CLI behavior"
-    "$SCRIPT_DIR/check-editions.sh"
+    bash "$SCRIPT_DIR/check-editions.sh"
     log "Edition separation — banned-dependency enforcer gate"
-    "$SCRIPT_DIR/check-enforcer-gate.sh"
+    bash "$SCRIPT_DIR/check-enforcer-gate.sh"
     ;;
   behavior)
     docker info >/dev/null 2>&1 || echo "WARNING: Docker not detected; integration suites will fail."
     case "$BEHAVIOR" in
-      streaming)  log "runtime-streaming (unit + folder-watch & Kafka E2E)"; mvn -B -pl ignifyr-runtime-streaming -am verify ;;
-      scheduling) log "runtime-scheduling (unit + cron/SQL E2E)";            mvn -B -pl ignifyr-runtime-scheduling -am verify ;;
-      kafka)      log "connector-kafka + runtime-streaming Kafka E2E";       mvn -B -pl ignifyr-connector-kafka,ignifyr-runtime-streaming -am verify ;;
+      streaming)  log "runtime-streaming (unit + folder-watch & Kafka E2E)"; mvn -B -pl ignifyr-runtime-streaming -am verify -DskipITs=false ;;
+      scheduling) log "runtime-scheduling (unit + cron/SQL E2E)";            mvn -B -pl ignifyr-runtime-scheduling -am verify -DskipITs=false ;;
+      kafka)      log "connector-kafka + runtime-streaming Kafka E2E";       mvn -B -pl ignifyr-connector-kafka,ignifyr-runtime-streaming -am verify -DskipITs=false ;;
       archiving)  log "engine archiving unit suite (no Docker)";             mvn -B -pl ignifyr-engine -am test -Dsuffixes='.*FileStreamInputArchiverTest' ;;
-      connectors) log "file + sql connectors (unit + integration)";         mvn -B -pl ignifyr-connector-file,ignifyr-connector-sql -am verify ;;
+      connectors) log "file + sql connectors (unit + integration)";         mvn -B -pl ignifyr-connector-file,ignifyr-connector-sql -am verify -DskipITs=false ;;
       sinks)      log "sink modules (fhir + file + omop registration/writer specs)"; mvn -B -pl ignifyr-sink-fhir,ignifyr-sink-file,ignifyr-sink-omop -am test ;;
-      endpoints)  log "server REST endpoints (integration)";                mvn -B -pl ignifyr-server -am verify ;;
+      endpoints)  log "server REST endpoints (integration)";                mvn -B -pl ignifyr-server -am verify -DskipITs=false ;;
       editions)   log "edition separation (community registry spec + jar/SPI content + enforcer gate)"
                   mvn -B -pl ignifyr-cli -am test
-                  "$SCRIPT_DIR/check-editions.sh"
-                  "$SCRIPT_DIR/check-enforcer-gate.sh" ;;
+                  bash "$SCRIPT_DIR/check-test-tiers.sh"
+                  bash "$SCRIPT_DIR/check-editions.sh"
+                  bash "$SCRIPT_DIR/check-enforcer-gate.sh" ;;
       *) echo "Unknown behavior '$BEHAVIOR' (streaming|scheduling|kafka|archiving|connectors|sinks|endpoints|editions)" >&2; exit 2 ;;
     esac
     ;;
