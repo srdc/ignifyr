@@ -39,11 +39,11 @@ carrying `schedulingSettings` with no provider installed parses fine and fails w
   (Spark distributes tasks across threads; job-group cancellation doesn't apply) — see the TODO in code.
 
 ## Tests
-scalatest split. **Unit** (`wildcardSuites=io.ignifyr.runtime.scheduling`, no Docker):
-`SchedulingRuntimeExtensionSpec` (ServiceLoader discovery + empty-registry state). **Integration**
-(`membersOnlySuites=io.ignifyr.integrationtest`, Docker): `SchedulingTest` drives a full cron/SQL→FHIR
-incremental sync against H2 + an onFHIR TestContainer (sleeps ~61s for one every-minute fire, then
-deschedules). **Three** test-scope Ignifyr deps, all needed for ServiceLoader discovery on the test
+Tier-split. **Short** (`wildcardSuites=io.ignifyr.runtime.scheduling`, no Docker):
+`SchedulingRuntimeExtensionSpec` (ServiceLoader discovery + empty-registry state). **Long**
+(`membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`, Docker): `SchedulingTest` drives a
+full cron/SQL→FHIR incremental sync against H2 + an onFHIR TestContainer (sleeps ~61s for one
+every-minute fire, then deschedules) — `mvn -B verify -pl ignifyr-runtime-scheduling -DskipITs=false`. **Three** test-scope Ignifyr deps, all needed for ServiceLoader discovery on the test
 classpath: `ignifyr-testkit` (harness + fixtures), `ignifyr-connector-sql` (the `SqlSource` reader) and
 `ignifyr-sink-fhir` (the test writes to the onFHIR container via `FhirRepositorySinkSettings`, and since
 the sink split that writer is no longer in the engine).

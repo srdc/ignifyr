@@ -140,7 +140,9 @@ else plugs into). Where a module exists mainly for structural regularity, the ta
 The REST contract is [ignifyr-server/api.yaml](ignifyr-server/api.yaml) and the reference configuration is
 [ignifyr-engine/src/main/resources/application.conf](ignifyr-engine/src/main/resources/application.conf).
 Modules with non-obvious internals carry their own `CLAUDE.md`; run `list-plugins` on either jar to see
-what a given deployment actually has installed.
+what a given deployment actually has installed. How to build and test — including the short/long test
+tiers and the checks that keep the edition boundary honest — is in
+[test-flow/README.md](test-flow/README.md).
 
 ## Requirements
 To run Ignifyr, you need:

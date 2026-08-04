@@ -73,13 +73,15 @@ Reads HOCON sections `ignifyr` (engine), `webserver` (`WebServerConfig` — host
 `mvn test -pl ignifyr-server` → suites under `io.ignifyr.server` (`BaseEndpointTest`),
 `io.ignifyr.server.endpoint`, and `io.ignifyr.server.service` (`ExecutionServiceTest`).
 
-⚠️ **Unlike every other test-bearing module, this one declares `scalatest-maven-plugin` bare — no
-`wildcardSuites`, no `membersOnlySuites`.** So there is no unit/integration split here: `mvn test` and
-`mvn verify` run the identical set, and **Docker must be running** for either. (This is why the root
-guide's "`mvn test` is the fast, Docker-free loop" holds per-plugin-module but not for the reactor.)
+The suites are **tier-split** like every other module (two `scalatest-maven-plugin` executions):
+- **short** — `wildcardSuites=io.ignifyr.server`: the nine endpoint suites plus `ExecutionServiceTest`
+  and `BaseEndpointTest`. Docker-free, runs in `mvn test`.
+- **long** — `membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`: the three suites that
+  mix in the testkit's `OnFhirTestContainer` (`FhirDefinitionsEndpointTest`, `SchemaEndpointTest`,
+  `MappingExecutionEndpointTest`) and so start an `srdc/onfhir:r5` container backed by `mongo:7.0`. They
+  live in `io.ignifyr.integrationtest`, not under `io.ignifyr.server.endpoint`, precisely because the
+  package is what selects the tier. Run them with `mvn -B verify -DskipITs=false`.
 
-`BaseEndpointTest` itself starts no container — it boots the route via `ScalatestRouteTest` (its
-`MongoDBContainer`/`GenericContainer`/`Network` imports are dead). The Docker-requiring suites are
-`FhirDefinitionsEndpointTest`, `SchemaEndpointTest` and `MappingExecutionEndpointTest`, which mix in
-`io.ignifyr.OnFhirTestContainer` from `ignifyr-testkit` (an `srdc/onfhir:r5` container backed by
-`mongo:7.0` on a shared network).
+`BaseEndpointTest` itself starts no container — it boots the route via `ScalatestRouteTest`. Historically
+this module ran everything (containers included) in the `test` phase; `test-flow/check-test-tiers.sh` now
+fails the build if a container-backed suite reappears in a short-tier package.

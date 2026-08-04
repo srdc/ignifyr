@@ -108,22 +108,28 @@ Run everything from the repo root with Maven.
 - Standalone fat jars: `ignifyr-cli/target/ignifyr-engine-standalone.jar`,
   `ignifyr-server/target/ignifyr-server-standalone.jar`.
 
-**Test** — ScalaTest via the `scalatest-maven-plugin` (surefire is disabled).
-- `mvn test` — **unit tests**. Each module pins its own `wildcardSuites` (the engine's is
-  `io.ignifyr.test`, a plugin module's is its own package, e.g. `io.ignifyr.sink.file`).
-  ⚠️ **Not Docker-free at the reactor level:** `ignifyr-server` declares the plugin bare (no
-  `wildcardSuites`), so its endpoint suites run in the `test` phase and three of them start onFHIR +
-  MongoDB containers. `mvn test -pl <a plugin module>` *is* Docker-free.
-- `mvn -B verify` — full build **incl. integration tests** (`membersOnlySuites=io.ignifyr.integrationtest`
-  in `connector-file`, `connector-sql`, `runtime-scheduling`).
-  ⚠️ Requires **Docker running** (TestContainers spins up MongoDB, Kafka, onFHIR r5).
-  This is exactly what CI runs.
+**Test** — ScalaTest via the `scalatest-maven-plugin` (surefire is disabled). Tests are split into
+**tiers**; the canonical guide is **[test-flow/README.md](test-flow/README.md)** — read it rather than
+re-deriving the commands, and keep it as the single source of truth if you change the test setup.
+
+- `mvn test` — the **short (unit)** tier: fast and **Docker-free across the whole reactor**. Every module
+  pins its own `wildcardSuites` (the engine's is `io.ignifyr.test`, a plugin module's is its own package,
+  e.g. `io.ignifyr.sink.file`, the server's is `io.ignifyr.server`).
+- `mvn -B verify -DskipITs=false` — short **plus** the **long (integration)** tier.
+  ⚠️ Requires **Docker running** (TestContainers: MongoDB, Kafka, onFHIR r5).
+- ⚠️ **The long tier is opt-in.** The root pom sets `<skipITs>true</skipITs>` and every
+  `integration-test` execution is gated on it, so plain `mvn test`/`package`/`install`/**`verify`** all
+  stay short and container-free. `-DskipITs=false` is the only switch. Modules owning long-tier suites
+  (all in package `io.ignifyr.integrationtest`): `connector-file`, `connector-sql`,
+  `runtime-scheduling`, `runtime-streaming`, `server`.
+- `test-flow/run-automated-tests.sh --short | --long` wraps the two tiers and additionally runs the
+  edition checks; `test-flow/run-manual-flow.sh` is the separate live E2E stack.
 - One module: `mvn test -pl ignifyr-engine`.
 - One suite: `mvn test -pl ignifyr-engine -Dsuffixes='.*ListPluginsTest'`. Use `-Dsuffixes` (a regex on
   the suite name) — `-DwildcardSuites` and `-Dsuites` are **silently ignored**, because an explicit
   value in the module POM beats the command-line property.
-- `ignifyr-rxnorm` declares no `scalatest-maven-plugin`, so its two suites never run under Maven —
-  they are IDE-only today.
+- `ignifyr-rxnorm` declares no `scalatest-maven-plugin` at all, so its two suites never run under Maven —
+  they are IDE-only today. (It is the one module the tier gate's "no bare plugin" rule does not reach.)
 - **Run `mvn test` and report the result before claiming a change works.**
 
 **Format** — scalafmt, config in [.scalafmt.conf](.scalafmt.conf).
@@ -160,12 +166,23 @@ Run everything from the repo root with Maven.
 - Server endpoint tests extend `BaseEndpointTest`
   ([ignifyr-server/src/test/scala/io/ignifyr/server/BaseEndpointTest.scala](ignifyr-server/src/test/scala/io/ignifyr/server/BaseEndpointTest.scala))
   — boots the Akka-HTTP route via `ScalatestRouteTest`. It starts **no** container itself; the three
-  suites that need onFHIR/MongoDB mix in the testkit's `OnFhirTestContainer`.
-- The unit (`io.ignifyr.test`, or the module's own package) vs integration (`io.ignifyr.integrationtest`)
-  split is configured per module in the `scalatest-maven-plugin` (see `ignifyr-engine/pom.xml`).
-  Integration tests need Docker; treat live-network failures (e.g. the RxNorm API) as environment
+  suites that need onFHIR/MongoDB mix in the testkit's `OnFhirTestContainer` and therefore live in
+  `io.ignifyr.integrationtest` (long tier), while the other nine endpoint/service suites stay short.
+- **A suite's tier is decided by its package, and that is enforced, not conventional:**
+  short = the module's own package pinned by `<wildcardSuites>`; long = `io.ignifyr.integrationtest`
+  selected by `<membersOnlySuites>` in an `integration-test` execution gated on `${skipITs}`.
+  `test-flow/check-test-tiers.sh` (seconds, no Maven, no Docker; a CI job of its own) fails the build if
+  a container-backed suite sits in a short-tier package, if a module declares a **bare**
+  `scalatest-maven-plugin`, or if integration suites and integration executions disagree. So put a new
+  Testcontainers suite in `io.ignifyr.integrationtest` — anywhere else and CI rejects it rather than
+  quietly slowing everyone's `mvn test`.
+- Integration tests need Docker; treat live-network failures (e.g. the RxNorm API) as environment
   issues, not regressions.
-- Before `mvn -B verify`, clear stale Spark checkpoint state or the streaming suites fail with
+- The root pom's scalatest `argLine` adds the Spark `--add-opens` module flags (with
+  `-XX:+IgnoreUnrecognizedVMOptions`, so it stays valid on the JDK 11 target). That is what keeps
+  Spark-backed suites from aborting on JDK 17+ with `cannot access class sun.nio.ch.DirectBuffer` —
+  don't drop it. **Build and test on JDK 11** regardless; that is what CI uses.
+- Before running the long tier, clear stale Spark checkpoint state or the streaming suites fail with
   `CONCURRENT_STREAM_LOG_UPDATE`: `rm -rf ignifyr-server/test-context-conf ignifyr-server/logs
   ignifyr-runtime-streaming/checkpoint ignifyr-runtime-streaming/logs`.
 

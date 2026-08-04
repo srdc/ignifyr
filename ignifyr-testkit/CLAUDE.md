@@ -56,7 +56,8 @@ can depend on the published community testkit; the reverse would be impossible.
   are declared **compile scope** here, overriding the root pom's managed `test` scope — so a single
   `test`-scope dependency on `ignifyr-testkit` transitively supplies a consumer with the whole toolchain.
   Nine modules rely on this.
-- Its own `scalatest-maven-plugin` declares no `wildcardSuites`/`membersOnlySuites`, so it inherits the
-  root's bare `test` execution and simply runs every suite it finds — the `io.ignifyr.test` package for
-  its own suites is convention, not enforcement, and there is no integration-test execution here.
+- Its own suites are pinned to `wildcardSuites=io.ignifyr.test` (short tier, no Docker) — the tier gate
+  `test-flow/check-test-tiers.sh` forbids a bare `scalatest-maven-plugin` block anywhere, so the package
+  convention is enforced here too. There is no integration-test execution in this module: the containers
+  it *provides* (`OnFhirTestContainer`) are started by consumers' long-tier suites, not by its own.
 - No `META-INF/services` and no `IgnifyrExtension`: this is a plain library, not a runtime plugin.

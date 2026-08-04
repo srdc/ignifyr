@@ -12,6 +12,12 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
 - `IgnifyrEngine` — central orchestrator wiring config, repositories, the Spark session, and the mapping-job manager.
 - `execution/MappingJobLauncher` — the single home of the batch/streaming/scheduled job dispatch;
   both the CLI (`CommandLineInterface.runJob`) and the server's `ExecutionService` launch through it.
+  ⚠️ `MappingJobLaunch.Batch(completion)` carries the future returned by
+  `RunningJobRegistry.registerBatchJob`, which is chained with `andThen` so it completes only after
+  `handleCompletedBatchJob` (input archiving + deregistration) has run — **not** the raw mapping-task
+  future. Awaiting it is therefore safe for a caller that exits the JVM immediately afterwards, which the
+  one-shot CLI does (`System.exit(0)` right after the await). Don't "simplify" it back to the task future:
+  that reintroduces a race where `archiveMode = archive|delete` silently leaves inputs in place.
 - CLI: `cli/CommandLineInterface` + `cli/command/*` (`Run`, `Load`, `Reload`, `Stop`, `Help`,
   `ListRunningMappings`, `ListPlugins`, …). Modules contribute commands via the `CliCommandProvider`
   SPI; `list-plugins` prints the installed extensions and everything they contribute (a CI gate on
@@ -72,11 +78,12 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
   `FileStreamInputArchiverTest`, `RunningJobRegistryTest`, `FhirMappingJobExecutionTest`,
   `FhirMappingUtilityTest`. They do **not** use `IgnifyrTestSpec`: that harness lives in
   `ignifyr-testkit`, and the engine must never depend on the testkit (reactor cycle). No Docker.
-- The engine has **no integration suites of its own** — there is no `io.ignifyr.integrationtest` source
+- The engine has **no long-tier suites of its own** — there is no `io.ignifyr.integrationtest` source
   folder here (the pom's `integration-test` execution simply finds nothing). The suites that exercise the
   engine end-to-end live in the modules that supply the I/O: `ignifyr-connector-file`
   (`FhirMappingJobManagerTest`), `ignifyr-connector-sql` (`SqlSourceTest`), `ignifyr-runtime-scheduling`
-  (`SchedulingTest`) — all Docker-requiring, all run by `mvn -B verify`.
+  (`SchedulingTest`) and `ignifyr-runtime-streaming` (the folder-watch + Kafka E2E suites) — all
+  Docker-requiring, all opt-in via `mvn -B verify -DskipITs=false`.
 - One suite: `mvn test -pl ignifyr-engine -Dsuffixes='.*ListPluginsTest'`. `-DwildcardSuites`/`-Dsuites`
   are ignored — the pom sets `wildcardSuites` explicitly, which beats the command-line property.
 - ⚠️ FHIRPath function libraries are validated at the `install` phase — a `scala-maven-plugin`
