@@ -149,12 +149,16 @@ class RunningJobRegistry(spark: SparkSession) {
    * @param execution      Execution representing the batch job.
    * @param jobFuture      Unified Future to yield the completion of the mapping tasks (Optional since scheduling jobs do not have a future).
    * @param jobDescription Job description to be used by Spark. Spark uses it for reporting purposes.
+   * @return A future that completes once the mapping tasks have finished **and** the post-completion
+   *         handling ([[handleCompletedBatchJob]] — input archiving plus deregistration) has run.
+   *         Await this, not `jobFuture`, when the caller needs archiving to be done; an already
+   *         completed future is returned when there is no `jobFuture` to hang off.
    */
   def registerBatchJob(
       execution: FhirMappingJobExecution,
       jobFuture: Option[Future[Unit]],
       jobDescription: String = ""
-  ): Unit = {
+  ): Future[Unit] = {
     val jobGroup: String = setSparkJobGroup(jobDescription)
     val executionWithJobGroupId = execution.copy(jobGroupIdOrStreamingQuery = Some(Left(jobGroup)))
     val jobId: String = executionWithJobGroupId.jobId
@@ -167,11 +171,15 @@ class RunningJobRegistry(spark: SparkSession) {
 
       logger.debug(s"Batch job for execution: $executionId has been registered with spark job group id: $jobGroup")
     }
-    // Remove the execution entry when the future is completed
-    if (jobFuture.nonEmpty)
-      jobFuture.get.onComplete(_ => {
-        handleCompletedBatchJob(execution)
-      })
+    // Archive the processed inputs and drop the execution entry once the job finishes. `andThen`
+    // rather than `onComplete` so the returned future completes only AFTER that handling has run —
+    // `onComplete` merely schedules it, which leaves a caller that awaits the raw job future racing
+    // against the archiving. That race is live for the one-shot batch CLI, which calls
+    // System.exit(0) as soon as the await returns.
+    jobFuture match {
+      case Some(future) => future.andThen { case _ => handleCompletedBatchJob(execution) }
+      case None => Future.successful(())
+    }
   }
 
   /**
