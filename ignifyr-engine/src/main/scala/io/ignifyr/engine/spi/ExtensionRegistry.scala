@@ -120,8 +120,15 @@ object ExtensionRegistry {
   }
 
   /**
-   * Force every registry to materialize — so a duplicate-registration error surfaces at engine
-   * startup rather than in the middle of a job — and log what was loaded.
+   * Force every registry that can reject its input to materialize — so a duplicate registration or a
+   * second copy of a single-capability module surfaces at engine startup rather than in the middle of
+   * a job — and log what was loaded.
+   *
+   * `streaming` and `scheduler` are included deliberately: both throw from [[singleCapability]] when
+   * two providers are installed, and neither is read anywhere else during startup. (`streaming` used
+   * to be covered only incidentally, by `IgnifyrEngine` consulting it to decide whether to start the
+   * archive timer; that is a coincidence, not a guarantee.) `sparkConfContributions` needs no entry —
+   * building the shared SparkSession reads it, which happens before this call.
    */
   def init(): Unit = {
     sourceConnectors
@@ -130,6 +137,8 @@ object ExtensionRegistry {
     identityServiceProviders
     cliCommands
     schemaInferrers
+    streaming
+    scheduler
     ()
   }
 

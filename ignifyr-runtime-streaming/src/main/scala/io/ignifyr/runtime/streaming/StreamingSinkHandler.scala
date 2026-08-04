@@ -32,9 +32,14 @@ object StreamingSinkHandler {
         SinkHandler.writeMappingResult(spark, mappingJobExecution, mappingTaskName, dataset, resourceWriter)
       } catch {
         case e: Throwable =>
+          // Pass the throwable, NOT e.getMessage: a String selects scala-logging's
+          // `error(String, Any*)` overload, whose args fill `{}` placeholders — and this message is
+          // fully interpolated, so the argument was silently discarded along with the stack trace.
+          // This is the deliberate swallow path (the stream survives bad chunks), so this line is the
+          // only record a failed micro-batch ever leaves.
           logger.error(
             s"Streaming chunk resulted in error for project: ${mappingJobExecution.projectId}, job: ${mappingJobExecution.jobId}, execution: ${mappingJobExecution.id}, mappingTask: $mappingTaskName",
-            e.getMessage
+            e
           )
       }
 

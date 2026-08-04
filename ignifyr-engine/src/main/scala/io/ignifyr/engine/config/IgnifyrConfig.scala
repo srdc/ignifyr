@@ -53,24 +53,65 @@ object IgnifyrConfig {
   lazy val sparkSession: SparkSession = SparkSession.builder().config(createSparkConf).getOrCreate()
 
   /**
-   * Create spark configuration from this config
+   * Spark-conf keys that Spark parses as a **comma-separated list of things to register or ship**.
+   * For these the layers below must be *joined*: dropping one layer's entries is always a bug, since
+   * each entry is an independent registration rather than a value someone means to replace.
+   *
+   * Deliberately limited to that shape. A key like `spark.driver.extraClassPath` looks list-like but
+   * is separated by the platform path separator, not commas, and a scalar such as
+   * `spark.sql.catalog.spark_catalog` (Delta's other contribution) is genuinely single-valued — a user
+   * override there is legitimate and must keep winning. Add a key here only when Spark treats it as a
+   * comma-separated registration list.
+   */
+  private val additiveSparkConfKeys: Set[String] = Set(
+    "spark.sql.extensions",
+    "spark.plugins",
+    "spark.jars",
+    "spark.jars.packages",
+    "spark.jars.repositories",
+    "spark.extraListeners",
+    "spark.sql.queryExecutionListeners",
+    "spark.sql.streaming.streamingQueryListeners"
+  )
+
+  /**
+   * Create spark configuration from this config.
+   *
+   * Three layers, lowest precedence first: engine defaults, module contributions
+   * ([[ExtensionRegistry.sparkConfContributions]]), then the user's `spark { }` block.
    */
   private def createSparkConf: SparkConf = {
     val sparkConf = new SparkConf()
       .setAppName(sparkAppName)
       .setMaster(sparkMaster)
 
-    val sparkConfEntries =
-      sparkConfDefaults ++ // engine defaults
-        ExtensionRegistry.sparkConfContributions ++ // Spark conf contributed by installed modules (e.g. Delta)
-        sparkConfig // user-provided `spark { }` config wins over both
-          .entrySet()
-          .asScala
-          .filter(e => e.getKey != "app.name" && e.getKey != "master")
-          .map(e => s"spark.${e.getKey}" -> e.getValue.unwrapped().toString)
-          .toMap
+    val contributed: Map[String, String] = ExtensionRegistry.sparkConfContributions
+    val userProvided: Map[String, String] = sparkConfig
+      .entrySet()
+      .asScala
+      .filter(e => e.getKey != "app.name" && e.getKey != "master")
+      .map(e => s"spark.${e.getKey}" -> e.getValue.unwrapped().toString)
+      .toMap
 
-    sparkConfEntries
+    // `++` replaces on collision, which is what a single-valued key wants: the user's `spark { }` block
+    // wins over a module contribution, which wins over the engine default.
+    val merged = sparkConfDefaults ++ contributed ++ userProvided
+
+    // A list-valued key must be joined across layers instead. `ExtensionRegistry` already concatenates
+    // `spark.sql.extensions` across modules; without this the user layer would then overwrite that merged
+    // value, so anyone setting `spark.sql.extensions` for an unrelated reason (Iceberg, Sedona, a custom
+    // optimizer rule) would silently drop the Delta session extension contributed by
+    // `ignifyr-format-delta` — and the resulting Delta write failure points nowhere near the config.
+    val joined = additiveSparkConfKeys.flatMap { key =>
+      val values = Seq(sparkConfDefaults.get(key), contributed.get(key), userProvided.get(key)).flatten
+        .flatMap(_.split(","))
+        .map(_.trim)
+        .filter(_.nonEmpty)
+        .distinct
+      if (values.isEmpty) None else Some(key -> values.mkString(","))
+    }.toMap
+
+    (merged ++ joined)
       .foldLeft(sparkConf) { case (sc, e) =>
         sc.set(e._1, e._2)
       }
