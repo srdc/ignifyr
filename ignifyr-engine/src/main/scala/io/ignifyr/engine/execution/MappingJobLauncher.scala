@@ -18,7 +18,11 @@ sealed trait MappingJobLaunch
 
 object MappingJobLaunch {
 
-  /** A batch execution was submitted; `completion` completes when all mapping tasks have run. */
+  /**
+   * A batch execution was submitted; `completion` completes when all mapping tasks have run **and**
+   * the post-batch input archiving has been applied. Awaiting it is therefore enough for a caller
+   * that shuts the process down straight afterwards.
+   */
   final case class Batch(completion: Future[Unit]) extends MappingJobLaunch
 
   /**
@@ -115,13 +119,16 @@ class MappingJobLauncher(ignifyrEngine: IgnifyrEngine)(implicit ec: ExecutionCon
         terminologyServiceSettings = mappingJob.terminologyServiceSettings,
         identityServiceSettings = mappingJob.getIdentityServiceSettings()
       )
-      ignifyrEngine.runningJobRegistry.registerBatchJob(
+      // Hand back the registry's chained future, not `completion` itself: it additionally covers the
+      // post-batch archiving, so a caller that awaits it (the one-shot CLI exits the JVM immediately
+      // afterwards) cannot race the archiver.
+      val archived: Future[Unit] = ignifyrEngine.runningJobRegistry.registerBatchJob(
         mappingJobExecution,
         Some(completion),
         s"Spark job for job: ${mappingJobExecution.jobId} mappingTaskNames: " +
           mappingJobExecution.mappingTasks.map(_.name).mkString(" ")
       )
-      MappingJobLaunch.Batch(completion)
+      MappingJobLaunch.Batch(archived)
     }
   }
 

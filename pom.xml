@@ -191,6 +191,15 @@
                         <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                         <junitxml>.</junitxml>
                         <filereports>TestSuite.txt</filereports>
+                        <!--
+                          Spark 3.5 reaches into JDK internals (e.g. StorageUtils -> sun.nio.ch.DirectBuffer),
+                          which JDK 17+ denies by default. spark-submit adds these options automatically via
+                          org.apache.spark.launcher.JavaModuleOptions, but these suites run Spark as an embedded
+                          library in the JVM this plugin forks, so nothing adds them and every Spark-backed suite
+                          aborts with "cannot access class sun.nio.ch.DirectBuffer".
+                          -XX:+IgnoreUnrecognizedVMOptions keeps this valid on the JDK 11 target.
+                        -->
+                        <argLine>-XX:+IgnoreUnrecognizedVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.cs=ALL-UNNAMED --add-opens=java.base/sun.security.action=ALL-UNNAMED --add-opens=java.base/sun.util.calendar=ALL-UNNAMED -Djdk.reflect.useDirectMethodHandle=false</argLine>
                     </configuration>
                     <executions>
                         <execution>

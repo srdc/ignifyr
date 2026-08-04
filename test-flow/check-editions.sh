@@ -76,18 +76,26 @@ list_jar() {
 }
 CLI_ENTRIES="$(list_jar "$CLI_JAR")"
 SRV_ENTRIES="$(list_jar "$SRV_JAR")"
+# Match with bash's own substring test, NOT `echo "$VAR" | grep -q`. These listings are ~6 MB, and
+# `grep -q` exits at the first match and closes the pipe, so `echo` dies of SIGPIPE (141); under
+# `pipefail` (set at the top) that makes a *successful* match evaluate as false. Every check below
+# inverted because of it: the guard reported "no jar lister could enumerate" against a jar that `jar
+# tf` lists fine, so this whole section was silently skipped. Worse, had it run, a marker that IS
+# present in the community jar would also have short-circuited grep and been reported as "excludes" —
+# i.e. a real enterprise leak would have passed. No subprocess, no pipe, no SIGPIPE.
+has() { [[ "$1" == *"$2"* ]]; }
 # Skip (non-fatal) unless a lister actually enumerated each jar.
 guard_ok=1
-echo "$CLI_ENTRIES" | grep -q "io/ignifyr/engine/" || { warn "no jar lister could enumerate the community jar here — skipping this best-effort section (the SPI manifest + enforcer gate are authoritative)"; guard_ok=0; }
-echo "$SRV_ENTRIES" | grep -q "io/ignifyr/server/" || { guard_ok=0; }
+has "$CLI_ENTRIES" "io/ignifyr/engine/" || { warn "no jar lister could enumerate the community jar here — skipping this best-effort section (the SPI manifest + enforcer gate are authoritative)"; guard_ok=0; }
+has "$SRV_ENTRIES" "io/ignifyr/server/" || { guard_ok=0; }
 if [ "$guard_ok" -eq 0 ]; then
   echo "  (skipping jar-content checks — non-fatal; the ServiceLoader manifest and behavior checks below still run)"
 else
 for marker in "${ENTERPRISE_CLASSES[@]}" "${ENTERPRISE_LIBS[@]}"; do
-  if echo "$CLI_ENTRIES" | grep -q "$marker"; then bad "community jar unexpectedly contains '$marker'"; else ok "community jar excludes '$marker'"; fi
+  if has "$CLI_ENTRIES" "$marker"; then bad "community jar unexpectedly contains '$marker'"; else ok "community jar excludes '$marker'"; fi
 done
 for marker in "${ENTERPRISE_CLASSES[@]}"; do
-  if echo "$SRV_ENTRIES" | grep -q "$marker"; then ok "server jar contains '$marker'"; else bad "server jar missing '$marker'"; fi
+  if has "$SRV_ENTRIES" "$marker"; then ok "server jar contains '$marker'"; else bad "server jar missing '$marker'"; fi
 done
 fi
 
