@@ -95,6 +95,7 @@ object CommandLineInterface {
     new MappingJobLauncher(ignifyrEngine).launch(mappingJob, mappingJobExecution, ignifyrDbFolderPath) match {
       case MappingJobLaunch.Batch(completion) =>
         Await.result(completion, Duration.Inf)
+        System.exit(0)
       case MappingJobLaunch.Streaming(queryRegistrations) =>
         // Wait for all Futures (i.e. Streaming Queries) to complete
         Await.result(Future.sequence(queryRegistrations), Duration.Inf)
