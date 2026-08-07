@@ -214,13 +214,34 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
             .where("subject", "Patient/" + FhirMappingUtility.getHashedId("Patient", "p" + i))
             .executeAndReturnBundle()
         })
+        // This mapping emits MedicationAdministrations alongside the Observations. Those used to be
+        // rejected by the R5 server while the test still passed, because it only checked that the
+        // cleanup delete answered 200 — so assert both kinds actually landed before deleting them.
+        val medSearchFutures = (1 to 10).map(i =>
+          onFhirClient
+            .search("MedicationAdministration")
+            .where("subject", "Patient/" + FhirMappingUtility.getHashedId("Patient", "p" + i))
+            .executeAndReturnBundle()
+        )
         Future.sequence(obsSearchFutures) flatMap { obsBundleList =>
-          obsBundleList.foreach(observationBundle => {
-            observationBundle.searchResults
-              .foreach(obs => batchRequest = batchRequest.entry(_.delete("Observation", (obs \ "id").extract[String])))
-          })
-          batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-            res.httpStatus shouldBe StatusCodes.OK
+          Future.sequence(medSearchFutures) flatMap { medBundleList =>
+            obsBundleList.flatMap(_.searchResults) should not be empty
+            medBundleList.flatMap(_.searchResults) should not be empty
+
+            obsBundleList.foreach(observationBundle => {
+              observationBundle.searchResults
+                .foreach(obs =>
+                  batchRequest = batchRequest.entry(_.delete("Observation", (obs \ "id").extract[String]))
+                )
+            })
+            medBundleList.foreach(medicationBundle => {
+              medicationBundle.searchResults.foreach(med =>
+                batchRequest = batchRequest.entry(_.delete("MedicationAdministration", (med \ "id").extract[String]))
+              )
+            })
+            batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
+              res.httpStatus shouldBe StatusCodes.OK
+            }
           }
         }
       })
@@ -245,7 +266,8 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
       (organization1 \ "name").extract[String] shouldBe "Example care site name"
       (((organization1 \ "type").extract[Seq[JObject]].head \ "coding").extract[Seq[JObject]].head \ "code")
         .extract[String] shouldBe "21"
-      ((organization1 \ "address").extract[Seq[JObject]].head \ "state").extract[String] shouldBe "MO"
+      // R5 moved Organization.address under contact (ExtendedContactDetail).
+      (((organization1 \ "contact").extract[Seq[JObject]].head \ "address") \ "state").extract[String] shouldBe "MO"
     }
   }
 
@@ -258,15 +280,30 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
         sinkSettings = fhirSinkSettings
       )
       .flatMap(_ => {
-        // Delete care sites
-        var batchRequest: FhirBatchTransactionRequestBuilder = onFhirClient.batch()
-        (1 to 2).foreach { i =>
-          batchRequest =
-            batchRequest.entry(_.delete("Organization", FhirMappingUtility.getHashedId("Organization", i.toString)))
-        }
-        batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-          res.httpStatus shouldBe StatusCodes.OK
-        }
+        // Read the written resources back before deleting them. Without this the test asserted only that
+        // the cleanup delete answered 200, which it does whether or not anything was ever written — and
+        // for a while nothing was, because the mapping emitted an R4-shaped Organization the R5 server
+        // rejected.
+        Future
+          .sequence((1 to 2).map { i =>
+            onFhirClient
+              .read("Organization", FhirMappingUtility.getHashedId("Organization", i.toString))
+              .executeAndReturnResource()
+          })
+          .flatMap { organizations =>
+            organizations.size shouldBe 2
+            organizations.foreach(FHIRUtil.extractResourceType(_) shouldBe "Organization")
+
+            // Delete care sites
+            var batchRequest: FhirBatchTransactionRequestBuilder = onFhirClient.batch()
+            (1 to 2).foreach { i =>
+              batchRequest =
+                batchRequest.entry(_.delete("Organization", FhirMappingUtility.getHashedId("Organization", i.toString)))
+            }
+            batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
+              res.httpStatus shouldBe StatusCodes.OK
+            }
+          }
       })
   }
 
@@ -334,7 +371,9 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
         .extract[String] shouldBe FhirMappingUtility.getHashedReference("Encounter", "43483680")
       ((procedureOccurrence \ "performer").extract[Seq[JObject]].head \ "actor" \ "reference")
         .extract[String] shouldBe FhirMappingUtility.getHashedReference("Practitioner", "48878")
-      (procedureOccurrence \ "performedDateTime").extract[String] shouldBe "2010-04-25"
+      // R5 renamed Procedure.performed[x] to occurrence[x] -- with two r's, unlike
+      // MedicationAdministration.occurence[x], which the spec spells with one.
+      (procedureOccurrence \ "occurrenceDateTime").extract[String] shouldBe "2010-04-25"
     }
   }
 
@@ -357,6 +396,60 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
           res.httpStatus shouldBe StatusCodes.OK
         }
       })
+  }
+
+  /*
+   * The orchestration half of the batching strategy: one execution per entry of `batchParameterSets`,
+   * run sequentially, with the entry's values substituted into the task's `preprocessSql`. The
+   * substitution itself is unit-tested in the engine (`FhirMappingTaskTest`); what needs a real source
+   * and sink is that *every* set runs and their outputs accumulate — a fold that kept only the last
+   * result, or stopped after the first, would still produce a green job and silently drop data.
+   *
+   * The `patients` fixture holds five male and five female rows, so batching by gender writes all ten
+   * only if both batches executed.
+   */
+  "Batched patient mapping" should "run the mapping once per batch parameter set" in {
+    val batchedPatientMappingTask: FhirMappingTask = FhirMappingTask(
+      name = "patient-sql-mapping",
+      mappingRef = "https://aiccelerate.eu/fhir/mappings/patient-sql-mapping",
+      sourceBinding = Map(
+        "source" -> SqlSource(
+          tableName = Some("patients"),
+          preprocessSql = Some("SELECT * FROM source WHERE gender = '$gender'")
+        )
+      ),
+      batchingStrategy = Some(BatchingStrategy(Seq(Map("gender" -> "male"), Map("gender" -> "female"))))
+    )
+
+    fhirMappingJobManager
+      .executeMappingJob(
+        mappingJobExecution =
+          FhirMappingJobExecution(mappingTasks = Seq(batchedPatientMappingTask), job = fhirMappingJob),
+        sourceSettings = sqlSourceSettings,
+        sinkSettings = fhirSinkSettings
+      )
+      .flatMap { _ =>
+        // p1 can only come from the "male" batch and p8 only from the "female" one.
+        val fromFirstBatch =
+          onFhirClient.read("Patient", FhirMappingUtility.getHashedId("Patient", "p1")).executeAndReturnResource()
+        val fromLastBatch =
+          onFhirClient.read("Patient", FhirMappingUtility.getHashedId("Patient", "p8")).executeAndReturnResource()
+
+        for {
+          male <- fromFirstBatch
+          female <- fromLastBatch
+          cleanup <- {
+            FHIRUtil.extractValue[String](male, "gender") shouldBe "male"
+            FHIRUtil.extractValue[String](female, "gender") shouldBe "female"
+            var batchRequest: FhirBatchTransactionRequestBuilder = onFhirClient.batch()
+            (1 to 10).foreach { i =>
+              batchRequest =
+                batchRequest.entry(_.delete("Patient", FhirMappingUtility.getHashedId("Patient", "p" + i.toString)))
+            }
+            batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute()
+          }
+        } yield cleanup.httpStatus shouldBe StatusCodes.OK
+      }
   }
 
   it should "execute the FhirMappingJob with SQL source and sink settings restored from a file" in {

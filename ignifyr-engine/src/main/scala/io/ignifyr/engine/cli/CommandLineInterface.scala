@@ -121,7 +121,10 @@ object CommandLineInterface {
         // Generic `--flag value` pair; command providers translate these into positional args.
         nextArg(map ++ Map(flag.stripPrefix("--") -> value), tail)
       case str :: tail =>
-        nextArg(map ++ Map("command" -> str), tail)
+        // The first bare token is the command. A later bare token must not overwrite it — otherwise a
+        // trailing `--flag` with no value (e.g. `run --job`) is consumed here and reported as an
+        // unknown command instead of a missing option value.
+        nextArg(if (map.contains("command")) map else map + ("command" -> str), tail)
     }
   }
 
