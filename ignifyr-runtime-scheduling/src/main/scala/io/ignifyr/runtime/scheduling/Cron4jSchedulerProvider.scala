@@ -155,7 +155,7 @@ class Cron4jSchedulerProvider extends SchedulerProvider {
    * Reads the latest synchronization time point for the job from its last-sync file, returning the
    * time range (lastSyncTime, now) — or (startTime, now) when no sync has happened yet.
    */
-  private def getScheduledTimeRange(
+  private[scheduling] def getScheduledTimeRange(
       mappingJobId: String,
       folderUri: URI,
       startTime: LocalDateTime

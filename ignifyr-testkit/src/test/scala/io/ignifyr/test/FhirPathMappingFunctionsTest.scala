@@ -109,6 +109,20 @@ class FhirPathMappingFunctionsTest extends AsyncFlatSpec with IgnifyrTestSpec {
     an[Exception] should be thrownBy fhirEvaluator.evaluateOptionalNumerical("mpp:getHashedIntId('p1', 100, 5)", JNull)
   }
 
+  it should "correctly execute createFhirReferenceWithHashedId" in {
+    val fhirEvaluator = FhirPathEvaluator().withFunctionLibrary("mpp", new FhirMappingFunctionsFactory(Map.empty))
+    val reference = fhirEvaluator.evaluateAndReturnJson("mpp:createFhirReferenceWithHashedId('Patient','p1')", JNull)
+    // The reference must agree with the id the resource itself is written under, otherwise the mapped
+    // resources point at Patients that do not exist.
+    val hashedId = fhirEvaluator.evaluateOptionalString("mpp:getHashedId('Patient','p1')", JNull).get
+    reference shouldBe Some(JObject("reference" -> JString(s"Patient/$hashedId")))
+
+    // Given several ids, it yields one reference per id.
+    val references =
+      fhirEvaluator.evaluateAndReturnJson("mpp:createFhirReferenceWithHashedId('Patient', ('p1' | 'p2'))", JNull)
+    references.get.asInstanceOf[JArray].arr.length shouldBe 2
+  }
+
   it should "correctly execute nonEmptyLoopedFields" in {
     val fhirEvaluator = FhirPathEvaluator().withFunctionLibrary("mpp", new FhirMappingFunctionsFactory(Map.empty))
     val sct = fhirEvaluator.evaluateAndReturnJson("mpp:nonEmptyLoopedFields('sct_8116006_',1,5)", loopJson).head

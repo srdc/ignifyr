@@ -38,7 +38,8 @@ object FileFormatRegistry {
       throw MissingFileFormatException(FileFormatHints.describeSourceFormat(contentType))
     )
 
-  private def indexUnique[V](what: String)(entries: Seq[(String, V)]): Map[String, V] = {
+  /** Visible to the connector package so the fail-fast contract can be asserted without a second classloader. */
+  private[file] def indexUnique[V](what: String)(entries: Seq[(String, V)]): Map[String, V] = {
     val byKey = entries.groupBy(_._1).map { case (contentType, group) =>
       if (group.size > 1) {
         val owners = group.map(_._2.getClass.getName).mkString(", ")
