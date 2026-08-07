@@ -37,10 +37,16 @@ object EnvironmentVariableResolver {
    * @param fileContent The file content potentially containing placeholders for environment variables.
    * @return The file content with all recognized environment variables resolved.
    */
-  def resolveFileContent(fileContent: String): String = {
+  def resolveFileContent(fileContent: String): String = resolveFileContent(fileContent, sys.env)
+
+  /**
+   * Same as [[resolveFileContent]] against an explicit environment. `sys.env` is fixed for the lifetime
+   * of the JVM, so this is the seam through which the substitution itself can be exercised.
+   */
+  private[ignifyr] def resolveFileContent(fileContent: String, env: Map[String, String]): String = {
     EnvironmentVariable.values.foldLeft(fileContent) { (updatedContent, envVar) =>
       val placeholder = "\\$\\{" + envVar.toString + "\\}"
-      sys.env.get(envVar.toString) match {
+      env.get(envVar.toString) match {
         case Some(envValue) =>
           updatedContent.replaceAll(placeholder, envValue)
         case None =>
