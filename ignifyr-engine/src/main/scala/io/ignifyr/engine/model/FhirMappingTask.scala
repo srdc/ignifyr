@@ -30,10 +30,14 @@ case class FhirMappingTask(
    * @return A new mapping task with substituted preprocessSql in all source bindings
    */
   def substituteBatchParameters(parameters: Map[String, String]): FhirMappingTask = {
+    // Longest parameter name first. Substituting a shorter name first would rewrite the prefix of a
+    // longer one that starts with it: with `year` and `yearEnd` both defined, `$yearEnd` would become
+    // `2020End`. Map iteration order is unspecified, so relying on it is not an option either.
+    val orderedParameters = parameters.toSeq.sortBy(-_._1.length)
     val updatedSourceBinding = sourceBinding.map { case (alias, binding) =>
       alias -> (binding.preprocessSql match {
         case Some(sql) =>
-          val substitutedSql = parameters.foldLeft(sql) { case (currentSql, (paramName, paramValue)) =>
+          val substitutedSql = orderedParameters.foldLeft(sql) { case (currentSql, (paramName, paramValue)) =>
             currentSql.replace(s"$$$paramName", paramValue)
           }
           binding.withPreprocessSql(Some(substitutedSql))
