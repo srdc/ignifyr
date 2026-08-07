@@ -47,6 +47,25 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--
+              Short tier only: both suites run against a locally bound stub of the RxNorm REST API
+              (see RxNormApiStub), so they need neither the network nor a container.
+            -->
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <wildcardSuites>io.ignifyr.rxnorm</wildcardSuites>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
