@@ -97,9 +97,15 @@ object ExtensionRegistry {
    * both contributing e.g. `spark.plugins` still fail fast, even though that key would be joined if it
    * came from different layers. Widen the check here if a second additive key ever has two owners.
    */
-  lazy val sparkConfContributions: Map[String, String] = {
-    val entries: Seq[(String, String, String)] = // (ownerExtensionId, key, value)
-      extensions.flatMap(e => e.sparkConfContributions.map { case (k, v) => (e.id, k, v) })
+  lazy val sparkConfContributions: Map[String, String] =
+    mergeSparkConf(extensions.flatMap(e => e.sparkConfContributions.map { case (k, v) => (e.id, k, v) }))
+
+  /**
+   * Merge `(ownerExtensionId, key, value)` Spark-conf triples, concatenating the additive
+   * `spark.sql.extensions` and failing on any other key claimed twice. Visible to `io.ignifyr` for the
+   * same reason as [[indexUnique]].
+   */
+  private[ignifyr] def mergeSparkConf(entries: Seq[(String, String, String)]): Map[String, String] = {
     entries.groupBy(_._2).map { case (key, group) =>
       if (key == "spark.sql.extensions") {
         key -> group.map(_._3).distinct.mkString(",")
@@ -115,8 +121,11 @@ object ExtensionRegistry {
     }
   }
 
-  /** Selects at most one capability provider, failing fast (naming owners) if more than one is installed. */
-  private def singleCapability[V](what: String)(entries: Seq[(String, V)]): Option[V] = {
+  /**
+   * Selects at most one capability provider, failing fast (naming owners) if more than one is installed.
+   * Visible to `io.ignifyr` so the fail-fast contract can be asserted without a second classloader.
+   */
+  private[ignifyr] def singleCapability[V](what: String)(entries: Seq[(String, V)]): Option[V] = {
     if (entries.size > 1) {
       throw new IllegalStateException(
         s"Multiple $what modules installed: ${entries.map(_._1).mkString(", ")}. Install exactly one."
@@ -150,9 +159,10 @@ object ExtensionRegistry {
 
   /**
    * Index `(ownerExtensionId, key, value)` triples into a `key -> value` map, failing with both
-   * owner ids if any key is claimed twice.
+   * owner ids if any key is claimed twice. Visible to `io.ignifyr` for the same reason as
+   * [[singleCapability]].
    */
-  private def indexUnique[K, V](what: String)(entries: Seq[(String, K, V)]): Map[K, V] =
+  private[ignifyr] def indexUnique[K, V](what: String)(entries: Seq[(String, K, V)]): Map[K, V] =
     entries.groupBy(_._2).map { case (key, group) =>
       if (group.size > 1) {
         val owners = group.map(_._1).mkString(", ")
