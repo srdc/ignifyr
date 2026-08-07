@@ -40,7 +40,7 @@
               }
             ]
           },
-          "performedDateTime": "{{? iif(procedure_datetime.empty(), procedure_date, procedure_datetime.utl:toFhirDateTime()}}",
+          "occurrenceDateTime": "{{? iif(procedure_datetime.empty(), procedure_date, procedure_datetime.utl:toFhirDateTime()}}",
           "performer": [
             {
               "actor": "{{? mpp:createFhirReferenceWithHashedId('Practitioner', provider_id.toString())}}"
