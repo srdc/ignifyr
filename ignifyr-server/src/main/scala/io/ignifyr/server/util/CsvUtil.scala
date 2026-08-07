@@ -98,7 +98,10 @@ object CsvUtil {
     // "header1" is deleted,
     // "header3" changed to "headerChanged"
     // "header4" is added
-    existingContentFuture.map { existingContent =>
+    // flatMap, not map: the write below returns its own Future. Mapping over it would let the returned
+    // Future complete while the file was still being written, so a caller (the mapping-context header
+    // endpoint) could answer OK and then read back the old content.
+    existingContentFuture.flatMap { existingContent =>
       // Create a new list of lists where each list is a row and the first element in the tuples is the header
       val updatedContent = existingContent.map { row => // iterate each row
         newHeaders.map { header => // iterate each new header
@@ -126,6 +129,7 @@ object CsvUtil {
       Source(csvContent)
         .intersperse(ByteString("\n"))
         .runWith(FileIO.toPath(file.toPath, Set(StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)))
+        .map(_ => ())
     }
   }
 
