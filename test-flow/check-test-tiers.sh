@@ -73,6 +73,21 @@ for pom in */pom.xml; do
   fi
 done
 
+# ---- 2b. every module with test sources actually runs them -------------------
+# Invariant 2 only constrains modules that DO declare the plugin. A module with test sources and no
+# plugin at all is worse: its suites compile, look like coverage, and never run under Maven.
+log "2b. No module owns test sources without a <scalatest-maven-plugin>"
+for pom in */pom.xml; do
+  mod="$(dirname "$pom")"
+  [ -d "$mod/src/test/scala" ] || continue
+  [ -n "$(find "$mod/src/test/scala" -name '*.scala' -print -quit 2>/dev/null)" ] || continue
+  if grep -q 'scalatest-maven-plugin' "$pom"; then
+    ok "$mod runs its test sources"
+  else
+    bad "$mod has test sources but declares no scalatest-maven-plugin -- its suites never run under Maven"
+  fi
+done
+
 # ---- 3. integration suites and integration executions agree ------------------
 log "3. Modules owning integration suites wire an 'integration-test' execution behind \${skipITs}"
 for pom in */pom.xml; do
