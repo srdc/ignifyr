@@ -267,7 +267,7 @@ class FhirRepositoryWriter(sinkSettings: FhirRepositorySinkSettings) extends Bas
    * @param outcomeIssues The sequence of OutcomeIssues to be grouped.
    * @return A map where the keys are resource entry indices, and the values are sequences of OutcomeIssues associated with each index.
    */
-  private def groupOutcomeIssuesByEntryIndex(outcomeIssues: Seq[OutcomeIssue]): Map[Int, Seq[OutcomeIssue]] = {
+  private[fhir] def groupOutcomeIssuesByEntryIndex(outcomeIssues: Seq[OutcomeIssue]): Map[Int, Seq[OutcomeIssue]] = {
     outcomeIssues
       .groupBy { issue =>
         if (issue.expression.isEmpty) {

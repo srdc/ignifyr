@@ -41,4 +41,26 @@ class FileConnectorExtensionSpec extends AnyFlatSpec with Matchers {
     val ex = intercept[MissingFileFormatException](FileFormatRegistry.sourceFormat(SourceContentTypes.JSON))
     ex.getMessage should include("com.pontegra.ignifyr:ignifyr-format-json")
   }
+
+  // The counterpart of the missing-format path: a content type claimed by *two* installed handlers.
+  // `FileConnectorExtension.initialize` force-materializes this registry so it surfaces at startup
+  // rather than at first read. ServiceLoader input cannot be staged on this classpath, so the guard is
+  // asserted on the indexing helper directly.
+  it should "fail fast naming both handlers when two claim the same content type" in {
+    val csv = FileFormatRegistry.sourceFormat(SourceContentTypes.CSV)
+    val parquet = FileFormatRegistry.sourceFormat(SourceContentTypes.PARQUET)
+    val ex = intercept[IllegalStateException] {
+      FileFormatRegistry.indexUnique("file source format")(Seq("csv" -> csv, "csv" -> parquet))
+    }
+    ex.getMessage should include("Duplicate file source format registration")
+    ex.getMessage should include("csv")
+    ex.getMessage should (include(csv.getClass.getName) and include(parquet.getClass.getName))
+  }
+
+  it should "index one handler per content type" in {
+    val csv = FileFormatRegistry.sourceFormat(SourceContentTypes.CSV)
+    val parquet = FileFormatRegistry.sourceFormat(SourceContentTypes.PARQUET)
+    FileFormatRegistry.indexUnique("file source format")(Seq("a" -> csv, "b" -> parquet)) shouldBe
+      Map("a" -> csv, "b" -> parquet)
+  }
 }
