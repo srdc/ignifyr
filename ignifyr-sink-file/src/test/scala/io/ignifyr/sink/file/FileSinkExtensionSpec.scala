@@ -38,4 +38,26 @@ class FileSinkExtensionSpec extends AnyFlatSpec with Matchers {
     val ex = intercept[MissingFileSinkFormatException](FileSinkFormatRegistry.sinkFormat(SinkContentTypes.DELTA_LAKE))
     ex.getMessage should include("com.pontegra.ignifyr:ignifyr-format-delta")
   }
+
+  // The counterpart of the missing-format path: a content type claimed by *two* installed handlers.
+  // `FileSinkExtension.initialize` force-materializes this registry so it surfaces at startup rather
+  // than at first write. ServiceLoader input cannot be staged on this classpath, so the guard is
+  // asserted on the indexing helper directly.
+  it should "fail fast naming both handlers when two claim the same content type" in {
+    val ndjson = FileSinkFormatRegistry.sinkFormat(SinkContentTypes.NDJSON)
+    val parquet = FileSinkFormatRegistry.sinkFormat(SinkContentTypes.PARQUET)
+    val ex = intercept[IllegalStateException] {
+      FileSinkFormatRegistry.indexUnique("file sink format")(Seq("ndjson" -> ndjson, "ndjson" -> parquet))
+    }
+    ex.getMessage should include("Duplicate file sink format registration")
+    ex.getMessage should include("ndjson")
+    ex.getMessage should (include(ndjson.getClass.getName) and include(parquet.getClass.getName))
+  }
+
+  it should "index one handler per content type" in {
+    val ndjson = FileSinkFormatRegistry.sinkFormat(SinkContentTypes.NDJSON)
+    val parquet = FileSinkFormatRegistry.sinkFormat(SinkContentTypes.PARQUET)
+    FileSinkFormatRegistry.indexUnique("file sink format")(Seq("a" -> ndjson, "b" -> parquet)) shouldBe
+      Map("a" -> ndjson, "b" -> parquet)
+  }
 }

@@ -37,7 +37,8 @@ object FileSinkFormatRegistry {
       throw MissingFileSinkFormatException(FileSinkFormatHints.describeSinkFormat(contentType))
     )
 
-  private def indexUnique[V](what: String)(entries: Seq[(String, V)]): Map[String, V] = {
+  /** Visible to the sink package so the fail-fast contract can be asserted without a second classloader. */
+  private[file] def indexUnique[V](what: String)(entries: Seq[(String, V)]): Map[String, V] = {
     val byKey = entries.groupBy(_._1).map { case (contentType, group) =>
       if (group.size > 1) {
         val owners = group.map(_._2.getClass.getName).mkString(", ")

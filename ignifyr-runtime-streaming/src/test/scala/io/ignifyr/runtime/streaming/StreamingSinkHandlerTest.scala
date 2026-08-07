@@ -85,5 +85,14 @@ class StreamingSinkHandlerTest extends AnyFlatSpec with BeforeAndAfterAll {
     // Wait for data generation for 5 seconds and then terminate the query
     streamingQuery.awaitTermination(5000)
     streamingQuery.stop()
+
+    // `awaitTermination` rethrowing already proves the query survived; this is the other half of the
+    // contract — the writer was handed a further chunk *after* the first one threw. Without it the test
+    // would still pass if the stream produced only the failing chunk and nothing more.
+    verify(mockWriter, atLeast(2)).write(
+      ArgumentMatchers.any(),
+      ArgumentMatchers.any[Dataset[FhirMappingResult]](),
+      ArgumentMatchers.any()
+    )
   }
 }
