@@ -45,4 +45,64 @@ class ExtensionRegistrySpec extends AnyFlatSpec with Matchers {
     ex.getMessage should include("No source reader registered")
     ex.getMessage should include("UnregisteredSource")
   }
+
+  it should "materialize every rejecting registry without error on the core-only classpath" in {
+    noException should be thrownBy ExtensionRegistry.init()
+  }
+
+  // The three fail-fast guards below are what `init()` exists to trigger at engine startup rather than
+  // mid-job. They are asserted on the indexing helpers directly: the registries themselves are fed by
+  // ServiceLoader, so a duplicate cannot be staged on this classpath without a second classloader.
+  it should "index one registration per key" in {
+    ExtensionRegistry.indexUnique[String, Int]("source reader")(Seq(("ext-a", "k1", 1), ("ext-b", "k2", 2))) shouldBe
+      Map("k1" -> 1, "k2" -> 2)
+  }
+
+  it should "fail fast naming both owners when two extensions claim the same key" in {
+    val ex = intercept[IllegalStateException] {
+      ExtensionRegistry.indexUnique[String, Int]("source reader")(
+        Seq(("ext-a", "same-key", 1), ("ext-b", "same-key", 2))
+      )
+    }
+    ex.getMessage should include("Duplicate source reader registration")
+    ex.getMessage should include("same-key")
+    ex.getMessage should include("ext-a")
+    ex.getMessage should include("ext-b")
+  }
+
+  it should "select the single installed capability provider, or none" in {
+    ExtensionRegistry.singleCapability[String]("streaming")(Seq(("ext-a", "provider"))) shouldBe Some("provider")
+    ExtensionRegistry.singleCapability[String]("streaming")(Seq.empty) shouldBe None
+  }
+
+  it should "fail fast naming both owners when two single-capability providers are installed" in {
+    val ex = intercept[IllegalStateException] {
+      ExtensionRegistry.singleCapability[String]("streaming")(Seq(("ext-a", "p1"), ("ext-b", "p2")))
+    }
+    ex.getMessage should include("Multiple streaming modules installed")
+    ex.getMessage should include("ext-a")
+    ex.getMessage should include("ext-b")
+  }
+
+  it should "concatenate the additive spark.sql.extensions contributed by several modules" in {
+    ExtensionRegistry.mergeSparkConf(
+      Seq(
+        ("ext-a", "spark.sql.extensions", "ClassA"),
+        ("ext-b", "spark.sql.extensions", "ClassB"),
+        ("ext-c", "spark.sql.extensions", "ClassA") // duplicate value, contributed twice
+      )
+    ) shouldBe Map("spark.sql.extensions" -> "ClassA,ClassB")
+  }
+
+  it should "fail fast when two modules claim the same non-additive Spark-conf key" in {
+    val ex = intercept[IllegalStateException] {
+      ExtensionRegistry.mergeSparkConf(
+        Seq(("ext-a", "spark.sql.catalog.spark_catalog", "A"), ("ext-b", "spark.sql.catalog.spark_catalog", "B"))
+      )
+    }
+    ex.getMessage should include("Conflicting Spark configuration")
+    ex.getMessage should include("spark.sql.catalog.spark_catalog")
+    ex.getMessage should include("ext-a")
+    ex.getMessage should include("ext-b")
+  }
 }

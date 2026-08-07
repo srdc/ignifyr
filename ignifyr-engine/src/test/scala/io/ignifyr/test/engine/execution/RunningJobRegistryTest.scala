@@ -1,8 +1,10 @@
 package io.ignifyr.test.engine.execution
 
 import akka.actor.ActorSystem
+import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.execution.RunningJobRegistry
-import io.ignifyr.engine.model.{FhirMappingJob, FhirMappingJobExecution, FhirMappingTask, FileSystemSourceSettings}
+import io.ignifyr.engine.model._
+import io.ignifyr.engine.util.FileUtils
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.StreamingQuery
@@ -11,6 +13,8 @@ import org.mockito.{ArgumentCaptor, ArgumentMatchers}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.io.{File, PrintWriter}
+import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -84,6 +88,77 @@ class RunningJobRegistryTest extends AnyFlatSpec with Matchers {
 
     // Entry for the job and execution should have removed after the future completes
     runningTaskRegistry.getRunningExecutions().contains("j4") shouldBe false
+  }
+
+  /*
+   * The contract `registerBatchJob` documents, and the reason it chains with `andThen` rather than
+   * `onComplete`: the future it hands back completes only after `handleCompletedBatchJob` — input
+   * archiving plus deregistration — has already run. The one-shot batch CLI awaits exactly this future
+   * and then calls System.exit(0), so if it completed on the raw mapping-task future instead, the JVM
+   * could exit mid-archive and `archiveMode = archive|delete` would silently leave inputs in place.
+   */
+  "it" should "complete the returned future only after the processed inputs have been archived" in {
+    val sourceFolder = "test-batch-completion"
+    val inputFile = FileUtils.getPath(sourceFolder, "input.csv").toFile
+    inputFile.getParentFile.mkdirs()
+    val writer = new PrintWriter(inputFile)
+    writer.write("pid\np1")
+    writer.close()
+
+    // The archiver preserves the input's path underneath the configured archive folder.
+    val relativePath = FileUtils.getPath("").toAbsolutePath.relativize(inputFile.toPath.toAbsolutePath)
+    val archivedFile = Paths.get(IgnifyrConfig.engineConfig.archiveFolder, relativePath.toString).toFile
+
+    val execution = batchExecutionWithArchiving("j5", "e5", sourceFolder, "input.csv")
+    inputFile.exists() shouldBe true
+    archivedFile.exists() shouldBe false
+
+    // A mapping-task future that finishes a little after registration, as a real batch run would.
+    val completion = runningTaskRegistry.registerBatchJob(execution, Some(Future(Thread.sleep(200))), "")
+    Await.result(completion, 10 seconds)
+
+    // Asserted with no sleep in between: awaiting the returned future is the whole guarantee.
+    inputFile.exists() shouldBe false
+    archivedFile.exists() shouldBe true
+    runningTaskRegistry.getRunningExecutions().contains("j5") shouldBe false
+
+    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(sourceFolder).toFile)
+    org.apache.commons.io.FileUtils.deleteDirectory(new File(IgnifyrConfig.engineConfig.archiveFolder))
+  }
+
+  "it" should "return an already completed future for a scheduled batch job with no mapping-task future" in {
+    // Scheduled runs have no future to hang off; the scheduling module calls handleCompletedBatchJob itself.
+    val execution = batchExecutionWithArchiving("j6", "e6", "test-batch-no-future", "input.csv")
+    val completion = runningTaskRegistry.registerBatchJob(execution, None, "")
+    completion.isCompleted shouldBe true
+    runningTaskRegistry.getRunningExecutions().contains("j6") shouldBe true
+  }
+
+  /** A non-streaming execution whose single file source is archived once the job completes. */
+  private def batchExecutionWithArchiving(
+      jobId: String,
+      executionId: String,
+      sourceFolderPath: String,
+      inputFileName: String
+  ): FhirMappingJobExecution = {
+    val sourceSettings =
+      FileSystemSourceSettings(name = "test", sourceUri = "urn:test", dataFolderPath = sourceFolderPath)
+    val mappingTask = FhirMappingTask(
+      name = "m",
+      mappingRef = "http://test/mappings/m",
+      sourceBinding = Map("source" -> FileSystemSource(path = inputFileName, contentType = SourceContentTypes.CSV))
+    )
+    FhirMappingJobExecution(
+      id = executionId,
+      job = FhirMappingJob(
+        id = jobId,
+        sourceSettings = Map("source" -> sourceSettings),
+        sinkSettings = FhirRepositorySinkSettings(fhirRepoUrl = "http://localhost/fhir"),
+        mappings = Seq(mappingTask),
+        dataProcessingSettings = DataProcessingSettings(archiveMode = ArchiveModes.ARCHIVE)
+      ),
+      mappingTasks = Seq(mappingTask)
+    )
   }
 
   private def getTestInput(
