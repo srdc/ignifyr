@@ -36,11 +36,13 @@
               }
             ]
           }],
-          "address": [{
-            "line": ["{{? address_1}}", "{{? address_2}}"],
-            "city": "{{? city}}",
-            "state": "{{? state}}",
-            "postalCode": "{{? zip}}"
+          "contact": [{
+            "address": {
+              "line": ["{{? address_1}}", "{{? address_2}}"],
+              "city": "{{? city}}",
+              "state": "{{? state}}",
+              "postalCode": "{{? zip}}"
+            }
           }]
         }
       }
