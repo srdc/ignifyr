@@ -55,8 +55,11 @@ class FileStreamInputArchiver(runningJobRegistry: RunningJobRegistry) {
       // Get the sources file directory for this execution
       val sourcesDirectory: String = taskExecution.getSourceDirectory(mappingTaskName)
 
-      // There won't be any file (with name as an integer) during the initialization or after checkpoints are cleared
-      if (commitDirectory.listFiles().exists(file => file.isFile && !file.getName.contains("."))) {
+      // There won't be any file (with name as an integer) during the initialization or after checkpoints are cleared.
+      // `listFiles()` returns null when the directory itself is absent, which is the normal state until Spark
+      // writes its first commit and again right after `clearCheckpoints` deletes it. This runs inside the shared
+      // archiving TimerTask, so letting that NPE escape would kill the timer thread and stop archiving for every job.
+      if (Option(commitDirectory.listFiles()).exists(_.exists(file => file.isFile && !file.getName.contains(".")))) {
         // Apply archiving for the files as of the last processed offset until the last unprocessed offset
         val lastProcessedOffset: Int =
           processedOffsets.getOrElseUpdate(getOffsetKey(taskExecution.id, mappingTaskName), -1)

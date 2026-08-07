@@ -84,11 +84,13 @@ object SparkUtil {
    * @return
    */
   def getLastCommitOffset(commitFileDirectory: File): Int = {
-    commitFileDirectory
-      .listFiles()
+    Option(commitFileDirectory.listFiles()) // null when the directory does not exist (yet)
+      .getOrElse(Array.empty[File])
       .filter(file => file.isFile && !file.getName.contains("."))
       .map(file => file.getName.toInt)
-      .max
+      .maxOption
+      // No commit file yet. -1 keeps the caller's Range.inclusive(lastProcessed + 1, offset) empty.
+      .getOrElse(-1)
   }
 
   /**
