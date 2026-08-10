@@ -87,9 +87,15 @@ object ExtensionRegistry {
 
   /**
    * Spark-configuration entries contributed by the installed extensions, merged into the shared
-   * SparkSession config (below the user's `spark { }` config). `spark.sql.extensions` is a
+   * SparkSession config by [[io.ignifyr.engine.config.IgnifyrConfig]]. `spark.sql.extensions` is a
    * comma-separated, additive list, so multiple contributors are concatenated (deduplicated); any
    * other key claimed by more than one extension is a configuration error and fails fast.
+   *
+   * Note this is the *cross-module* merge only, and it is stricter than the *cross-layer* one:
+   * `IgnifyrConfig.additiveSparkConfKeys` joins a wider set of registration-list keys across the
+   * engine/contribution/user layers, but here only `spark.sql.extensions` is additive. So two modules
+   * both contributing e.g. `spark.plugins` still fail fast, even though that key would be joined if it
+   * came from different layers. Widen the check here if a second additive key ever has two owners.
    */
   lazy val sparkConfContributions: Map[String, String] = {
     val entries: Seq[(String, String, String)] = // (ownerExtensionId, key, value)

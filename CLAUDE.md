@@ -39,7 +39,19 @@ contribution surface is `sourceConnectors`, `sinkProviders`, `terminologyService
 `IgnifyrConfig.sparkSession` — registry load runs while the session is being built). The engine's
 `ExtensionRegistry` indexes these by settings/binding **class**, fail-fast on duplicate keys
 (`streamingProvider`/`schedulerProvider` are single-capability `Option`s) — the engine never names a
-connector, sink, or format directly. **The engine ships no concrete I/O:** `CoreExtension`
+connector, sink, or format directly. `ExtensionRegistry.init()` force-materializes every registry that
+can reject its input, **including `streaming` and `scheduler`**, so a second copy of a capability
+module fails at startup rather than at first job launch.
+
+`sparkConfContributions` is merged in three layers, lowest first: engine defaults → module
+contributions → the user's `spark { }` block. The user's block wins for a single-valued key, but for a
+key Spark parses as a comma-separated registration list (`IgnifyrConfig.additiveSparkConfKeys` —
+`spark.sql.extensions`, `spark.plugins`, `spark.jars*`, the listener keys) **all layers are joined and
+deduplicated**, so setting `spark.sql.extensions` yourself cannot silently drop the Delta session
+extension `ignifyr-format-delta` registers. Two deliberate exclusions: `*.extraClassPath` (path-separator
+delimited, not commas) and `spark.sql.catalog.spark_catalog` (a genuine scalar a user may override).
+Caveat: the *cross-module* merge in `ExtensionRegistry` is stricter — only `spark.sql.extensions` is
+additive there, so two modules claiming any other key still fail fast. **The engine ships no concrete I/O:** `CoreExtension`
 contributes only the built-in CLI commands and the CSV-backed `LocalTerminologyService`. A missing
 plugin surfaces through `ExtensionHints`, which maps a model class to the Maven coordinates to
 install; a maven-enforcer `bannedDependencies` gate (`ban-enterprise-deps`, opted into by 8 community

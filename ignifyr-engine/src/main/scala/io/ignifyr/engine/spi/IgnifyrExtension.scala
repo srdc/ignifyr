@@ -66,9 +66,16 @@ trait IgnifyrExtension {
   /**
    * Extra Spark configuration entries this module contributes to the shared SparkSession — e.g. an
    * enterprise format that needs a Spark session extension or catalog (`spark.sql.extensions`,
-   * `spark.sql.catalog.spark_catalog`). Merged into the session config when it is first built, below
-   * the user-provided `spark { }` config (which still wins). Keeping this a pure accessor that never
-   * touches the SparkSession avoids an initialization cycle.
+   * `spark.sql.catalog.spark_catalog`). Merged into the session config when it is first built.
+   *
+   * Precedence, lowest first: engine defaults, these contributions, the user's `spark { }` block. For
+   * a single-valued key the user's block wins. For a key Spark parses as a comma-separated
+   * registration list (`spark.sql.extensions` and the rest of `IgnifyrConfig.additiveSparkConfKeys`)
+   * no layer wins — the values are joined and deduplicated, so a user setting
+   * `spark.sql.extensions` for an unrelated reason cannot silently drop the extension this module
+   * registers.
+   *
+   * Keeping this a pure accessor that never touches the SparkSession avoids an initialization cycle.
    */
   def sparkConfContributions: Map[String, String] = Map.empty
 

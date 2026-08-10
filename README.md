@@ -311,6 +311,15 @@ akka = {
 }
 ```
 
+> [!NOTE]
+> **How the `spark { }` block combines with plugin settings.** Some plugin modules need their own Spark
+> settings (the Delta sink, for example, registers a Spark session extension). Your `spark { }` block
+> takes precedence over those for ordinary single-valued settings. The exception is the handful of keys
+> Spark reads as a *comma-separated list of things to register* — `spark.sql.extensions`,
+> `spark.plugins`, `spark.jars*`, and the listener keys — where your values and the plugins' are **merged**
+> rather than replaced. So adding your own `spark.sql.extensions` (for Iceberg, Sedona, a custom
+> optimizer rule) will not disable an extension a plugin needs.
+
 Considering the configuration file defined above, Ignifyr can be utilized with a folder structure like the following:
 
 ```html
