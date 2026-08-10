@@ -25,6 +25,12 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
 
 ## Layout (`src/main/scala/io/ignifyr/engine/`)
 - `config/` — `IgnifyrConfig`, `IgnifyrEngineConfig` (read the `ignifyr` HOCON block), `FunctionLibrariesConfig`.
+  `IgnifyrConfig.createSparkConf` merges three layers — engine defaults → `ExtensionRegistry.sparkConfContributions`
+  → the user's `spark { }` block — with `++` (last wins) for scalars, but **joins** the keys in
+  `additiveSparkConfKeys`, the ones Spark reads as comma-separated registration lists. Without that join a
+  user setting `spark.sql.extensions` would silently erase a module's contributed session extension. If you
+  add a key to that set, be sure Spark really comma-separates it: `*.extraClassPath` uses the platform path
+  separator and `spark.sql.catalog.spark_catalog` is a scalar, so both are deliberately excluded.
 - `spi/` — the ServiceLoader extension SPI: `IgnifyrExtension` (one per module; contributes source
   connectors, sinks, terminology/identity services, CLI commands, source-failure descriptors, schema
   inferrers, streaming/scheduling capabilities, `sparkConfContributions`, `extraCapabilities`),

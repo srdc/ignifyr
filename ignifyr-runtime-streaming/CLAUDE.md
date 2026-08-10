@@ -24,10 +24,17 @@ parses fine and fails at launch with `MissingCapabilityException` naming
 
 ## Notes
 - The engine's `ExtensionRegistry.streaming` is a single-capability `Option` — **at most one** provider
-  may be installed (more is a config error).
+  may be installed. A second one now fails at **engine startup**, because `ExtensionRegistry.init()`
+  force-materializes `streaming`; it previously surfaced only at first job launch (or incidentally, via
+  `IgnifyrEngine` consulting it for the archive timer).
 - Two deliberate error strategies coexist: `StreamingSinkHandler` **catches per-micro-batch exceptions
   and only logs** (the stream survives bad chunks), while `StreamingJobExecutor`'s task-level `.recover`
   logs FAILURE and **rethrows**.
+  - That log line is the *only* record a failed micro-batch leaves, so it must carry the `Throwable`
+    itself — **never `e.getMessage`**. Passing a `String` selects scala-logging's
+    `error(String, Any*)` overload, whose varargs fill `{}` placeholders; since the message is already
+    fully interpolated there is no placeholder, and both the argument and the stack trace are silently
+    discarded.
 - Checkpoint dirs are per-job **and** per-mapping-task so distinct streams never mix Spark offsets.
 
 ## Tests
