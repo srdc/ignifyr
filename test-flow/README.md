@@ -97,13 +97,15 @@ Builds the server image, stands up a real stack, runs each behavior against it, 
 | `CommunityEditionSeparationSpec` | short | The free edition genuinely does not contain the paid features | no |
 | `check-editions.sh` | long | The built free/paid jars contain the right things; the free CLI refuses paid jobs | no* |
 | `check-enforcer-gate.sh` | long | Adding a banned (paid) library to a free module makes the build fail | no |
-| `check-test-tiers.sh` | short | No container-backed suite can hide in the short tier; no module leaves its suites unpinned; every integration execution is gated on `skipITs` | no |
+| `check-test-tiers.sh` | short | No container-backed suite can hide in the short tier; no module leaves its suites unpinned; no module owns test sources that never run; every integration execution is gated on `skipITs` | no |
 | `SchedulingTest` | long | A timer-scheduled job actually fires and writes data | yes |
 | `FileStreamInputArchiverTest` | short | Processed input files get archived/deleted as configured | no |
 | Connector specs (file / SQL / FHIR-server) | short + long | Each input source reads correctly | some |
 | Sink specs (fhir / file / omop) | short | Each output writes correctly | no |
-| Server endpoint suites (9 of 12) | short | The REST API (projects, jobs, mappings, terminology) behaves | no |
+| Server endpoint suites (11 of 14) | short | The REST API (projects, jobs, mappings, terminology) behaves | no |
 | `SchemaEndpointTest`, `MappingExecutionEndpointTest`, `FhirDefinitionsEndpointTest` | long | The three endpoint suites that need a real FHIR server | yes |
+| `FolderDBInitializerTest` | short | The server starts: the project index is read back, or rebuilt by scanning if it is lost | no |
+| Helper suites (`CsvUtil`, `DataFrameUtil`, `SchemaConverter`, `RedCapUtil`, RxNorm client) | short | The lookup tables and file rewrites behind the API, where a wrong answer is silent rather than an error | no |
 
 \* `check-editions.sh` builds the jars itself (no live containers).
 
@@ -133,7 +135,10 @@ data in the FHIR server.
   own package (pinned by `<wildcardSuites>`); a long-tier suite lives in `io.ignifyr.integrationtest`
   (selected by `<membersOnlySuites>` in an `integration-test` execution gated on `${skipITs}`).
   `check-test-tiers.sh` enforces this, so putting a Testcontainers suite in the wrong package fails CI
-  rather than quietly slowing everyone's `mvn test` down.
+  rather than quietly slowing everyone's `mvn test` down. It also fails a module that has test sources but
+  declares no `scalatest-maven-plugin` at all — those suites compile, look like coverage, and run nowhere.
+- **New module with tests?** Declare the plugin and pin `<wildcardSuites>` to the module's own package.
+  Every test-bearing module in the reactor does; the short tier is 373 tests across 20 modules.
 - Build and test on **JDK 11**
 - Integration failures are usually environment, not code: Docker not running, a container still
   pulling, or (Windows) `winutils`/`HADOOP_HOME` not set.

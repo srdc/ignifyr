@@ -50,9 +50,14 @@ Read these before touching the write path; each exists because of a specific ser
 - `validate()` checks the configured FHIR repository URL is reachable.
 
 ## Tests
-One unit suite, `FhirSinkExtensionSpec` — a plain `AnyFlatSpec` (it does **not** mix in
-`IgnifyrTestSpec`; the testkit dependency is there mainly for scalatest). It covers ServiceLoader
-discovery and the three registrations. No Docker. `mvn test -pl ignifyr-sink-fhir`.
+Two unit suites, both plain `AnyFlatSpec`s (neither mixes in `IgnifyrTestSpec`; the testkit dependency is
+there mainly for scalatest). No Docker. `mvn test -pl ignifyr-sink-fhir`.
+- `FhirSinkExtensionSpec` — ServiceLoader discovery and the three registrations.
+- `FhirRepositoryWriterTest` — the entry-attribution step of the Firely path: since Firely answers a
+  batch with HTTP 400 when *any* entry failed, the writer re-derives which input produced which problem
+  from the `OutcomeIssue` expressions alone. An unattributable issue is **dropped** (logged, not blamed on
+  entry 0) — that is the behaviour pinned here, because a wrong index blames the wrong record.
+  `groupOutcomeIssuesByEntryIndex` is `private[fhir]` so this can be asserted without a live server.
 
 The writer's real behaviour is exercised by the Docker integration suites in the modules that produce
 data — `ignifyr-connector-file`'s `FhirMappingJobManagerTest`, `ignifyr-connector-sql`'s `SqlSourceTest`,

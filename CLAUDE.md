@@ -124,9 +124,10 @@ Run everything from the repo root with Maven.
 **tiers**; the canonical guide is **[test-flow/README.md](test-flow/README.md)** — read it rather than
 re-deriving the commands, and keep it as the single source of truth if you change the test setup.
 
-- `mvn test` — the **short (unit)** tier: fast and **Docker-free across the whole reactor**. Every module
-  pins its own `wildcardSuites` (the engine's is `io.ignifyr.test`, a plugin module's is its own package,
-  e.g. `io.ignifyr.sink.file`, the server's is `io.ignifyr.server`).
+- `mvn test` — the **short (unit)** tier: fast and **Docker-free across the whole reactor** (373 tests over
+  20 modules, ~5 min, verified 2026-08-10). Every module pins its own `wildcardSuites` (the engine's is
+  `io.ignifyr.test`, a plugin module's is its own package, e.g. `io.ignifyr.sink.file`, the server's is
+  `io.ignifyr.server` — which covers its `endpoint`/`service`/`repository`/`util` sub-packages too).
 - `mvn -B verify -DskipITs=false` — short **plus** the **long (integration)** tier.
   ⚠️ Requires **Docker running** (TestContainers: MongoDB, Kafka, onFHIR r5).
 - ⚠️ **The long tier is opt-in.** The root pom sets `<skipITs>true</skipITs>` and every
@@ -140,8 +141,10 @@ re-deriving the commands, and keep it as the single source of truth if you chang
 - One suite: `mvn test -pl ignifyr-engine -Dsuffixes='.*ListPluginsTest'`. Use `-Dsuffixes` (a regex on
   the suite name) — `-DwildcardSuites` and `-Dsuites` are **silently ignored**, because an explicit
   value in the module POM beats the command-line property.
-- `ignifyr-rxnorm` declares no `scalatest-maven-plugin` at all, so its two suites never run under Maven —
-  they are IDE-only today. (It is the one module the tier gate's "no bare plugin" rule does not reach.)
+- **Every module with test sources now runs them under Maven.** `ignifyr-rxnorm` was the last exception
+  (no plugin at all → two suites that compiled and ran nowhere, against the live RxNorm API at that); it
+  now runs in the short tier against a locally bound stub, and the tier gate has an invariant for the gap
+  so it cannot reopen. `ignifyr-common` likewise gained its first test sources.
 - **Run `mvn test` and report the result before claiming a change works.**
 
 **Format** — scalafmt, config in [.scalafmt.conf](.scalafmt.conf).
@@ -172,22 +175,30 @@ re-deriving the commands, and keep it as the single source of truth if you chang
     the spec reads them from config rather than hardcoding the fixture roots. This is the usual
     first-failure for a new module.
   - The **engine's own** suites do not use the harness (the engine must never depend on the testkit —
-    that would cycle); all six are self-contained `AnyFlatSpec`s.
+    that would cycle); all thirteen are self-contained `AnyFlatSpec`s. Keep new engine suites that way:
+    one reaching for a fixture folder or a connector belongs in the module that supplies the I/O.
   - Resolve a shared fixture folder with `IgnifyrTestSpec.testResourceFolderPath`, never
     `Paths.get(getClass.getResource(...).toURI)` — the reactor serves testkit fixtures from the jar.
 - Server endpoint tests extend `BaseEndpointTest`
   ([ignifyr-server/src/test/scala/io/ignifyr/server/BaseEndpointTest.scala](ignifyr-server/src/test/scala/io/ignifyr/server/BaseEndpointTest.scala))
   — boots the Akka-HTTP route via `ScalatestRouteTest`. It starts **no** container itself; the three
   suites that need onFHIR/MongoDB mix in the testkit's `OnFhirTestContainer` and therefore live in
-  `io.ignifyr.integrationtest` (long tier), while the other nine endpoint/service suites stay short.
+  `io.ignifyr.integrationtest` (long tier), while the other eleven endpoint suites stay short — as do the
+  service/repository/util ones. Several of those exist precisely because a route test cannot reach what
+  they cover: server startup and project-index rebuild, a route *throwing* (as opposed to being rejected —
+  a different Akka mechanism), and the `/metadata` extension lookup's 1-second bound.
+- **A suite that writes to the onFHIR container must read the resources back.** Asserting that the
+  teardown `delete` answered 200 proves nothing: it answers 200 whether or not anything was ever written,
+  which is how two R4-shaped fixtures went unnoticed against the r5 container until 2026-08-07.
 - **A suite's tier is decided by its package, and that is enforced, not conventional:**
   short = the module's own package pinned by `<wildcardSuites>`; long = `io.ignifyr.integrationtest`
   selected by `<membersOnlySuites>` in an `integration-test` execution gated on `${skipITs}`.
   `test-flow/check-test-tiers.sh` (seconds, no Maven, no Docker; a CI job of its own) fails the build if
   a container-backed suite sits in a short-tier package, if a module declares a **bare**
-  `scalatest-maven-plugin`, or if integration suites and integration executions disagree. So put a new
-  Testcontainers suite in `io.ignifyr.integrationtest` — anywhere else and CI rejects it rather than
-  quietly slowing everyone's `mvn test`.
+  `scalatest-maven-plugin`, if a module owns test sources but **no** `scalatest-maven-plugin` (invariant
+  2b — such suites compile, look like coverage, and never run), or if integration suites and integration
+  executions disagree. So put a new Testcontainers suite in `io.ignifyr.integrationtest` — anywhere else
+  and CI rejects it rather than quietly slowing everyone's `mvn test`.
 - Integration tests need Docker; treat live-network failures (e.g. the RxNorm API) as environment
   issues, not regressions.
 - The root pom's scalatest `argLine` adds the Spark `--add-opens` module flags (with

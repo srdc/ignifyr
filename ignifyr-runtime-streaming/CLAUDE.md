@@ -42,9 +42,11 @@ Tier-split, one execution each.
 
 **Short** (`wildcardSuites=io.ignifyr.runtime.streaming`, no Docker) — `StreamingSinkHandlerTest`
 (`AnyFlatSpec`, mockito-scala): drives a `rate` stream through `StreamingSinkHandler.writeStream` to
-exercise the catch-and-continue behaviour. Note it contains **no explicit expectation** — it starts the
-query, `awaitTermination(5000)`, `stop()`, so the only failure signal is `awaitTermination` rethrowing if
-the query died. It fails if a micro-batch exception escapes; it cannot assert that one was swallowed.
+exercise the catch-and-continue behaviour. It asserts **both** halves of that contract:
+`awaitTermination(5000)` rethrowing proves the query survived the throwing micro-batch, and a
+`verify(mockWriter, atLeast(2)).write(…)` proves the writer was handed a *further* chunk afterwards.
+Keep the second one — without it the suite would still pass if the stream produced only the failing chunk
+and then nothing at all, which is indistinguishable from swallow-and-continue from the query's side.
 
 **Long** (`membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`, Docker) — two
 end-to-end suites that exercise the real capability seam rather than the mechanics:

@@ -67,7 +67,9 @@ content type 'x'" message.
 ## Tests
 **Unit only** (`wildcardSuites=io.ignifyr.sink.file`, no Docker): `FileSystemWriterTest` (ndjson/
 parquet/csv writes, resource-type partitioning, discriminator-less-row skipping) and
-`FileSinkExtensionSpec` (discovery, `extraCapabilities`, and the missing-format install-hint UX).
+`FileSinkExtensionSpec` (discovery, `extraCapabilities`, the missing-format install-hint UX, and the
+duplicate-content-type guard — asserted on `FileSinkFormatRegistry.indexUnique`, which is `private[file]`
+for that reason: the registry is ServiceLoader-fed, so a duplicate can't be staged on the test classpath).
 The shared test fixtures come from `ignifyr-testkit` (test scope). Note: `FileSystemWriterTest`
 imports `sparkSession.implicits._` (not a delta encoder) precisely so these community writer tests
 never pull `delta-spark` onto the classpath.

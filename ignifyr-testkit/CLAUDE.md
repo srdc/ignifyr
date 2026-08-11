@@ -7,7 +7,7 @@ modules depend on. Community (`io.ignifyr`), **test-only — never bundled into 
 Why a module and not an engine test-jar: the harness must be consumable by the **plugin** modules, which
 already depend on the engine, and an engine test-jar consumed cross-repo can't serve folder fixtures
 reliably. It lives downstream of the engine (`ignifyr-testkit` → `ignifyr-engine`), so **`ignifyr-engine`
-must never depend on it** — that would be a reactor cycle. (The engine's own six suites are
+must never depend on it** — that would be a reactor cycle. (The engine's own thirteen suites are
 self-contained and use none of this; the cycle rule is what keeps it that way.) Consumers depend on it in
 **test** scope. It opts into the community `ban-enterprise-deps` enforcer gate.
 
@@ -21,6 +21,14 @@ can depend on the published community testkit; the reverse would be impossible.
 - `src/main/resources/` — fixtures mounted at fixed classpath roots: `/test-mappings` (+ context CSVs;
   nested `some-folder-*` exercise multi-folder discovery), `/test-schemas`, `/terminology-service`
   (code-system + concept-map CSVs), `/test-data` (`loop.json`).
+  ⚠️ **The mapping fixtures must emit R5**, because `OnFhirTestContainer` runs `srdc/onfhir:r5`. That
+  migration was only finished on 2026-08-10 (`e93e6546`): two fixtures still produced R4 shapes
+  (`MedicationAdministration.effectiveDateTime`/`.context`/`.medicationCodeableConcept`,
+  `Procedure.performedDateTime`, `Organization.address`), so the server rejected them and one mapping
+  wrote **nothing at all** — invisible, because the consuming suites only asserted that the cleanup
+  `delete` answered 200, which it does whether or not anything was ever written. **A suite that writes to
+  the container must read the resources back**; asserting on teardown proves nothing. (Spec trivia that
+  will bite you: `MedicationAdministration.occurence[x]` has one `r`, `Procedure.occurrence[x]` has two.)
 - `src/test/scala/io/ignifyr/test/` — the module's **own** suites, relocated here from the engine:
   `FhirMappingFolderRepositoryTest`, `LocalTerminologyServiceTest`, `FhirPathMappingFunctionsTest`
   (all `AsyncFlatSpec` mixing in `IgnifyrTestSpec`; no Docker).

@@ -51,8 +51,17 @@ constant or the job passes a raw string.
 
 ## Tests
 Tier-split (surefire disabled). **Short** (`wildcardSuites=io.ignifyr.connector.file`, no Docker):
-`FileDataSourceReaderTest`, `FileConnectorExtensionSpec` (discovery, `extraCapabilities`, and the
-missing-format install-hint UX). **Long** (`membersOnlySuites=io.ignifyr.integrationtest`, gated on
-`${skipITs}`, Docker/onFHIR): `FhirMappingJobManagerTest` — writes through the FHIR sink, so
-`ignifyr-sink-fhir` is a test-scope dep. Run it with `mvn -B verify -pl ignifyr-connector-file
--DskipITs=false`. The shared harness + fixtures come from `ignifyr-testkit` (test scope).
+`FileDataSourceReaderTest`, `FileDataSourceReaderOptionsTest`, `FileConnectorExtensionSpec` (discovery,
+`extraCapabilities`, the missing-format install-hint UX, **and** the duplicate-content-type guard — the
+latter asserted on `FileFormatRegistry.indexUnique`, which is `private[file]` for exactly that reason,
+since ServiceLoader input can't be staged on the test classpath). **Long**
+(`membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`, Docker/onFHIR):
+`FhirMappingJobManagerTest` — writes through the FHIR sink, so `ignifyr-sink-fhir` is a test-scope dep.
+Run it with `mvn -B verify -pl ignifyr-connector-file -DskipITs=false`. The shared harness + fixtures come
+from `ignifyr-testkit` (test scope).
+
+`FileDataSourceReaderOptionsTest` pins the two things the reader does *around* the format handler and
+nobody else covers: the `distinct` read option, and path resolution — an `hdfs://` data folder is handed
+through verbatim while every other path resolves against the workspace folder. That second case is
+guarded deliberately: a scheme special-case on the **write** side once turned parquet output into text
+(see `ignifyr-sink-file/CLAUDE.md`), so the read side's one branch is now pinned rather than assumed.

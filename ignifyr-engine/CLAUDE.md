@@ -22,6 +22,10 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
   `ListRunningMappings`, `ListPlugins`, …). Modules contribute commands via the `CliCommandProvider`
   SPI; `list-plugins` prints the installed extensions and everything they contribute (a CI gate on
   the edition boundary).
+  ⚠️ `CommandLineInterface.nextArg` is the parser behind *every* `Boot` invocation. **The first bare
+  token wins the `command` slot** — a later bare token must not overwrite it, or a trailing valueless
+  flag gets consumed as the command and `run --job` is reported as `unknown command --job`
+  (fixed 2026-08-10, pinned by `CommandLineInterfaceTest`).
 
 ## Layout (`src/main/scala/io/ignifyr/engine/`)
 - `config/` — `IgnifyrConfig`, `IgnifyrEngineConfig` (read the `ignifyr` HOCON block), `FunctionLibrariesConfig`.
@@ -39,7 +43,11 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
   `MappingTaskPipeline`, and `TerminologyServiceProvider`/`IdentityServiceProvider` (both in
   `IntegratedServiceProviders.scala`) — plus `ExtensionHints` (error-message module coordinates) and
   `core/CoreExtension`. **`CoreExtension` registers only the built-in CLI commands and the
-  `LocalTerminologyService`: the engine ships no concrete I/O.**
+  `LocalTerminologyService`: the engine ships no concrete I/O.** The three merge/index helpers
+  (`indexUnique`, `singleCapability`, `mergeSparkConf`) are `private[ignifyr]` rather than `private`
+  **on purpose**: the registries themselves are fed by ServiceLoader, so a duplicate registration cannot
+  be staged on a test classpath without a second classloader, and the fail-fast contracts are asserted on
+  the helpers directly (`ExtensionRegistrySpec`). Don't narrow them back.
 - `data/read/` — `BaseDataSourceReader` (abstract base) + `SourceHandler`, which wraps the read and
   dispatches via `ExtensionRegistry.sourceConnectors`. The file reader (`FileDataSourceReader`) and the
   SQL/Kafka/FHIR-server readers all live in their `ignifyr-connector-*` modules.
@@ -55,12 +63,24 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
   in the enterprise `ignifyr-runtime-scheduling` module (`SchedulerProvider`).
 - `execution/` — `MappingJobLauncher`, `RunningJobRegistry` (tracks running Spark jobs), `processing/`
   (`ErroneousRecordWriter`, `FileStreamInputArchiver`), `log/ExecutionLogger`.
+  ⚠️ `FileStreamInputArchiver` runs inside a **single shared `TimerTask`** for the whole process, so any
+  exception escaping it kills the timer thread and stops archiving for *every* job. Spark's commit
+  directory does not exist until the first commit (and vanishes again after `clearCheckpoints`), and
+  `File.listFiles()` returns `null` — not empty — for an absent directory; both that call and
+  `SparkUtil.getLastCommitOffset` (which additionally used `.max` on a possibly empty array) now treat
+  "no commits yet" as offset `-1`. Fixed 2026-08-10; pinned by `SparkUtilTest`.
 - `model/` — domain models (`FhirMapping`, `FhirMappingJob`, `FhirMappingTask`, `*SinkSettings`,
   `MappingJobSourceSettings`, `BatchingStrategy`, …) and `model/exception/`. Models for ALL source
   types stay here (even extracted connectors) so any job JSON parses everywhere.
+  ⚠️ `FhirMappingTask.substituteBatchParameters` must substitute **longest parameter name first**: plain
+  `Map` iteration order let a shorter name rewrite the prefix of a longer one, so with `year` and
+  `yearEnd` both defined `$yearEnd` became `2020End`. Fixed 2026-08-10; pinned by `FhirMappingTaskTest`.
 - `repository/` — `mapping/FhirMappingFolderRepository` (file-backed mapping repository) +
   `ICachedRepository`.
 - `env/` — `EnvironmentVariable` + `EnvironmentVariableResolver` (env-var substitution in job settings).
+  Only names in the `EnvironmentVariable` enumeration are substitutable, and an unset one is an error
+  rather than a silent pass-through. `resolveFileContent` has a `private[ignifyr]` overload taking an
+  explicit environment — the substitution seam, since `sys.env` cannot be set from inside the JVM.
 - `Execution.scala` (top level) — the Akka `ActorSystem` the registry reads root config from, and which
   the service-provider modules use.
 - `util/` — helpers (`FileUtils`, `SparkUtil`, `CsvUtil`, …).
@@ -79,11 +99,20 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
    engine.
 
 ## Tests
-- Unit: `mvn test -pl ignifyr-engine` → suites in `io.ignifyr.test` (`wildcardSuites`). All six are
-  **self-contained** `AnyFlatSpec`s — `ExtensionRegistrySpec`, `ListPluginsTest`,
-  `FileStreamInputArchiverTest`, `RunningJobRegistryTest`, `FhirMappingJobExecutionTest`,
-  `FhirMappingUtilityTest`. They do **not** use `IgnifyrTestSpec`: that harness lives in
-  `ignifyr-testkit`, and the engine must never depend on the testkit (reactor cycle). No Docker.
+- Unit: `mvn test -pl ignifyr-engine` → suites in `io.ignifyr.test` (`wildcardSuites`). **All thirteen are
+  self-contained** `AnyFlatSpec`s: `ExtensionRegistrySpec`, `ListPluginsTest`, `CommandLineInterfaceTest`,
+  `SinkHandlerTest`, `EnvironmentVariableResolverTest`, `FileStreamInputArchiverTest`,
+  `RunningJobRegistryTest`, `SchemaConverterTest`, `FhirMappingJobExecutionTest`, `FhirMappingTaskTest`,
+  `FhirMappingJobFormatterTest`, `FhirMappingUtilityTest`, `SparkUtilTest`. They do **not** use
+  `IgnifyrTestSpec`: that harness lives in `ignifyr-testkit`, and the engine must never depend on the
+  testkit (reactor cycle). No Docker. Keep it that way — a new engine suite that reaches for a fixture
+  folder or a connector is a sign it belongs in the module that supplies the I/O.
+- Two contracts in there are worth knowing before you touch the code they cover:
+  `RunningJobRegistryTest` asserts that the future `registerBatchJob` returns completes **only after**
+  input archiving has run (no sleep in the assertion — awaiting that future *is* the guarantee the
+  one-shot CLI relies on before `System.exit(0)`), and `SchemaConverterTest` deliberately covers only the
+  Spark→FHIR direction: `convertSchema` needs onFHIR's base FHIR config initialized, so it is exercised by
+  the server's long-tier `SchemaEndpointTest` instead.
 - The engine has **no long-tier suites of its own** — there is no `io.ignifyr.integrationtest` source
   folder here (the pom's `integration-test` execution simply finds nothing). The suites that exercise the
   engine end-to-end live in the modules that supply the I/O: `ignifyr-connector-file`
