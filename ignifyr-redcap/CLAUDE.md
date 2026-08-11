@@ -55,6 +55,13 @@ the engine and the server with zero core changes):
   service — there is **no** Kafka dependency in this module.
 
 ## Tests
-One unit suite, `RedCapExtensionSpec` (`AnyFlatSpec`; no Docker, no testkit): dual-SPI discovery, the
-CLI flag→positional mapping, config-gated `rootRoutes`, and pure `RedCapUtil` extraction. Endpoint-level
-import behaviour is covered by the server's `SchemaEndpointTest`. `mvn test -pl ignifyr-redcap`.
+Two unit suites (`AnyFlatSpec`; no Docker, no testkit). `mvn test -pl ignifyr-redcap`.
+- `RedCapExtensionSpec` — dual-SPI discovery, the CLI flag→positional mapping, config-gated `rootRoutes`,
+  and pure `RedCapUtil` extraction.
+- `RedCapUtilDataTypeSpec` — the REDCap field type + text-validation type → FHIR data type table, driven
+  through `extractSchemasAsSchemaDefinitions`. **This is the widest lookup table in the repo** (35
+  branches) and it decides the column types every downstream mapping reads, so a wrong entry yields a
+  schema that parses cleanly and types its data wrongly — never an error. Add a case here whenever you
+  touch the table.
+
+Endpoint-level import behaviour is covered by the server's long-tier `SchemaEndpointTest`.

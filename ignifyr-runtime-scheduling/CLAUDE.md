@@ -40,7 +40,13 @@ carrying `schedulingSettings` with no provider installed parses fine and fails w
 
 ## Tests
 Tier-split. **Short** (`wildcardSuites=io.ignifyr.runtime.scheduling`, no Docker):
-`SchedulingRuntimeExtensionSpec` (ServiceLoader discovery + empty-registry state). **Long**
+`SchedulingRuntimeExtensionSpec` (ServiceLoader discovery + empty-registry state) and
+`ScheduledTimeRangeSpec` — the incremental-sync bookkeeping every scheduled fire depends on. Each fire
+reads the previous instant from `<ignifyrDbFolderPath>/scheduler/<jobId>.txt`, syncs `(lastSync, now)`,
+then appends the new instant to that same file; getting the lower bound wrong is silent in **both**
+directions (too early re-imports mapped data, too late skips a window forever). The long-tier
+`SchedulingTest` only ever fires once against a fresh directory, so it reaches none of those states —
+which is why `getScheduledTimeRange` is `private[scheduling]` rather than `private`. **Long**
 (`membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`, Docker): `SchedulingTest` drives a
 full cron/SQL→FHIR incremental sync against H2 + an onFHIR TestContainer (sleeps ~61s for one
 every-minute fire, then deschedules) — `mvn -B verify -pl ignifyr-runtime-scheduling -DskipITs=false`. **Three** test-scope Ignifyr deps, all needed for ServiceLoader discovery on the test

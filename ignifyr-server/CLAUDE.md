@@ -50,6 +50,10 @@ hardcodes `io.ignifyr.observability.logback.MapMarkerToLogstashMarkerEncoder`.
   on-disk repo (project index `projects.json`).
 - `model/` — request/response + domain models (`Project`, `ExecuteJobTask`, `InferTask`, …).
 - `util/` — `IgnifyrRejectionHandler`, `FileOperations`, `CsvUtil`, `DataFrameUtil`.
+  ⚠️ Every `CsvUtil` function rewrites a user-owned file **in place**, so its `Future` must not complete
+  before the write does. `writeCsvHeaders` used to `map` over the read instead of `flatMap`-ing the write,
+  so the header endpoint could answer OK over stale content (fixed 2026-08-10; the `Thread.sleep(5000)`
+  in `MappingContextEndpointTest` is the leftover workaround and can now go).
 
 The layered pattern is **Endpoint (route/marshalling) → Service (logic) → Repository (persistence)**.
 Cross-cutting CORS/error handling and `WebServerConfig` come from `ignifyr-server-common`.
@@ -70,12 +74,21 @@ Reads HOCON sections `ignifyr` (engine), `webserver` (`WebServerConfig` — host
 `java -Dconfig.file=<ignifyr.conf> -jar target/ignifyr-server-standalone.jar`.
 
 ## Tests
-`mvn test -pl ignifyr-server` → suites under `io.ignifyr.server` (`BaseEndpointTest`),
-`io.ignifyr.server.endpoint`, and `io.ignifyr.server.service` (`ExecutionServiceTest`).
+`mvn test -pl ignifyr-server` → suites under `io.ignifyr.server` and its sub-packages `endpoint`,
+`service`, `repository` and `util`.
 
 The suites are **tier-split** like every other module (two `scalatest-maven-plugin` executions):
-- **short** — `wildcardSuites=io.ignifyr.server`: the nine endpoint suites plus `ExecutionServiceTest`
-  and `BaseEndpointTest`. Docker-free, runs in `mvn test`.
+- **short** — `wildcardSuites=io.ignifyr.server` (which covers the sub-packages too): eleven endpoint
+  suites, `ExecutionServiceTest` + `MetadataServiceTest`, `FolderDBInitializerTest`, `CsvUtilTest` +
+  `DataFrameUtilTest`, and the `BaseEndpointTest`/`TestUtil` support classes. Docker-free, runs in
+  `mvn test`. Four of these cover paths no endpoint test can reach: `FolderDBInitializerTest` drives the
+  two **startup** paths (read `projects.json` back vs. rebuild the index by scanning the folders, plus its
+  refusal to start on a dangling reference) — a failure there means "the server does not start";
+  `IgnifyrErrorHandlerTest` covers a route **throwing** (the counterpart to `IgnifyrRejectionHandlerTest`,
+  which covers Akka *rejections*) and drives a minimal route because no real endpoint can be made to throw
+  on demand; `MetadataServiceTest` pins the 1-second bound and swallow-everything behaviour of the
+  `/metadata` extension lookup, invisible from the endpoint test which only sees a 200; and
+  `JobExecutionControlEndpointTest` pins the 404-vs-empty-list distinction the web UI polls on.
 - **long** — `membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`: the three suites that
   mix in the testkit's `OnFhirTestContainer` (`FhirDefinitionsEndpointTest`, `SchemaEndpointTest`,
   `MappingExecutionEndpointTest`) and so start an `srdc/onfhir:r5` container backed by `mongo:7.0`. They

@@ -29,6 +29,15 @@ than load-bearing. Changes are still API changes to both editions; keep them bac
 - `util/ExceptionUtil` — flattens a `Throwable` cause chain into one newline-joined message.
 
 ## Tests
-None. There is no `src/test` and no `scalatest-maven-plugin` execution, so `mvn test -pl ignifyr-common`
-runs nothing. `SchemaUtil`/`ExceptionUtil` are exercised only indirectly (server schema endpoints,
-engine mapping-error paths); `AppVersion` and `CustomMappingFunctions` have no coverage at all.
+**Short tier only** (`wildcardSuites=io.ignifyr.common`, no Docker, no Spark): `AppVersionTest`,
+`CustomMappingFunctionsTest`, `ExceptionUtilTest` — the module's first test sources, added 2026-08-10.
+The suites are as dependency-free as the code: plain `AnyFlatSpec` + a `test`-scope scalatest, no testkit
+(this module sits *upstream* of it), so no `application.conf` fixture wiring is needed.
+
+`CustomMappingFunctions` is the one worth a suite on principle: nothing in Scala references it, so a
+regression in `cst:createTimeSeriesData` would surface only in a server user's mapping output. Its
+base64-then-little-endian-shorts behaviour is odd enough that the suite documents the arithmetic rather
+than just asserting a golden value.
+
+`SchemaUtil` still has no direct coverage — it needs an initialized onFHIR base config, so it is
+exercised through the server's long-tier `SchemaEndpointTest` instead.

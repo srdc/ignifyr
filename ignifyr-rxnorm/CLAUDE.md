@@ -45,11 +45,19 @@ placement is genuinely unsettled rather than principled.
 It pins `com.opencsv:opencsv` to 5.5.1 inline, overriding the root-managed `opencsv.version`.
 
 ## Tests
-`RxNormApiClientTest`, `RxNormApiFunctionLibraryTest`. ⚠️ These call the **live RxNorm API** — failures
-are usually network/availability, not regressions.
+**Short tier** (`wildcardSuites=io.ignifyr.rxnorm`, no Docker, **no network**):
+`RxNormApiClientTest`, `RxNormApiFunctionLibraryTest`. `mvn test -pl ignifyr-rxnorm`.
 
-⚠️ **They do not run under Maven.** This module declares no `scalatest-maven-plugin` (every other
-test-bearing module does) and root surefire is skipped, so `mvn test -pl ignifyr-rxnorm` compiles the
-suites and runs zero of them — there is no `target/surefire-reports`. Both suites also sit in the
-**default package** (no `package` declaration), so they would not match the repo-standard
-`wildcardSuites=io.ignifyr.test` even if the plugin were added. They are IDE-only today.
+Both run against `RxNormApiStub`, a local akka-http server bound on an ephemeral port that answers a
+suite-declared map of canned bodies and **404s anything unlisted** — so an unexpected call fails loudly
+instead of passing silently. The whole seam is the client's constructor: it takes its root url, so
+pointing it at the stub needs no HTTP interception and no extra dependency (the stub uses the same
+akka-http the client itself calls through). This is also the only way the not-found and non-200 branches
+are reachable at all.
+
+⚠️ Two things changed here on 2026-08-10 (`899faba7`) — older notes claiming otherwise are stale. The
+suites used to sit in the **default package** and the module declared **no `scalatest-maven-plugin`**, so
+they compiled, looked like coverage, and ran nowhere under Maven; they also called the live
+`rxnav.nlm.nih.gov`, making a green build depend on a third party's uptime. `check-test-tiers.sh` now
+carries an invariant (2b) that fails the build for any module with test sources and no plugin, so the
+gap cannot reopen.
