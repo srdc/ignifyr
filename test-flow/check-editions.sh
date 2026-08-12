@@ -32,9 +32,14 @@ ENTERPRISE_CLASSES=(
   io/ignifyr/sink/omop
 )
 ENTERPRISE_LIBS=( org/apache/spark/sql/kafka io/delta/ it/sauronsoftware/cron4j net/logstash/logback )
+# Every enterprise module that registers a top-level IgnifyrExtension, so the SPI-manifest section
+# below (the authoritative one -- the jar-content section above is best-effort and skippable) covers
+# all of them. format-json and observability are absent on purpose: neither declares an
+# IgnifyrExtension, so neither can ever appear in this manifest.
 ENTERPRISE_EXT=(
   io.ignifyr.runtime.streaming io.ignifyr.runtime.scheduling
   io.ignifyr.connector.kafka io.ignifyr.connector.fhirserver io.ignifyr.redcap io.ignifyr.sink.omop
+  io.ignifyr.format.delta
 )
 # Community distribution now includes the split-out FHIR + file sinks (sink-fhir / sink-file).
 COMMUNITY_EXT=( io.ignifyr.connector.sql io.ignifyr.connector.file io.ignifyr.sink.fhir io.ignifyr.sink.file )
@@ -160,9 +165,18 @@ if command -v java >/dev/null 2>&1; then
   # Kafka job is a stream, so it's refused at the missing streaming capability before connector
   # resolution — accept either enterprise-gap error.
   expect_refusal "$SCRIPT_DIR/config/jobs/kafka-redcap-job.json"   "MissingConnectorException\|connector-kafka\|MissingCapabilityException\|runtime-streaming" "Kafka streaming job -> refused (missing streaming capability or Kafka connector)"
-  # list-plugins must not advertise enterprise plugins on the community jar.
-  lp="$(java "${SPARK_OPENS[@]}" -jar "$CLI_JAR" list-plugins 2>/dev/null)"
-  echo "$lp" | grep -qi "runtime-streaming\|connector-kafka\|redcap" && bad "list-plugins advertises an enterprise plugin on the community jar" || ok "list-plugins shows no enterprise plugins on the community jar"
+  # list-plugins must not advertise enterprise plugins on the community jar. Confirm it actually ran
+  # first: with the rc and stderr dropped, a JVM that never got as far as printing anything left an
+  # empty $lp, the grep matched nothing, and "no enterprise plugins" was reported -- the same verdict a
+  # genuine leak would have produced. Keep stderr and require the header render() always prints.
+  lp="$(java "${SPARK_OPENS[@]}" -jar "$CLI_JAR" list-plugins 2>&1)"
+  if ! has "$lp" "Installed Ignifyr extension(s):"; then
+    bad "list-plugins produced no usable output on the community jar (the JVM did not get as far as rendering)"
+  elif echo "$lp" | grep -qi "runtime-streaming\|connector-kafka\|redcap"; then
+    bad "list-plugins advertises an enterprise plugin on the community jar"
+  else
+    ok "list-plugins shows no enterprise plugins on the community jar"
+  fi
   rm -rf "$WS"
 else
   echo "  (java not on PATH; skipping runtime behavior checks — jar-content + SPI checks still ran)"
