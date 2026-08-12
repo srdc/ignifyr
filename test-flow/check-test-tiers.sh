@@ -66,7 +66,11 @@ done < <(grep -rlE "$CONTAINER_RE" --include='*.scala' -- */src/test/scala 2>/de
 log "2. No module leaves <scalatest-maven-plugin> unpinned"
 for pom in */pom.xml; do
   grep -q 'scalatest-maven-plugin' "$pom" || continue
-  if grep -qE '<wildcardSuites>|<membersOnlySuites>|<suffixes>' "$pom"; then
+  # Require <wildcardSuites> specifically. A module has TWO executions and only the `test`-phase one
+  # decides the short tier, so accepting <membersOnlySuites> here let a pom whose short execution had
+  # lost its pin still pass on the strength of its integration execution -- while that unpinned
+  # execution ran every suite in the module, containers included, during plain `mvn test`.
+  if grep -q '<wildcardSuites>' "$pom"; then
     ok "$(dirname "$pom") pins its suites"
   else
     bad "$(dirname "$pom") declares scalatest-maven-plugin with no <wildcardSuites> -- it will run EVERY suite in the 'test' phase"
