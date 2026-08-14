@@ -1,6 +1,6 @@
 package io.ignifyr.integrationtest
 
-import akka.http.scaladsl.model.StatusCodes
+import io.onfhir.api.model.HttpStatus
 import com.typesafe.scalalogging.Logger
 import io.onfhir.api.Resource
 import io.onfhir.api.client.FhirBatchTransactionRequestBuilder
@@ -172,7 +172,7 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
             batchRequest.entry(_.delete("Patient", FhirMappingUtility.getHashedId("Patient", "p" + i.toString)))
         }
         batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-          res.httpStatus shouldBe StatusCodes.OK
+          res.httpStatus shouldBe HttpStatus.OK
         }
       })
   }
@@ -240,7 +240,7 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
               )
             })
             batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-              res.httpStatus shouldBe StatusCodes.OK
+              res.httpStatus shouldBe HttpStatus.OK
             }
           }
         }
@@ -301,7 +301,7 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
                 batchRequest.entry(_.delete("Organization", FhirMappingUtility.getHashedId("Organization", i.toString)))
             }
             batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-              res.httpStatus shouldBe StatusCodes.OK
+              res.httpStatus shouldBe HttpStatus.OK
             }
           }
       })
@@ -343,7 +343,7 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
             batchRequest.entry(_.delete("Location", FhirMappingUtility.getHashedId("Location", i.toString)))
         }
         batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-          res.httpStatus shouldBe StatusCodes.OK
+          res.httpStatus shouldBe HttpStatus.OK
         }
       })
   }
@@ -393,7 +393,7 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
             batchRequest.entry(_.delete("Procedure", FhirMappingUtility.getHashedId("Procedure", i.toString)))
         }
         batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-          res.httpStatus shouldBe StatusCodes.OK
+          res.httpStatus shouldBe HttpStatus.OK
         }
       })
   }
@@ -448,7 +448,7 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
             }
             batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute()
           }
-        } yield cleanup.httpStatus shouldBe StatusCodes.OK
+        } yield cleanup.httpStatus shouldBe HttpStatus.OK
       }
   }
 
@@ -477,7 +477,7 @@ class SqlSourceTest extends AsyncFlatSpec with BeforeAndAfterAll with IgnifyrTes
         batchRequest = batchRequest.entry(_.delete("Location", FhirMappingUtility.getHashedId("Location", i.toString)))
       }
       batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-        res.httpStatus shouldBe StatusCodes.OK
+        res.httpStatus shouldBe HttpStatus.OK
       }
     }
   }

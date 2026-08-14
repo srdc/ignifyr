@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, ContentTypes, HttpEntity, MediaTypes, Multipart, StatusCodes}
 import akka.http.scaladsl.testkit.RouteTestTimeout
 import io.onfhir.api.client.FhirBatchTransactionRequestBuilder
+import io.onfhir.api.model.HttpStatus
 import io.onfhir.api.{FHIR_DATA_TYPES, FHIR_FOUNDATION_RESOURCES, Resource}
 import io.ignifyr.OnFhirTestContainer
 import io.onfhir.definitions.common.model.{DataTypeWithProfiles, SchemaDefinition, SimpleStructureDefinition}
@@ -1166,7 +1167,7 @@ class SchemaEndpointTest extends BaseEndpointTest with OnFhirTestContainer {
       .returnMinimal()
       .asInstanceOf[FhirBatchTransactionRequestBuilder]
       .execute() map { res =>
-      res.httpStatus shouldBe StatusCodes.OK
+      res.httpStatus shouldBe HttpStatus.OK
     }
   }
 
@@ -1184,7 +1185,7 @@ class SchemaEndpointTest extends BaseEndpointTest with OnFhirTestContainer {
       .returnMinimal()
       .asInstanceOf[FhirBatchTransactionRequestBuilder]
       .execute() map { res =>
-      res.httpStatus shouldBe StatusCodes.OK
+      res.httpStatus shouldBe HttpStatus.OK
     }
   }
 

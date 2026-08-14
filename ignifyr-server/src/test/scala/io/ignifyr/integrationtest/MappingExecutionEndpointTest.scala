@@ -6,6 +6,7 @@ import akka.http.scaladsl.testkit.RouteTestTimeout
 import akka.testkit.TestDuration
 import io.onfhir.api.Resource
 import io.onfhir.api.client.FhirBatchTransactionRequestBuilder
+import io.onfhir.api.model.HttpStatus
 import io.ignifyr.OnFhirTestContainer
 import io.onfhir.definitions.common.model.SchemaDefinition
 import io.ignifyr.engine.config.IgnifyrConfig
@@ -14,7 +15,13 @@ import io.ignifyr.engine.util.FhirMappingJobFormatter.formats
 import io.ignifyr.engine.util.FileUtils
 import io.ignifyr.engine.util.FileUtils.FileExtensions
 import io.ignifyr.server.BaseEndpointTest
-import io.ignifyr.server.endpoint.{JobEndpoint, MappingContextEndpoint, MappingEndpoint, ProjectEndpoint, SchemaDefinitionEndpoint}
+import io.ignifyr.server.endpoint.{
+  JobEndpoint,
+  MappingContextEndpoint,
+  MappingEndpoint,
+  ProjectEndpoint,
+  SchemaDefinitionEndpoint
+}
 import io.ignifyr.server.model.{ResourceFilter, TestResourceCreationRequest}
 import io.ignifyr.server.util.{FileOperations, TestUtil}
 import org.apache.spark.sql.SparkSession
@@ -816,7 +823,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
       .returnMinimal()
       .asInstanceOf[FhirBatchTransactionRequestBuilder]
       .execute() map { res =>
-      res.httpStatus shouldBe StatusCodes.OK
+      res.httpStatus shouldBe HttpStatus.OK
     }
   }
 
@@ -838,7 +845,7 @@ class MappingExecutionEndpointTest extends BaseEndpointTest with OnFhirTestConta
       .returnMinimal()
       .asInstanceOf[FhirBatchTransactionRequestBuilder]
       .execute() map { res =>
-      res.httpStatus shouldBe StatusCodes.OK
+      res.httpStatus shouldBe HttpStatus.OK
     }
   }
 }
