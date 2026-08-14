@@ -85,7 +85,7 @@
         <!-- OnFHIR Resource Definitions Microservice -->
         <dependency>
             <groupId>io.onfhir</groupId>
-            <artifactId>onfhir-resource-definitions</artifactId>
+            <artifactId>onfhir-resource-definitions_${scala.binary.version}</artifactId>
         </dependency>
     </dependencies>
 </project>

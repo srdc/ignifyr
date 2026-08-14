@@ -94,7 +94,7 @@
         <!-- onFHIR Definitions Common-->
         <dependency>
             <groupId>io.onfhir</groupId>
-            <artifactId>onfhir-definition-commons</artifactId>
+            <artifactId>onfhir-definition-commons_${scala.binary.version}</artifactId>
         </dependency>
 
         <!-- For Unit testing -->
