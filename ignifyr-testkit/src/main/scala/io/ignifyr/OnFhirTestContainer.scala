@@ -1,12 +1,12 @@
 package io.ignifyr
 
 import io.onfhir.client.OnFhirNetworkClient
-import io.ignifyr.engine.Execution.actorSystem
 import org.testcontainers.containers.{GenericContainer, MongoDBContainer, Network}
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.DockerImageName
 
 import java.time.Duration
+import scala.concurrent.ExecutionContext
 
 /**
  * Singleton object responsible for initializing and managing the OnFHIR test container used in Ignifyr testing.
@@ -49,6 +49,7 @@ object OnFhirTestContainer {
    * @return The singleton onFhirNetworkClient.
    */
   def getOnFhirClient: OnFhirNetworkClient = {
+    implicit val executionContext: ExecutionContext = ExecutionContext.global
     OnFhirNetworkClient(s"http://localhost:${container.getMappedPort(ONFHIR_TESTCONTAINER_PORT)}/fhir")
   }
 }

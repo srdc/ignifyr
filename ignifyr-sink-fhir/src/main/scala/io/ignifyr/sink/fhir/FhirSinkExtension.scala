@@ -37,9 +37,8 @@ class FhirSinkExtension extends IgnifyrExtension {
     new TerminologyServiceProvider {
       override val settingsClass: Class[_ <: TerminologyServiceSettings] = classOf[FhirRepositorySinkSettings]
       override def create(settings: TerminologyServiceSettings): IFhirTerminologyService = {
-        import io.ignifyr.engine.Execution.actorSystem
-        implicit val ec: ExecutionContext = actorSystem.dispatcher
-        new TerminologyServiceClient(settings.asInstanceOf[FhirRepositorySinkSettings].createOnFhirClient(actorSystem))
+        implicit val ec: ExecutionContext = io.ignifyr.engine.Execution.actorSystem.dispatcher
+        new TerminologyServiceClient(settings.asInstanceOf[FhirRepositorySinkSettings].createOnFhirClient)
       }
     }
   )
@@ -48,9 +47,8 @@ class FhirSinkExtension extends IgnifyrExtension {
     new IdentityServiceProvider {
       override val settingsClass: Class[_ <: IdentityServiceSettings] = classOf[FhirRepositorySinkSettings]
       override def create(settings: IdentityServiceSettings): IFhirIdentityService = {
-        import io.ignifyr.engine.Execution.actorSystem
-        implicit val ec: ExecutionContext = actorSystem.dispatcher
-        new IdentityServiceClient(settings.asInstanceOf[FhirRepositorySinkSettings].createOnFhirClient(actorSystem))
+        implicit val ec: ExecutionContext = io.ignifyr.engine.Execution.actorSystem.dispatcher
+        new IdentityServiceClient(settings.asInstanceOf[FhirRepositorySinkSettings].createOnFhirClient)
       }
     }
   )
