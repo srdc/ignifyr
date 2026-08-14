@@ -79,6 +79,17 @@
             <groupId>io.onfhir</groupId>
             <artifactId>onfhir-path_${scala.binary.version}</artifactId>
         </dependency>
+        <!-- RxNormApiClient (and the test stub) are Akka-HTTP based; declared explicitly since the
+             onFHIR 4.0.0 libraries no longer pull in Akka. -->
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-stream_${scala.binary.version}</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_${scala.binary.version}</artifactId>

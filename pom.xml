@@ -106,16 +106,16 @@
 
         <!-- This is a special placeholder to manage the version from a single property throughout the parent and child modules. No other property name can be used. -->
         <!-- https://maven.apache.org/maven-ci-friendly.html -->
-        <revision>2.0-SNAPSHOT</revision>
+        <revision>2.1-SNAPSHOT</revision>
         <skipITs>true</skipITs>
         <scala.version>2.13.16</scala.version>
         <scala.binary.version>2.13</scala.binary.version>
 
         <!--Dependency versions-->
         <scala-logging.version>3.9.5</scala-logging.version>
-        <onfhir.version>3.4-SNAPSHOT</onfhir.version>
-        <onfhir-template-engine.version>1.1-SNAPSHOT</onfhir-template-engine.version>
-        <spark-on-fhir.version>1.1-SNAPSHOT</spark-on-fhir.version>
+        <onfhir.version>4.0.0-SNAPSHOT</onfhir.version>
+        <spark-on-fhir.version>2.0-SNAPSHOT</spark-on-fhir.version>
+        <onfhir-definitions-microservices.version>2.0.0-SNAPSHOT</onfhir-definitions-microservices.version>
         <json4s.version>3.7.0-M11</json4s.version>
         <logback-more-appenders.version>1.8.8</logback-more-appenders.version>
         <fluent-logger.version>0.3.4</fluent-logger.version>
@@ -136,7 +136,6 @@
         <akka-http.version>10.5.3</akka-http.version>
         <reflections.version>0.10.2</reflections.version>
         <opencsv.version>5.8</opencsv.version>
-        <onfhir-definitions-microservices.version>1.0-SNAPSHOT</onfhir-definitions-microservices.version>
     </properties>
 
     <build>
@@ -322,7 +321,7 @@
             <dependency>
                 <groupId>io.onfhir</groupId>
                 <artifactId>onfhir-template-engine_${scala.binary.version}</artifactId>
-                <version>${onfhir-template-engine.version}</version>
+                <version>${onfhir.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.onfhir</groupId>
@@ -351,12 +350,19 @@
             </dependency>
             <dependency>
                 <groupId>io.onfhir</groupId>
-                <artifactId>onfhir-server-r4_${scala.binary.version}</artifactId>
+                <artifactId>onfhir-r5_${scala.binary.version}</artifactId>
+                <version>${onfhir.version}</version>
+            </dependency>
+            <!-- Packaged HL7 FHIR standard definitions (resources only, no Scala suffix). Formerly
+                 embedded in onfhir-server-r4/r5, which moved out of the library family in 4.0.0. -->
+            <dependency>
+                <groupId>io.onfhir</groupId>
+                <artifactId>onfhir-definitions-r4</artifactId>
                 <version>${onfhir.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.onfhir</groupId>
-                <artifactId>onfhir-server-r5_${scala.binary.version}</artifactId>
+                <artifactId>onfhir-definitions-r5</artifactId>
                 <version>${onfhir.version}</version>
             </dependency>
             <dependency>
@@ -560,6 +566,18 @@
                 <artifactId>akka-stream-typed_${scala.binary.version}</artifactId>
                 <version>${akka.version}</version>
             </dependency>
+            <!-- Untyped actor/stream: onfhir 3.x used to supply these transitively; since the 4.0.0
+                 libraries are Akka-free, the modules importing them declare them directly. -->
+            <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-actor_${scala.binary.version}</artifactId>
+                <version>${akka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-stream_${scala.binary.version}</artifactId>
+                <version>${akka.version}</version>
+            </dependency>
 
             <!-- Ignifyr Dependencies -->
             <dependency>
@@ -661,17 +679,17 @@
             <!-- onFHIR Definitions Microservices -->
             <dependency>
                 <groupId>io.onfhir</groupId>
-                <artifactId>onfhir-fhirpath-functions</artifactId>
+                <artifactId>onfhir-fhirpath-functions_${scala.binary.version}</artifactId>
                 <version>${onfhir-definitions-microservices.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.onfhir</groupId>
-                <artifactId>onfhir-resource-definitions</artifactId>
+                <artifactId>onfhir-resource-definitions_${scala.binary.version}</artifactId>
                 <version>${onfhir-definitions-microservices.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.onfhir</groupId>
-                <artifactId>onfhir-definition-commons</artifactId>
+                <artifactId>onfhir-definition-commons_${scala.binary.version}</artifactId>
                 <version>${onfhir-definitions-microservices.version}</version>
             </dependency>
 

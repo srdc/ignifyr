@@ -146,6 +146,17 @@
         </dependency>
         <!-- fhir-api-spark-source (FHIR-server-as-source) lives in ignifyr-connector-fhir-server -->
 
+        <!-- Akka: Execution.scala (ActorSystem) and util/CsvUtil.scala (Source/ByteString) import these
+             directly. Declared explicitly since the onFHIR 4.0.0 libraries no longer pull in Akka. -->
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-stream_${scala.binary.version}</artifactId>
+        </dependency>
+
         <!-- Ignifyr dependencies -->
         <dependency>
             <groupId>io.ignifyr</groupId>
