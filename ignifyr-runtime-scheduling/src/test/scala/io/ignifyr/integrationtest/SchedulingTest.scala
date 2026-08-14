@@ -1,6 +1,6 @@
 package io.ignifyr.integrationtest
 
-import akka.http.scaladsl.model.StatusCodes
+import io.onfhir.api.model.HttpStatus
 import io.onfhir.api.client.FhirBatchTransactionRequestBuilder
 import io.onfhir.api.util.FHIRUtil
 import io.onfhir.path.FhirPathUtilFunctionsFactory
@@ -82,7 +82,7 @@ class SchedulingTest extends AnyFlatSpec with BeforeAndAfterAll with IgnifyrTest
         batchRequest = batchRequest.entry(_.delete("Observation", (obs \ "id").extract[String]))
       })
       batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute() map { res =>
-        res.httpStatus shouldBe StatusCodes.OK
+        res.httpStatus shouldBe HttpStatus.OK
       }
     }
     Await.result(f, Duration.Inf)

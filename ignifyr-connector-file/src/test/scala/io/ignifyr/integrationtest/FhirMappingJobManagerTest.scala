@@ -1,6 +1,6 @@
 package io.ignifyr.integrationtest
 
-import akka.http.scaladsl.model.StatusCodes
+import io.onfhir.api.model.HttpStatus
 import io.onfhir.api.Resource
 import io.onfhir.api.client.FhirBatchTransactionRequestBuilder
 import io.onfhir.api.util.FHIRUtil
@@ -111,7 +111,7 @@ class FhirMappingJobManagerTest
       batchRequest.returnMinimal().asInstanceOf[FhirBatchTransactionRequestBuilder].execute(),
       FiniteDuration(60, TimeUnit.SECONDS)
     )
-    res.httpStatus shouldBe StatusCodes.OK
+    res.httpStatus shouldBe HttpStatus.OK
   }
 
   it should "execute the patient mapping task and return the results" in {
