@@ -2,9 +2,9 @@ package io.ignifyr.server.repository.schema
 
 import io.onfhir.api.parsers.IFhirFoundationResourceParser
 import io.onfhir.config.IFhirVersionConfigurator
-import io.onfhir.r4.config.FhirR4Configurator
+import io.onfhir.definitions.resource.fhir.config.{R4Configurator, R5Configurator}
 import io.onfhir.r4.parsers.R4Parser
-import io.onfhir.r5.config.FhirR5Configurator
+import io.onfhir.r5.parsers.R5Parser
 import io.ignifyr.engine.config.IgnifyrConfig
 import io.ignifyr.engine.util.{FhirVersionUtil, MajorFhirVersion}
 
@@ -18,8 +18,8 @@ abstract class AbstractSchemaRepository extends ISchemaRepository {
    */
   protected val fhirConfigurator: IFhirVersionConfigurator =
     FhirVersionUtil.getMajorFhirVersion(IgnifyrConfig.engineConfig.schemaRepositoryFhirVersion) match {
-      case MajorFhirVersion.R4 => new FhirR4Configurator()
-      case MajorFhirVersion.R5 => new FhirR5Configurator()
+      case MajorFhirVersion.R4 => new R4Configurator()
+      case MajorFhirVersion.R5 => new R5Configurator()
       case _ => throw new NotImplementedError()
     }
 
@@ -29,7 +29,7 @@ abstract class AbstractSchemaRepository extends ISchemaRepository {
   protected val fhirFoundationResourceParser: IFhirFoundationResourceParser =
     FhirVersionUtil.getMajorFhirVersion(IgnifyrConfig.engineConfig.schemaRepositoryFhirVersion) match {
       case MajorFhirVersion.R4 => new R4Parser()
-      case MajorFhirVersion.R5 => new R4Parser()
+      case MajorFhirVersion.R5 => new R5Parser()
       case _ => throw new NotImplementedError()
     }
 }

@@ -1,10 +1,9 @@
 package io.ignifyr.sink.fhir
 
-import akka.http.scaladsl.model.Uri
 import com.typesafe.scalalogging.Logger
 import io.onfhir.api.FHIR_INTERACTIONS
 import io.onfhir.api.client.{FHIRTransactionBatchBundle, FhirBatchTransactionRequestBuilder, FhirClientException}
-import io.onfhir.api.model.OutcomeIssue
+import io.onfhir.api.model.{OrderedQuery, OutcomeIssue}
 import io.onfhir.api.util.FHIRUtil
 import io.onfhir.client.OnFhirNetworkClient
 import io.onfhir.definitions.common.model.Json4sSupport.formats
@@ -106,6 +105,20 @@ class FhirRepositoryWriter(sinkSettings: FhirRepositorySinkSettings) extends Bas
   }
 
   /**
+   * Parse the search parameters out of a FHIR interaction condition (e.g. "?_id=x&status=final").
+   *
+   * A condition without a '?' carries no query, and yields no search parameters.
+   *
+   * @param condition Condition of a conditional create/update/patch interaction
+   * @return Search parameters, keyed by parameter name
+   */
+  private def parseConditionQuery(condition: String): Map[String, List[String]] = {
+    val queryStart = condition.indexOf('?')
+    if (queryStart < 0) Map.empty
+    else OrderedQuery.parse(condition.substring(queryStart + 1)).toMultiMap
+  }
+
+  /**
    * Prepare the FHIR batch request from mapping results
    *
    * @param mappingResults Mapping results for this FHIR batch
@@ -132,7 +145,7 @@ class FhirRepositoryWriter(sinkSettings: FhirRepositorySinkSettings) extends Bas
           // FHIR Conditional update
           case FhirInteraction(FHIR_INTERACTIONS.UPDATE, _, Some(condition)) =>
             val resource = mappingResult.mappedFhirResource.get.mappedResource.get.parseJson
-            val searchParams = Uri(condition).query().toMultiMap
+            val searchParams = parseConditionQuery(condition)
             batchRequest = batchRequest.entry(uuid, _.update(resource).where(searchParams))
           // FHIR Create
           case FhirInteraction(FHIR_INTERACTIONS.CREATE, _, None) =>
@@ -141,7 +154,7 @@ class FhirRepositoryWriter(sinkSettings: FhirRepositorySinkSettings) extends Bas
           // FHIR Conditional create, if not exists
           case FhirInteraction(FHIR_INTERACTIONS.CREATE, _, Some(condition)) =>
             val resource = mappingResult.mappedFhirResource.get.mappedResource.get.parseJson
-            val searchParams = Uri(condition).query().toMultiMap
+            val searchParams = parseConditionQuery(condition)
             batchRequest = batchRequest.entry(uuid, _.create(resource).where(searchParams))
           // FHIR Patch
           case FhirInteraction(FHIR_INTERACTIONS.PATCH, Some(rtypeAndId), None) =>
@@ -156,7 +169,7 @@ class FhirRepositoryWriter(sinkSettings: FhirRepositorySinkSettings) extends Bas
           // Conditional patch
           case FhirInteraction(FHIR_INTERACTIONS.PATCH, Some(rtype), Some(condition)) =>
             val patchContent = JsonMethods.parse(mappingResult.mappedFhirResource.get.mappedResource.get)
-            val searchParams = Uri(condition).query().toMultiMap
+            val searchParams = parseConditionQuery(condition)
 
             batchRequest = batchRequest
               .entry(uuid, _.patch(rtype).where(searchParams).patchContent(patchContent))

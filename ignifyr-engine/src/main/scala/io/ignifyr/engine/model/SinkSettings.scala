@@ -1,9 +1,10 @@
 package io.ignifyr.engine.model
 
-import akka.actor.ActorSystem
 import io.onfhir.client.OnFhirNetworkClient
 import io.onfhir.client.model.IFhirRepositorySecuritySettings
 import io.onfhir.client.util.FhirClientUtil
+
+import scala.concurrent.ExecutionContext
 
 /**
  * Common interface for sink settings
@@ -65,10 +66,10 @@ case class FhirRepositorySinkSettings(
   /**
    * Create an OnFhir client
    *
-   * @param actorSystem
+   * @param executionContext Execution context the client runs its asynchronous work on
    * @return
    */
-  def createOnFhirClient(implicit actorSystem: ActorSystem): OnFhirNetworkClient =
+  def createOnFhirClient(implicit executionContext: ExecutionContext): OnFhirNetworkClient =
     FhirClientUtil.createOnFhirClient(fhirRepoUrl, securitySettings)
 }
 
