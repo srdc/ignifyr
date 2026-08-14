@@ -41,12 +41,29 @@ parses fine and fails at launch with `MissingCapabilityException` naming
 Tier-split, one execution each.
 
 **Short** (`wildcardSuites=io.ignifyr.runtime.streaming`, no Docker) — `StreamingSinkHandlerTest`
-(`AnyFlatSpec`, mockito-scala): drives a `rate` stream through `StreamingSinkHandler.writeStream` to
-exercise the catch-and-continue behaviour. It asserts **both** halves of that contract:
-`awaitTermination(5000)` rethrowing proves the query survived the throwing micro-batch, and a
-`verify(mockWriter, atLeast(2)).write(…)` proves the writer was handed a *further* chunk afterwards.
-Keep the second one — without it the suite would still pass if the stream produced only the failing chunk
-and then nothing at all, which is indistinguishable from swallow-and-continue from the query's side.
+(`AnyFlatSpec`): drives a **`MemoryStream`** through `StreamingSinkHandler.writeStream` to exercise the
+catch-and-continue behaviour, pushing one chunk at a time and calling `processAllAvailable()` between
+them. It asserts both halves of that contract: the writer's chunk counter reaching 2 proves it was handed
+a *further* chunk after one threw, and `isActive`/`exception.isEmpty` prove the exception never escaped
+the `foreachBatch`. Keep the first — without it the suite would still pass if the stream produced only
+the failing chunk and then nothing at all, which is indistinguishable from swallow-and-continue from the
+query's side.
+- ⚠️ **Drive the batches; never wait on a clock.** This suite used a `rate` source plus
+  `awaitTermination(5000)`, and the pass depended on that window: Spark's streaming startup dominates it
+  and varies by machine (the second chunk landed ~0.5s *after* the window on one developer box — only
+  `stop()` blocking on the in-flight batch saved the assertion — and needed 16–42s on a slower one).
+  Shortening the window to 2s reproduces the failure on demand. `processAllAvailable()` removes the
+  dependency instead of widening it. Note the old `awaitTermination` never rethrew anything either —
+  `StreamingSinkHandler` swallows per-micro-batch exceptions, so the query never fails and that half of
+  the contract went unasserted; the second swallowed error it used to log was an `InterruptedException`
+  from the `stop()` that cut the batch short.
+- ⚠️ **The mock job's source settings must carry `asStream = true`.** `FhirMappingJobExecution` derives
+  `isStreamingJob` from them, and that flag is what makes `SinkHandler.logMappingJobResult` call
+  `ExecutionLogger.logExecutionResultForStreamingMappingTask` (stateless) instead of
+  `logExecutionResultForChunk`, whose per-execution cache is only ever seeded by a **batch** `STARTED`
+  log. Leave it at the default and every chunk throws `NoSuchElementException: key not found: <executionId>`
+  after the write — swallowed by the handler, so the suite still passes while failing for a reason it
+  never meant to test.
 
 **Long** (`membersOnlySuites=io.ignifyr.integrationtest`, gated on `${skipITs}`, Docker) — two
 end-to-end suites that exercise the real capability seam rather than the mechanics:
