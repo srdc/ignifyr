@@ -34,7 +34,11 @@ import scala.concurrent.{Await, Future}
  * Integration phase (Docker): MongoDB + srdc/onfhir:r5 (OnFhirTestContainer) + a Kafka container.
  * Uses `rp*` patient ids so it never collides with the folder-watch suite's `p*` ids.
  */
-class KafkaStreamingRedcapTest extends AnyFlatSpec with BeforeAndAfterAll with IgnifyrTestSpec with OnFhirTestContainer {
+class KafkaStreamingRedcapTest
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with IgnifyrTestSpec
+    with OnFhirTestContainer {
 
   import io.ignifyr.engine.Execution.actorSystem.dispatcher
 
@@ -113,7 +117,10 @@ class KafkaStreamingRedcapTest extends AnyFlatSpec with BeforeAndAfterAll with I
         catch { case _: Throwable => false }
       if (!found) Thread.sleep(2000)
     }
-    assert(found, s"Patient '$hashedId' did not appear in onFHIR within $timeout (Kafka streaming did not consume the topic)")
+    assert(
+      found,
+      s"Patient '$hashedId' did not appear in onFHIR within $timeout (Kafka streaming did not consume the topic)"
+    )
   }
 
   // lazy: `kafka.getBootstrapServers` is only valid after `kafka.start()` in beforeAll, so this must

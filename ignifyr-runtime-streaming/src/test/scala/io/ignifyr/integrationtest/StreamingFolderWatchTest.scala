@@ -34,7 +34,11 @@ import scala.concurrent.{Await, Future}
  * `archiveMode = off` so the streaming archiver timer (started only by `IgnifyrEngine`) is not
  * required.
  */
-class StreamingFolderWatchTest extends AnyFlatSpec with BeforeAndAfterAll with IgnifyrTestSpec with OnFhirTestContainer {
+class StreamingFolderWatchTest
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with IgnifyrTestSpec
+    with OnFhirTestContainer {
 
   import io.ignifyr.engine.Execution.actorSystem.dispatcher
 
@@ -124,7 +128,10 @@ class StreamingFolderWatchTest extends AnyFlatSpec with BeforeAndAfterAll with I
         catch { case _: Throwable => false }
       if (!found) Thread.sleep(2000)
     }
-    assert(found, s"Patient '$hashedId' did not appear in onFHIR within $timeout (streaming folder-watch did not process the dropped file)")
+    assert(
+      found,
+      s"Patient '$hashedId' did not appear in onFHIR within $timeout (streaming folder-watch did not process the dropped file)"
+    )
   }
 
   it should "process a CSV dropped into the watched folder and write FHIR Patients (folder-watch streaming)" in {
