@@ -5,7 +5,7 @@ import io.onfhir.client.model.{
   BearerTokenAuthorizationSettings,
   FixedTokenAuthenticationSettings
 }
-import io.onfhir.spark.reader.FhirApiReader.OPTIONS
+import io.onfhir.spark.connector.reader.FhirApiReader.OPTIONS
 import io.ignifyr.engine.data.read.BaseDataSourceReader
 import io.ignifyr.engine.model._
 import org.apache.spark.sql.types.StructType
@@ -55,7 +55,9 @@ class FhirServerDataSourceReader(spark: SparkSession)
     val resourceSchema = schemaUtil.getSparkSchemaForResourceType(mappingSource.resourceType).get
      */
 
-    import io.onfhir.spark.reader.FhirApiReader._
+    // The DataFrameReader -> FhirApiReaderWrapper conversion that supplies `.fhir(url)`.
+    // spark-on-fhir 2.0.0 moved it out of the FhirApiReader companion into this object.
+    import io.onfhir.spark.connector.SparkFhirApiConnector._
     implicit val implicitSpark: SparkSession = spark
     implicitSpark.read
       .fhir(mappingJobSourceSettings.serverUrl)
