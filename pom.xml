@@ -113,9 +113,9 @@
 
         <!--Dependency versions-->
         <scala-logging.version>3.9.5</scala-logging.version>
-        <onfhir.version>4.0.0-SNAPSHOT</onfhir.version>
-        <spark-on-fhir.version>2.0-SNAPSHOT</spark-on-fhir.version>
-        <onfhir-definitions-microservices.version>2.0.0-SNAPSHOT</onfhir-definitions-microservices.version>
+        <onfhir.version>4.0.0</onfhir.version>
+        <spark-on-fhir.version>2.0.0</spark-on-fhir.version>
+        <onfhir-definitions-microservices.version>2.0.0</onfhir-definitions-microservices.version>
         <json4s.version>3.7.0-M11</json4s.version>
         <logback-more-appenders.version>1.8.8</logback-more-appenders.version>
         <fluent-logger.version>0.3.4</fluent-logger.version>
@@ -365,21 +365,15 @@
                 <artifactId>onfhir-definitions-r5</artifactId>
                 <version>${onfhir.version}</version>
             </dependency>
+            <!-- The FHIR-API Spark data source. 2.0.0 split the former single
+                 io.onfhir:fhir-api-spark-source artifact into an io.onfhir.spark reactor;
+                 connector-api is the module Ignifyr reads through, and it carries
+                 spark-on-fhir-common transitively. -->
             <dependency>
-                <groupId>io.onfhir</groupId>
-                <artifactId>fhir-api-spark-source_${scala.binary.version}</artifactId>
+                <groupId>io.onfhir.spark</groupId>
+                <artifactId>spark-on-fhir-connector-api_${scala.binary.version}</artifactId>
                 <version>${spark-on-fhir.version}</version>
             </dependency>
-<!--            <dependency>-->
-<!--                <groupId>io.onfhir</groupId>-->
-<!--                <artifactId>fhir-spark-util</artifactId>-->
-<!--                <version>${spark-on-fhir.version}</version>-->
-<!--            </dependency>-->
-<!--            <dependency>-->
-<!--                <groupId>io.onfhir</groupId>-->
-<!--                <artifactId>fhir-path-spark_${scala.binary.version}</artifactId>-->
-<!--                <version>${spark-on-fhir.version}</version>-->
-<!--            </dependency>-->
 
             <!-- JSON4S -->
             <dependency>

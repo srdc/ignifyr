@@ -16,8 +16,8 @@
     <!--
       Enterprise FHIR-server-as-source connector: reads FHIR resources from a FHIR API as mapping
       input. Contributes a FhirServerSource reader via the IgnifyrExtension SPI. Kept out of the
-      community distribution; also isolates the spark-on-fhir (fhir-api-spark-source) dependency from
-      the community engine.
+      community distribution; also isolates the spark-on-fhir (spark-on-fhir-connector-api)
+      dependency from the community engine.
     -->
 
     <build>
@@ -47,8 +47,8 @@
 
         <!-- Spark data source for reading from a FHIR API -->
         <dependency>
-            <groupId>io.onfhir</groupId>
-            <artifactId>fhir-api-spark-source_${scala.binary.version}</artifactId>
+            <groupId>io.onfhir.spark</groupId>
+            <artifactId>spark-on-fhir-connector-api_${scala.binary.version}</artifactId>
         </dependency>
 
         <!-- Test: registration spec only. The full-pipeline FhirServerSourceTest (onFHIR container) is
