@@ -255,5 +255,8 @@ Format: `<emoji> <type>(<scope>): <subject>. <issue-ref>`
 
 - Primary development is on **Windows / PowerShell**; all Maven commands above are cross-platform.
 - **Docker Desktop** must be running for `mvn -B verify` / integration tests.
-- onFHIR & spark-on-fhir SNAPSHOT dependencies resolve from Central snapshots + SRDC Nexus
-  (see `<repositories>` in [pom.xml](pom.xml)).
+- Upstream dependencies are all releases: onfhir-libs 4.0.0 from **Maven Central**;
+  onfhir-definition-microservices 2.0.0 and spark-on-fhir 2.0.0 (`io.onfhir.spark`, a reactor since
+  2.0.0 — Ignifyr consumes `spark-on-fhir-connector-api`) from **SRDC Nexus releases**, the one
+  `<repository>` in [pom.xml](pom.xml). No snapshot repository is declared; Ignifyr's own
+  `${revision}` is the only `-SNAPSHOT` in the build.
