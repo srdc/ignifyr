@@ -854,35 +854,17 @@
         </profile>
     </profiles>
 
+    <!--
+      onfhir-libs resolves from Maven Central; onfhir-definition-microservices and spark-on-fhir
+      are released to SRDC Nexus. No snapshot repository is declared on purpose: the only
+      -SNAPSHOT in the build is Ignifyr's own ${revision}, so nothing upstream can drift into a
+      build. Add one back temporarily when you need to track an upstream snapshot.
+    -->
     <repositories>
-        <repository>
-            <name>Central Portal Snapshots</name>
-            <id>central-portal-snapshots</id>
-            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
-        </repository>
         <repository>
             <name>SRDC Nexus Releases</name>
             <id>srdc-maven-releases</id>
             <url>https://nexus.srdc.com.tr/repository/maven-releases/</url>
-        </repository>
-        <repository>
-            <name>SRDC Nexus Snapshots</name>
-            <id>srdc-maven-snapshots</id>
-            <url>https://nexus.srdc.com.tr/repository/maven-snapshots/</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
-            </snapshots>
         </repository>
     </repositories>
 
