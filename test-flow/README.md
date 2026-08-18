@@ -77,6 +77,7 @@ Builds the server image, stands up a real stack, runs each behavior against it, 
 | One area only | `test-flow/run-automated-tests.sh --behavior NAME` |
 | Edition jars + SPI | `test-flow/check-editions.sh` |
 | Edition enforcer gate | `test-flow/check-enforcer-gate.sh` |
+| Release readiness (jar contents, licensing) | `test-flow/check-release-ready.sh` (`--release` to make every check fatal) |
 | E2E live stack (tool only) | `test-flow/run-manual-flow.sh` |
 | E2E + web UI (visual) | `test-flow/run-manual-flow.sh --with-web` (add `--with-efk` for the dashboard) |
 | Tear the live stack down | `test-flow/run-manual-flow.sh --down` |
@@ -97,6 +98,7 @@ Builds the server image, stands up a real stack, runs each behavior against it, 
 | `CommunityEditionSeparationSpec` | short | The free edition genuinely does not contain the paid features | no |
 | `check-editions.sh` | long | The built free/paid jars contain the right things; the free CLI refuses paid jobs | no* |
 | `check-enforcer-gate.sh` | long | Adding a banned (paid) library to a free module makes the build fail | no |
+| `check-release-ready.sh` | short | What actually ships: the fat jars credit every bundled dependency's NOTICE and carry Ignifyr's own LICENSE, no copyleft-only library reaches the free edition, and the credential-carrying terminology tool is in neither jar | no° |
 | `check-test-tiers.sh` | short | No container-backed suite can hide in the short tier; no module leaves its suites unpinned; no module owns test sources that never run; every integration execution is gated on `skipITs` | no |
 | `SchedulingTest` | long | A timer-scheduled job actually fires and writes data | yes |
 | `FileStreamInputArchiverTest` | short | Processed input files get archived/deleted as configured | no |
@@ -108,6 +110,9 @@ Builds the server image, stands up a real stack, runs each behavior against it, 
 | Helper suites (`CsvUtil`, `DataFrameUtil`, `SchemaConverter`, `RedCapUtil`, RxNorm client) | short | The lookup tables and file rewrites behind the API, where a wrong answer is silent rather than an error | no |
 
 \* `check-editions.sh` builds the jars itself (no live containers).
+
+° `check-release-ready.sh` also builds the jars itself. Bare it is a per-commit guard; with
+`--release` the version and working-tree checks become fatal too. See [RELEASING.md](../RELEASING.md).
 
 ---
 

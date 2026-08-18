@@ -67,3 +67,7 @@ jobs:
         run: bash test-flow/check-editions.sh
       - name: Edition separation - banned-dependency enforcer gate
         run: bash test-flow/check-enforcer-gate.sh
+      # Dev mode: asserts what ships (attribution, licensing, no credential-carrying module) but
+      # lets ${revision} stay a snapshot. RELEASING.md runs it with --release at release time.
+      - name: Release readiness - jar contents and licensing
+        run: bash test-flow/check-release-ready.sh
