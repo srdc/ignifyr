@@ -2,7 +2,10 @@
 
 **A release is a git tag, two fat jars, and the Docker images built from them.** Ignifyr publishes
 no Maven artifacts — nothing consumes it as a library, so there is no `<distributionManagement>` and
-`mvn deploy` has no target. That is deliberate, not an oversight.
+`mvn deploy` has no target. That is deliberate, not an oversight: the half-wired publishing machinery
+that used to sit in a `release` profile was removed rather than left to rot, since it pointed at the
+retired OSSRH service. If Ignifyr ever does publish Maven artifacts, build that afresh against the
+Central Portal. The `sources` profile still produces source and javadoc jars for local use.
 
 The consequence shapes this whole document: because the jars *shade* every dependency, they
 redistribute them, and Ignifyr inherits each one's obligations. The interesting questions are about
@@ -119,7 +122,3 @@ changed anything an agent relies on.
   distribution module, which then goes stale silently — judged not worth it.
 - **Dependencies that declare no license** are reported, never failed — roughly half inherit it from
   a parent pom that is not resolved locally. Guessing would make the gate untrustworthy.
-- **The `release` profile is dead code.** It wires `nexus-staging-maven-plugin` against
-  `oss.sonatype.org`, the retired OSSRH service, alongside source/javadoc/GPG artifacts that only a
-  Maven consumer would want. Nothing invokes it. If Ignifyr ever does publish Maven artifacts, that
-  profile needs rebuilding against the Central Portal — not reviving as-is.
