@@ -21,7 +21,8 @@
 #   test-flow/check-release-ready.sh              # dev guard (mainly invariants 2-4)
 #   test-flow/check-release-ready.sh --release    # release gate; everything must pass
 #
-# Needs both fat jars; builds them (tests skipped) if missing. No Docker.
+# Builds and installs the two distributions and their upstream modules (tests skipped) before
+# checking, so the dependency listings resolve on a clean checkout. No Docker.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -62,7 +63,10 @@ jar_read() { # <jar> <entry> -> raw bytes on stdout, empty if absent
 }
 
 log "(Re)building the community + server fat jars"
-mvn -q -DskipTests -pl ignifyr-cli,ignifyr-server -am package || { echo "build failed" >&2; exit 1; }
+# `install`, not `package`: the dependency:list calls below resolve ignifyr-cli's sibling
+# modules from the local repository, and CI only ever runs `verify`/`package`, which do not
+# put them there. Without this the listings come back empty on a clean runner.
+mvn -q -DskipTests -pl ignifyr-cli,ignifyr-server -am install || { echo "build failed" >&2; exit 1; }
 [ -f "$CLI_JAR" ] && [ -f "$SRV_JAR" ] || { echo "jars missing after build" >&2; exit 1; }
 
 # ---- 1. no -SNAPSHOT anywhere ------------------------------------------------

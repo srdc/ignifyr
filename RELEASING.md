@@ -65,7 +65,9 @@ Set `<revision>` in the root pom to the release version, commit it on its own, a
 bash test-flow/check-release-ready.sh --release
 ```
 
-In `--release` mode every check is a hard failure. It rebuilds both fat jars and asserts:
+In `--release` mode every check is a hard failure. It rebuilds and installs both fat jars and
+their upstream modules — the dependency listings resolve the sibling modules from the local
+repository — then asserts:
 
 1. **Nothing is a `-SNAPSHOT`** — neither `${revision}` nor any resolved dependency.
 2. **Attribution survives shading** — each jar's `META-INF/NOTICE` aggregates the ~75 bundled
