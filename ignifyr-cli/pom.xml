@@ -113,6 +113,26 @@
                                      extensions from every bundled plugin module) resolves in the fat jar. -->
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+
+                                <!-- Third-party attribution. The fat jar redistributes ~180 jars, 73 of
+                                     which ship a META-INF/NOTICE; without these transformers shade keeps
+                                     whichever one it processed last and discards the rest. ApacheNotice
+                                     merges them all; ApacheLicense drops the dependencies' LICENSE copies
+                                     so IncludeResource can state Ignifyr's own, deterministically. -->
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+                                    <projectName>Ignifyr</projectName>
+                                    <organizationName>SRDC Corp.</organizationName>
+                                    <organizationURL>https://www.srdc.com.tr</organizationURL>
+                                    <inceptionYear>2022</inceptionYear>
+                                </transformer>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                    <file>${project.basedir}/../LICENSE</file>
+                                    <resource>META-INF/LICENSE</resource>
+                                </transformer>
                             </transformers>
                         </configuration>
                     </execution>
