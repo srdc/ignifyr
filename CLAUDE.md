@@ -9,7 +9,9 @@ Config (HOCON) · Maven (multi-module). License Apache-2.0. Maintained by SRDC,
 commercially supported by Pontegra.
 
 > Deep usage & configuration docs: [README.md](README.md). REST API contract:
-> [ignifyr-server/api.yaml](ignifyr-server/api.yaml).
+> [ignifyr-server/api.yaml](ignifyr-server/api.yaml). Cutting a release:
+> [RELEASING.md](RELEASING.md) — a release is a tag plus the two fat jars and their Docker images;
+> Ignifyr publishes no Maven artifacts.
 
 ## Naming: the toFHIR → Ignifyr rename is done
 
