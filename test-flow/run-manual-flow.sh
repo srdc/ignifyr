@@ -15,6 +15,7 @@
 #   streaming  folder-watch streaming (drop a CSV into a watched dir -> FHIR)
 #   scheduling cron-scheduled batch (fires every minute)
 #   kafka      REDCap-simulated Kafka streaming (publish records to a topic -> FHIR)
+#   sql        Postgres table -> FHIR batch mapping (SQL data source)
 #
 # Each mapped Patient carries identifier system = the job's sourceUri, so verification is an exact
 # FHIR search per behavior (no reliance on hashed ids). Jobs run through the engine CLI on the
@@ -34,7 +35,7 @@
 #   ./run-manual-flow.sh --no-dis        # with --with-web: don't seed the UI from data-ingestion-suite
 #   ./run-manual-flow.sh --with-efk      # also run Elasticsearch+Fluentd+Kibana (Executions dashboard)
 #   ./run-manual-flow.sh --skip-build    # reuse existing jars/image/web-dist
-#   ./run-manual-flow.sh --only batch    # run a single behavior (plugins|batch|archive|streaming|scheduling|kafka)
+#   ./run-manual-flow.sh --only batch    # run a single behavior (plugins|batch|archive|streaming|scheduling|kafka|sql)
 #   ./run-manual-flow.sh --down          # tear the stack down and exit
 set -euo pipefail
 
@@ -210,7 +211,7 @@ if [ "$WITH_EFK" = "1" ]; then
   "${COMPOSE[@]}" up -d elasticsearch fluentd kibana
 fi
 
-"${COMPOSE[@]}" up -d --wait mongo repofyr kafka ignifyr
+"${COMPOSE[@]}" up -d --wait mongo repofyr kafka postgres ignifyr
 
 # Wait for the FHIR server and the ignifyr REST server to answer.
 log "Waiting for repofyr and ignifyr-server"
@@ -306,6 +307,13 @@ if want kafka; then
   docker exec itf-ignifyr sh -c "pkill -f kafka-redcap-job || true" >/dev/null 2>&1 || true
 fi
 
+# ----- sql ----------------------------------------------------------
+if want sql; then
+  log "SQL (Postgres) -> FHIR"
+  run_job sql sql-patient-job.json
+  if await_patient "https://ignifyr.io/test-flow/sql" "p1" 60; then ok "sql read the Postgres table and produced Patient p1"; else fail "sql: Patient p1 not found in repofyr"; fi
+fi
+
 # ----- summary -----------------------------------------------------------------
 log "Summary"
 printf '  passed: %s   failed: %s\n' "$PASS" "$FAILC"
@@ -320,6 +328,7 @@ $EFK_LINE
   Ignifyr REST : $IGNIFYR         (e.g. curl $IGNIFYR/projects)
   Repofyr FHIR : $REPOFYR   (e.g. curl "$REPOFYR/Patient?_summary=count")
   Kafka broker : localhost:9092
+  Postgres     : host=postgres port=5432 db=ignifyr user=ignifyr pass=ignifyr (from the server; table 'patients')
   list-plugins : docker exec itf-ignifyr java -cp $JAR_IN_IMAGE io.ignifyr.engine.Boot list-plugins
 Tear down with:  $0 --down
 EOF
