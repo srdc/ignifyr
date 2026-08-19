@@ -122,7 +122,7 @@ Tool-only by default. Options:
 
 ```bash
 test-flow/run-manual-flow.sh                 # tool-only
-test-flow/run-manual-flow.sh --only NAME     # one behavior: plugins|batch|archive|streaming|scheduling|kafka
+test-flow/run-manual-flow.sh --only NAME     # one behavior: plugins|batch|archive|streaming|scheduling|kafka|sql
 test-flow/run-manual-flow.sh --with-web      # add the web UI (visual), seeded with real projects
 test-flow/run-manual-flow.sh --with-efk      # add the Kibana "Executions" dashboard
 test-flow/run-manual-flow.sh --down          # stop and remove everything
@@ -131,6 +131,26 @@ test-flow/run-manual-flow.sh --down          # stop and remove everything
 Visual checks you can do with `--with-web` (not automated): import a REDCap data-dictionary into
 schemas, open the REDCap page, view the Executions dashboard (`--with-efk`), and browse the mapped
 data in the FHIR server.
+
+### SQL and Kafka source jobs (run them from the web UI)
+
+The stack also brings up a **Postgres** container as a SQL data source, seeded on start from
+[`data/sql-source-seed.sql`](data/sql-source-seed.sql) (a small `patients` table). Two ways to exercise
+the SQL/Kafka sources:
+
+- **Headless behavior:** `run-manual-flow.sh --only sql` maps the Postgres `patients` table to FHIR,
+  alongside the existing `--only kafka` (which publishes `data/redcap-patients.ndjson` to the
+  `redcap-patients` topic). Both also run as part of a full run.
+- **From the UI:** with the stack up, [`create-ui-testflow.sh`](create-ui-testflow.sh) creates a
+  `test-flow` project through the REST API — a Patient schema + mapping and two jobs, one SQL (Postgres
+  `patients`) and one Kafka (`redcap-patients`) — so both appear in the web UI and can be run and
+  observed there, with executions in Kibana. The jobs connect to `jdbc:postgresql://postgres:5432/ignifyr`
+  (user/pass `ignifyr`) and topic `redcap-patients`.
+
+Caveat for the Kafka job: the mapping produces deterministic Patient ids, so re-publishing the *same*
+records into a live topic makes one micro-batch contain duplicate ids, which the FHIR server rejects
+(`Resource identity overlapping`). Start clean with `--down` (the topic is ephemeral) or publish each
+record once; distinct records don't collide.
 
 ---
 

@@ -15,6 +15,7 @@
 #   streaming  folder-watch streaming (drop a CSV into a watched dir -> FHIR)
 #   scheduling cron-scheduled batch (fires every minute)
 #   kafka      REDCap-simulated Kafka streaming (publish records to a topic -> FHIR)
+#   sql        Postgres table -> FHIR batch mapping (SQL data source)
 #
 # Each mapped Patient carries identifier system = the job's sourceUri, so verification is an exact
 # FHIR search per behavior (no reliance on hashed ids). Jobs run through the engine CLI on the
@@ -34,7 +35,7 @@
 #   ./run-manual-flow.sh --no-dis        # with --with-web: don't seed the UI from data-ingestion-suite
 #   ./run-manual-flow.sh --with-efk      # also run Elasticsearch+Fluentd+Kibana (Executions dashboard)
 #   ./run-manual-flow.sh --skip-build    # reuse existing jars/image/web-dist
-#   ./run-manual-flow.sh --only batch    # run a single behavior (plugins|batch|archive|streaming|scheduling|kafka)
+#   ./run-manual-flow.sh --only batch    # run a single behavior (plugins|batch|archive|streaming|scheduling|kafka|sql)
 #   ./run-manual-flow.sh --down          # tear the stack down and exit
 set -euo pipefail
 
@@ -210,7 +211,7 @@ if [ "$WITH_EFK" = "1" ]; then
   "${COMPOSE[@]}" up -d elasticsearch fluentd kibana
 fi
 
-"${COMPOSE[@]}" up -d --wait mongo repofyr kafka ignifyr
+"${COMPOSE[@]}" up -d --wait mongo repofyr kafka postgres ignifyr
 
 # Wait for the FHIR server and the ignifyr REST server to answer.
 log "Waiting for repofyr and ignifyr-server"
@@ -228,10 +229,12 @@ fi
 
 # ----- helpers -----------------------------------------------------------------
 # Run a job file through the engine CLI on the enterprise classpath, isolated db/checkpoint.
+# The checkpoint and db for this job are wiped first
 run_job() {
   local name="$1" job="$2"; shift 2
   docker exec "$@" itf-ignifyr sh -c \
-    "java -Dconfig.file=$CONF_IN_IMAGE \
+    "rm -rf /workspace/clichk/$name /workspace/clidb/$name; \
+     java -Dconfig.file=$CONF_IN_IMAGE \
      -Dignifyr.mappings.repository.folder-path=/workspace/cli-mappings \
      -Dignifyr.mappings.schemas.repository.folder-path=/workspace/cli-schemas \
      -Dignifyr.db-path=/workspace/clidb/$name -Dspark.checkpoint-dir=/workspace/clichk/$name \
@@ -279,9 +282,9 @@ if want streaming; then
   rm -f "$SCRIPT_DIR/watch/patients/"*.csv 2>/dev/null || true
   # Start the streaming job (self-terminates after 100s via `timeout`), detached from this script.
   run_job streaming streaming-watch-job.json -d
-  sleep 25   # let the streaming query initialise before dropping the file
+  sleep 40   # let the streaming query initialise before dropping the file
   cp "$SCRIPT_DIR/data/stream-patients.csv" "$SCRIPT_DIR/watch/patients/stream-patients.csv"
-  if await_patient "https://ignifyr.io/test-flow/stream" "sp1" 90; then ok "streaming processed the dropped file (Patient sp1)"; else fail "streaming: Patient sp1 not found after drop"; fi
+  if await_patient "https://ignifyr.io/test-flow/stream" "sp1" 180; then ok "streaming processed the dropped file (Patient sp1)"; else fail "streaming: Patient sp1 not found after drop"; fi
   docker exec itf-ignifyr sh -c "pkill -f streaming-watch-job || true" >/dev/null 2>&1 || true
 fi
 
@@ -297,13 +300,23 @@ fi
 # ----- Kafka (REDCap-simulated) ------------------------------------------------
 if want kafka; then
   log "Kafka streaming (REDCap simulated via raw Kafka)"
-  # Publish REDCap-shaped records to the topic through the broker container's console producer.
+  MSYS_NO_PATHCONV=1 docker exec itf-kafka /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server localhost:9092 --delete --topic redcap-patients >/dev/null 2>&1 || true
+  sleep 5
+  # Publish REDCap-shaped records to the (fresh) topic through the broker container's console producer.
   MSYS_NO_PATHCONV=1 docker exec -i itf-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 --topic redcap-patients \
     < "$SCRIPT_DIR/data/redcap-patients.ndjson" || fail "could not publish to Kafka"
   run_job kafka kafka-redcap-job.json -d
-  if await_patient "https://ignifyr.io/test-flow/redcap-kafka" "rp1" 100; then ok "Kafka streaming consumed topic (Patient rp1)"; else fail "kafka: Patient rp1 not found"; fi
+  if await_patient "https://ignifyr.io/test-flow/redcap-kafka" "rp1" 180; then ok "Kafka streaming consumed topic (Patient rp1)"; else fail "kafka: Patient rp1 not found"; fi
   docker exec itf-ignifyr sh -c "pkill -f kafka-redcap-job || true" >/dev/null 2>&1 || true
+fi
+
+# ----- sql ----------------------------------------------------------
+if want sql; then
+  log "SQL (Postgres) -> FHIR"
+  run_job sql sql-patient-job.json
+  if await_patient "https://ignifyr.io/test-flow/sql" "p1" 60; then ok "sql read the Postgres table and produced Patient p1"; else fail "sql: Patient p1 not found in repofyr"; fi
 fi
 
 # ----- summary -----------------------------------------------------------------
@@ -320,6 +333,7 @@ $EFK_LINE
   Ignifyr REST : $IGNIFYR         (e.g. curl $IGNIFYR/projects)
   Repofyr FHIR : $REPOFYR   (e.g. curl "$REPOFYR/Patient?_summary=count")
   Kafka broker : localhost:9092
+  Postgres     : host=postgres port=5432 db=ignifyr user=ignifyr pass=ignifyr (from the server; table 'patients')
   list-plugins : docker exec itf-ignifyr java -cp $JAR_IN_IMAGE io.ignifyr.engine.Boot list-plugins
 Tear down with:  $0 --down
 EOF

@@ -1,0 +1,33 @@
+{
+  "id": "sql-patient-job",
+  "sourceSettings": {
+    "source": {
+      "jsonClass": "SqlSourceSettings",
+      "name": "sql-source",
+      "sourceUri": "https://ignifyr.io/test-flow/sql",
+      "databaseUrl": "jdbc:postgresql://postgres:5432/ignifyr",
+      "username": "ignifyr",
+      "password": "ignifyr"
+    }
+  },
+  "sinkSettings": {
+    "jsonClass": "FhirRepositorySinkSettings",
+    "fhirRepoUrl": "http://repofyr:8080/fhir"
+  },
+  "mappings": [
+    {
+      "name": "patient-mapping",
+      "mappingRef": "https://aiccelerate.eu/fhir/mappings/patient-mapping",
+      "sourceBinding": {
+        "source": {
+          "jsonClass": "SqlSource",
+          "tableName": "patients"
+        }
+      }
+    }
+  ],
+  "dataProcessingSettings": {
+    "saveErroneousRecords": false,
+    "archiveMode": "off"
+  }
+}
