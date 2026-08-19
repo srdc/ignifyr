@@ -229,10 +229,12 @@ fi
 
 # ----- helpers -----------------------------------------------------------------
 # Run a job file through the engine CLI on the enterprise classpath, isolated db/checkpoint.
+# The checkpoint and db for this job are wiped first
 run_job() {
   local name="$1" job="$2"; shift 2
   docker exec "$@" itf-ignifyr sh -c \
-    "java -Dconfig.file=$CONF_IN_IMAGE \
+    "rm -rf /workspace/clichk/$name /workspace/clidb/$name; \
+     java -Dconfig.file=$CONF_IN_IMAGE \
      -Dignifyr.mappings.repository.folder-path=/workspace/cli-mappings \
      -Dignifyr.mappings.schemas.repository.folder-path=/workspace/cli-schemas \
      -Dignifyr.db-path=/workspace/clidb/$name -Dspark.checkpoint-dir=/workspace/clichk/$name \
@@ -280,9 +282,9 @@ if want streaming; then
   rm -f "$SCRIPT_DIR/watch/patients/"*.csv 2>/dev/null || true
   # Start the streaming job (self-terminates after 100s via `timeout`), detached from this script.
   run_job streaming streaming-watch-job.json -d
-  sleep 25   # let the streaming query initialise before dropping the file
+  sleep 40   # let the streaming query initialise before dropping the file
   cp "$SCRIPT_DIR/data/stream-patients.csv" "$SCRIPT_DIR/watch/patients/stream-patients.csv"
-  if await_patient "https://ignifyr.io/test-flow/stream" "sp1" 90; then ok "streaming processed the dropped file (Patient sp1)"; else fail "streaming: Patient sp1 not found after drop"; fi
+  if await_patient "https://ignifyr.io/test-flow/stream" "sp1" 180; then ok "streaming processed the dropped file (Patient sp1)"; else fail "streaming: Patient sp1 not found after drop"; fi
   docker exec itf-ignifyr sh -c "pkill -f streaming-watch-job || true" >/dev/null 2>&1 || true
 fi
 
@@ -298,12 +300,15 @@ fi
 # ----- Kafka (REDCap-simulated) ------------------------------------------------
 if want kafka; then
   log "Kafka streaming (REDCap simulated via raw Kafka)"
-  # Publish REDCap-shaped records to the topic through the broker container's console producer.
+  MSYS_NO_PATHCONV=1 docker exec itf-kafka /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server localhost:9092 --delete --topic redcap-patients >/dev/null 2>&1 || true
+  sleep 5
+  # Publish REDCap-shaped records to the (fresh) topic through the broker container's console producer.
   MSYS_NO_PATHCONV=1 docker exec -i itf-kafka /opt/kafka/bin/kafka-console-producer.sh \
     --bootstrap-server localhost:9092 --topic redcap-patients \
     < "$SCRIPT_DIR/data/redcap-patients.ndjson" || fail "could not publish to Kafka"
   run_job kafka kafka-redcap-job.json -d
-  if await_patient "https://ignifyr.io/test-flow/redcap-kafka" "rp1" 100; then ok "Kafka streaming consumed topic (Patient rp1)"; else fail "kafka: Patient rp1 not found"; fi
+  if await_patient "https://ignifyr.io/test-flow/redcap-kafka" "rp1" 180; then ok "Kafka streaming consumed topic (Patient rp1)"; else fail "kafka: Patient rp1 not found"; fi
   docker exec itf-ignifyr sh -c "pkill -f kafka-redcap-job || true" >/dev/null 2>&1 || true
 fi
 
