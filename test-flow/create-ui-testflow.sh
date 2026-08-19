@@ -133,6 +133,24 @@ if [ "$FAILC" -ne 0 ]; then
   printf '\033[1;31m%s create(s) failed — see the FAIL lines above.\033[0m\n' "$FAILC"
   exit 1
 fi
+
+# Seed the Kafka topic so 'kafka-redcap-job' has data
+echo "== seeding the 'redcap-patients' topic (reset + publish once) =="
+if MSYS_NO_PATHCONV=1 docker exec itf-kafka true 2>/dev/null; then
+  MSYS_NO_PATHCONV=1 docker exec itf-kafka /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server localhost:9092 --delete --topic redcap-patients >/dev/null 2>&1 || true
+  sleep 5
+  if MSYS_NO_PATHCONV=1 docker exec -i itf-kafka /opt/kafka/bin/kafka-console-producer.sh \
+       --bootstrap-server localhost:9092 --topic redcap-patients < "$SCRIPT_DIR/data/redcap-patients.ndjson" 2>/dev/null; then
+    printf '  \033[1;32mOK  topic seeded with 3 records\033[0m\n'
+  else
+    printf '  \033[1;33mWARN could not publish to the topic - seed it manually before running the Kafka job\033[0m\n'
+  fi
+else
+  printf '  \033[1;33mWARN itf-kafka not running - start the stack, then seed the topic before the Kafka job\033[0m\n'
+fi
+
+echo
 echo "Done. Open the web UI -> project '$PROJECT' -> Jobs:"
 echo "  http://localhost/dt4h/ignifyr"
-echo "Run 'sql-patient-job' first, then publish the Kafka records and run 'kafka-redcap-job'."
+echo "Run 'sql-patient-job' (batch) and 'kafka-redcap-job' (streaming) - both are ready to run."
