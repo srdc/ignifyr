@@ -276,7 +276,16 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
                 <version>1.6.0</version>
+                <!--
+                  resolveCiFriendliesOnly: the installed/deployed poms keep everything (parent, build,
+                  pluginManagement, dependencyManagement) and only get ${revision} baked into a literal.
+                  The enterprise edition inherits this root pom from SRDC Nexus as its parent, so the
+                  default flatten mode — which strips exactly the inherited build configuration — would
+                  hand it an empty shell.
+                -->
                 <configuration>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                    <updatePomFile>true</updatePomFile>
                 </configuration>
                 <executions>
                     <execution>
@@ -573,101 +582,103 @@
                 <version>${akka.version}</version>
             </dependency>
 
-            <!-- Ignifyr Dependencies -->
+            <!-- Ignifyr Dependencies. Pinned at ${revision}, not ${project.version}: an inheriting child
+                 (the enterprise root pom) would re-interpolate ${project.version} to its OWN version,
+                 while flatten bakes ${revision} into this pom's literal version on install/deploy. -->
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-engine_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-testkit_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-connector-sql_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-connector-file_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-sink-fhir_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-sink-file_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-sink-omop_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-format-json_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-format-delta_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-connector-fhir-server_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-connector-kafka_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-runtime-streaming_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-runtime-scheduling_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-redcap_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-terminology-tools_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-observability_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-common</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-server-common</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-rxnorm_2.13</artifactId>
-                <version>${project.version}</version>
+                <version>${revision}</version>
             </dependency>
 
             <!-- onFHIR Definitions Microservices -->
@@ -806,5 +817,22 @@
             <url>https://nexus.srdc.com.tr/repository/maven-releases/</url>
         </repository>
     </repositories>
+
+    <!--
+      Community artifacts are published to SRDC Nexus (not Maven Central) so that the enterprise
+      edition can depend on them. Credentials come from the matching <server> ids in settings.xml.
+    -->
+    <distributionManagement>
+        <repository>
+            <id>srdc-maven-releases</id>
+            <name>SRDC Nexus Releases</name>
+            <url>https://nexus.srdc.com.tr/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>srdc-maven-snapshots</id>
+            <name>SRDC Nexus Snapshots</name>
+            <url>https://nexus.srdc.com.tr/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 
 </project>

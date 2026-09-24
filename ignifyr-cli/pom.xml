@@ -13,6 +13,12 @@
     <artifactId>ignifyr-cli_2.13</artifactId>
     <packaging>jar</packaging>
 
+    <properties>
+        <!-- A distribution, not a library: nothing consumes it from Nexus. Its deliverable is the
+             standalone jar attached to the GitHub release (see RELEASING.md). -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+    </properties>
+
     <!--
       Community CLI distribution. This module owns the runnable standalone jar: it depends on the
       engine library plus the community connector/format plugin modules and shades them into a single
