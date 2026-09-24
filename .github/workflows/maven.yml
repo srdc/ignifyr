@@ -7,6 +7,9 @@
 # stays short and Docker-free; run `mvn verify -DskipITs=false` when you want it) and mandatory on
 # every pull request. Pushes only get the two fast jobs, since anything reaching a protected branch
 # has already been through a PR that ran the long tier.
+#
+# A push to main also deploys the community -SNAPSHOT modules to SRDC Nexus, which is where the
+# enterprise edition resolves them from between releases. Releases are deployed by hand (RELEASING.md).
 
 name: Java CI with Maven
 
@@ -71,3 +74,34 @@ jobs:
       # lets ${revision} stay a snapshot. RELEASING.md runs it with --release at release time.
       - name: Release readiness - jar contents and licensing
         run: bash test-flow/check-release-ready.sh
+
+  # The enterprise edition builds against whatever community snapshot is on SRDC Nexus, so main's
+  # snapshot is republished after every push that passed the short tier. Needs the NEXUS_USERNAME /
+  # NEXUS_PASSWORD repository secrets; without them the job says so and succeeds, rather than turning
+  # main red on a fork or before the secrets are configured.
+  deploy-snapshot:
+    name: Deploy snapshot to SRDC Nexus
+    needs: [ tiers, short ]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+      NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+      - name: Deploy
+        run: |
+          if [ -z "$NEXUS_USERNAME" ] || [ -z "$NEXUS_PASSWORD" ]; then
+            echo "::warning::NEXUS_USERNAME/NEXUS_PASSWORD secrets are not set; skipping the snapshot deploy"
+            exit 0
+          fi
+          case "$(grep -m1 -oE '<revision>[^<]+</revision>' pom.xml)" in
+            *-SNAPSHOT*) ;;
+            *) echo "::notice::\${revision} is a release version; releases are deployed by hand (RELEASING.md)"; exit 0 ;;
+          esac
+          mvn -B -s .github/maven-settings.xml -DskipTests deploy
