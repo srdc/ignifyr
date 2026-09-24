@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 #
-# Ignifyr automated tests — two standard tiers.
+# Ignifyr Community automated tests — two standard tiers.
 #
 # Follows the usual Maven split (Surefire-style unit @ `test`, Failsafe-style integration @ `verify`):
 #
 #   --short   Unit tests only  ->  `mvn test`.   Fast, NO Docker. Quick-feedback / smoke run.
 #   --long    Full verification ->  `mvn -B verify -DskipITs=false` (unit + integration via
-#             TestContainers: MongoDB + srdc/onfhir:r5 + Kafka) PLUS the tier gate and the
+#             TestContainers: MongoDB + srdc/onfhir:r5) PLUS the tier gate and the
 #             packaged edition checks. DOCKER REQUIRED.
 #
 #             The long tier is opt-in: the root pom defaults `skipITs` to true, so a plain
 #             `mvn test` / `mvn package` / `mvn install` stays on the short tier. `-DskipITs=false`
 #             is what turns the integration executions on.
 #
-#   --behavior X   Run one area only: streaming | scheduling | kafka | archiving | connectors |
-#                  sinks | endpoints | editions.
+#   --behavior X   Run one area only: archiving | connectors | sinks | editions.
 #
-# The live end-to-end tier is a separate command (it builds images and stands up a real stack):
-#   test-flow/run-manual-flow.sh
+# Streaming, scheduling, Kafka, the REST server and the live end-to-end stack belong to the enterprise
+# edition and are tested in its repository.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -51,9 +50,9 @@ case "$MODE" in
     docker info >/dev/null 2>&1 || { echo "Docker must be running for the integration tier" >&2; exit 1; }
     log "Test-tier integrity (no container-backed suite hiding in the short tier)"
     bash "$SCRIPT_DIR/check-test-tiers.sh"
-    log "Unit + integration tests (TestContainers: Mongo + onFHIR + Kafka)"
+    log "Unit + integration tests (TestContainers: Mongo + onFHIR)"
     mvn -B verify -DskipITs=false
-    log "Edition separation — packaged jars + SPI + community-CLI behavior"
+    log "Edition separation — packaged jar + SPI + community-CLI behavior"
     bash "$SCRIPT_DIR/check-editions.sh"
     log "Edition separation — banned-dependency enforcer gate"
     bash "$SCRIPT_DIR/check-enforcer-gate.sh"
@@ -61,19 +60,15 @@ case "$MODE" in
   behavior)
     docker info >/dev/null 2>&1 || echo "WARNING: Docker not detected; integration suites will fail."
     case "$BEHAVIOR" in
-      streaming)  log "runtime-streaming (unit + folder-watch & Kafka E2E)"; mvn -B -pl ignifyr-runtime-streaming -am verify -DskipITs=false ;;
-      scheduling) log "runtime-scheduling (unit + cron/SQL E2E)";            mvn -B -pl ignifyr-runtime-scheduling -am verify -DskipITs=false ;;
-      kafka)      log "connector-kafka + runtime-streaming Kafka E2E";       mvn -B -pl ignifyr-connector-kafka,ignifyr-runtime-streaming -am verify -DskipITs=false ;;
       archiving)  log "engine archiving unit suite (no Docker)";             mvn -B -pl ignifyr-engine -am test -Dsuffixes='.*FileStreamInputArchiverTest' ;;
       connectors) log "file + sql connectors (unit + integration)";         mvn -B -pl ignifyr-connector-file,ignifyr-connector-sql -am verify -DskipITs=false ;;
-      sinks)      log "sink modules (fhir + file + omop registration/writer specs)"; mvn -B -pl ignifyr-sink-fhir,ignifyr-sink-file,ignifyr-sink-omop -am test ;;
-      endpoints)  log "server REST endpoints (integration)";                mvn -B -pl ignifyr-server -am verify -DskipITs=false ;;
+      sinks)      log "sink modules (fhir + file registration/writer specs)";   mvn -B -pl ignifyr-sink-fhir,ignifyr-sink-file -am test ;;
       editions)   log "edition separation (community registry spec + jar/SPI content + enforcer gate)"
                   mvn -B -pl ignifyr-cli -am test
                   bash "$SCRIPT_DIR/check-test-tiers.sh"
                   bash "$SCRIPT_DIR/check-editions.sh"
                   bash "$SCRIPT_DIR/check-enforcer-gate.sh" ;;
-      *) echo "Unknown behavior '$BEHAVIOR' (streaming|scheduling|kafka|archiving|connectors|sinks|endpoints|editions)" >&2; exit 2 ;;
+      *) echo "Unknown behavior '$BEHAVIOR' (archiving|connectors|sinks|editions)" >&2; exit 2 ;;
     esac
     ;;
   "")
