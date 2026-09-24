@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 #
-# Enterprise/Community edition separation check (packaged artifacts).
+# Community edition boundary check (packaged artifact).
 #
 # Complements the CommunityEditionSeparationSpec (which checks the registry on the community *test*
-# classpath) by inspecting the actually-shipped fat jars and the community CLI's runtime behavior:
+# classpath) by inspecting the actually-shipped community fat jar and the CLI's runtime behavior:
 #
-#   SPI manifest — the merged META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension in the community
-#                  jar lists only community extensions; the server jar lists the rest.
+#   jar content  — no enterprise library (Kafka, Delta, cron4j, Logstash) got shaded in.
+#   SPI manifest — the merged META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension lists exactly
+#                  the community extensions.
 #   behavior     — the community CLI refuses enterprise jobs with an actionable MissingX error
 #                  (streaming -> MissingCapabilityException, Kafka -> MissingConnectorException).
 #
-# Needs both fat jars; builds them (tests skipped) if missing. Usage: test-flow/check-editions.sh
+# The enterprise modules live in their own (private) repository, which checks the server jar's side of
+# the boundary. Builds the community jar (tests skipped). Usage: test-flow/check-editions.sh
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI_JAR="$REPO_ROOT/ignifyr-cli/target/ignifyr-engine-standalone.jar"
-SRV_JAR="$REPO_ROOT/ignifyr-server/target/ignifyr-server-standalone.jar"
 
 PASS=0; FAILC=0
 ok()   { printf '  \033[1;32mPASS\033[0m %s\n' "$*"; PASS=$((PASS+1)); }
@@ -24,18 +25,17 @@ bad()  { printf '  \033[1;31mFAIL\033[0m %s\n' "$*"; FAILC=$((FAILC+1)); }
 warn() { printf '  \033[1;33mWARN\033[0m %s\n' "$*"; }   # non-fatal (packaged-runtime behavior is environment-sensitive)
 log()  { printf '\n\033[1;34m== %s ==\033[0m\n' "$*"; }
 
-# Enterprise footprints that must be absent from the community jar and present in the server jar.
+# Enterprise footprints that must be absent from the community jar. The enterprise *code* cannot be in
+# this repository any more, so the class markers guard against a vendored copy or a stray dependency;
+# the library markers are the ones the enforcer gate bans.
 ENTERPRISE_CLASSES=(
   io/ignifyr/runtime/streaming io/ignifyr/runtime/scheduling
   io/ignifyr/connector/kafka io/ignifyr/connector/fhirserver
   io/ignifyr/redcap io/ignifyr/format/delta io/ignifyr/format/json io/ignifyr/observability
-  io/ignifyr/sink/omop
+  io/ignifyr/sink/omop io/ignifyr/server/
 )
 ENTERPRISE_LIBS=( org/apache/spark/sql/kafka io/delta/ it/sauronsoftware/cron4j net/logstash/logback )
-# Every enterprise module that registers a top-level IgnifyrExtension, so the SPI-manifest section
-# below (the authoritative one -- the jar-content section above is best-effort and skippable) covers
-# all of them. format-json and observability are absent on purpose: neither declares an
-# IgnifyrExtension, so neither can ever appear in this manifest.
+# Every enterprise extension id prefix; none may appear in the community SPI manifest.
 ENTERPRISE_EXT=(
   io.ignifyr.runtime.streaming io.ignifyr.runtime.scheduling
   io.ignifyr.connector.kafka io.ignifyr.connector.fhirserver io.ignifyr.redcap io.ignifyr.sink.omop
@@ -44,13 +44,13 @@ ENTERPRISE_EXT=(
 # Community distribution now includes the split-out FHIR + file sinks (sink-fhir / sink-file).
 COMMUNITY_EXT=( io.ignifyr.connector.sql io.ignifyr.connector.file io.ignifyr.sink.fhir io.ignifyr.sink.file )
 
-log "(Re)building the community + server fat jars (always fresh — stale jars give false results)"
-( cd "$REPO_ROOT" && mvn -q -DskipTests -pl ignifyr-cli,ignifyr-server -am package ) || { echo "build failed" >&2; exit 1; }
-[ -f "$CLI_JAR" ] && [ -f "$SRV_JAR" ] || { echo "jars missing after build" >&2; exit 1; }
+log "(Re)building the community fat jar (always fresh — a stale jar gives false results)"
+( cd "$REPO_ROOT" && mvn -q -DskipTests -pl ignifyr-cli -am package ) || { echo "build failed" >&2; exit 1; }
+[ -f "$CLI_JAR" ] || { echo "jar missing after build" >&2; exit 1; }
 command -v unzip >/dev/null 2>&1 || { echo "unzip required" >&2; exit 1; }
 
 # ---- jar content (best-effort, non-fatal) ------------------------------------
-log "Jar content: enterprise code/libs excluded from community, present in server"
+log "Jar content: enterprise code/libs excluded from the community jar"
 # The community fat jar is a zip64 archive with ~96k entries, which Info-ZIP cannot enumerate; the JDK
 # `jar` tool and Python's zipfile can. Collect candidate `jar` binaries (PATH, then the running JVM's
 # java.home, then $JAVA_HOME); cygpath/CRLF handling keeps it working under Git Bash.
@@ -80,7 +80,6 @@ list_jar() {
   return 1
 }
 CLI_ENTRIES="$(list_jar "$CLI_JAR")"
-SRV_ENTRIES="$(list_jar "$SRV_JAR")"
 # Match with bash's own substring test, NOT `echo "$VAR" | grep -q`. These listings are ~6 MB, and
 # `grep -q` exits at the first match and closes the pipe, so `echo` dies of SIGPIPE (141); under
 # `pipefail` (set at the top) that makes a *successful* match evaluate as false. Every check below
@@ -92,28 +91,22 @@ has() { [[ "$1" == *"$2"* ]]; }
 # Skip (non-fatal) unless a lister actually enumerated each jar.
 guard_ok=1
 has "$CLI_ENTRIES" "io/ignifyr/engine/" || { warn "no jar lister could enumerate the community jar here — skipping this best-effort section (the SPI manifest + enforcer gate are authoritative)"; guard_ok=0; }
-has "$SRV_ENTRIES" "io/ignifyr/server/" || { guard_ok=0; }
 if [ "$guard_ok" -eq 0 ]; then
   echo "  (skipping jar-content checks — non-fatal; the ServiceLoader manifest and behavior checks below still run)"
 else
 for marker in "${ENTERPRISE_CLASSES[@]}" "${ENTERPRISE_LIBS[@]}"; do
   if has "$CLI_ENTRIES" "$marker"; then bad "community jar unexpectedly contains '$marker'"; else ok "community jar excludes '$marker'"; fi
 done
-for marker in "${ENTERPRISE_CLASSES[@]}"; do
-  if has "$SRV_ENTRIES" "$marker"; then ok "server jar contains '$marker'"; else bad "server jar missing '$marker'"; fi
-done
 fi
 
 # ---- SPI manifest ------------------------------------------------------------
 log "ServiceLoader manifest (io.ignifyr.engine.spi.IgnifyrExtension)"
 CLI_SPI="$(unzip -p "$CLI_JAR" META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension 2>/dev/null)"
-SRV_SPI="$(unzip -p "$SRV_JAR" META-INF/services/io.ignifyr.engine.spi.IgnifyrExtension 2>/dev/null)"
 for ext in "${COMMUNITY_EXT[@]}"; do
   echo "$CLI_SPI" | grep -q "$ext" && ok "community SPI lists '$ext'" || bad "community SPI missing '$ext'"
 done
 for ext in "${ENTERPRISE_EXT[@]}"; do
   echo "$CLI_SPI" | grep -q "$ext" && bad "community SPI unexpectedly lists '$ext'" || ok "community SPI excludes '$ext'"
-  echo "$SRV_SPI" | grep -q "$ext" && ok "server SPI lists '$ext'" || bad "server SPI missing '$ext'"
 done
 
 # ---- community CLI runtime behavior -----------------------------------------

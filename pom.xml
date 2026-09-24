@@ -82,20 +82,7 @@
         <module>ignifyr-connector-file</module>
         <module>ignifyr-sink-fhir</module>
         <module>ignifyr-sink-file</module>
-        <module>ignifyr-sink-omop</module>
-        <module>ignifyr-format-json</module>
-        <module>ignifyr-format-delta</module>
-        <module>ignifyr-connector-fhir-server</module>
-        <module>ignifyr-connector-kafka</module>
-        <module>ignifyr-runtime-streaming</module>
-        <module>ignifyr-runtime-scheduling</module>
         <module>ignifyr-cli</module>
-        <module>ignifyr-redcap</module>
-        <module>ignifyr-server</module>
-        <module>ignifyr-server-common</module>
-        <module>ignifyr-rxnorm</module>
-        <module>ignifyr-terminology-tools</module>
-        <module>ignifyr-observability</module>
         <module>ignifyr-testkit</module>
     </modules>
 
@@ -617,67 +604,7 @@
             </dependency>
             <dependency>
                 <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-sink-omop_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-format-json_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-format-delta_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-connector-fhir-server_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-connector-kafka_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-runtime-streaming_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-runtime-scheduling_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-redcap_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-terminology-tools_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-observability_2.13</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
                 <artifactId>ignifyr-common</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-server-common</artifactId>
-                <version>${revision}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.ignifyr</groupId>
-                <artifactId>ignifyr-rxnorm_2.13</artifactId>
                 <version>${revision}</version>
             </dependency>
 

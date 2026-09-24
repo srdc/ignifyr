@@ -1,2 +1,0 @@
-# Ignifyr REDCap integration (server-side contributions: /redcap proxy + schema import routes).
-io.ignifyr.redcap.RedCapServerExtension

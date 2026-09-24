@@ -2,18 +2,19 @@
 #
 # Release-readiness gate.
 #
-# Ignifyr publishes no Maven artifacts -- nothing depends on it as a library. A release is a tag,
-# the two fat jars, and the Docker images built from them. That makes the interesting question
-# "what is inside the jars" rather than "what does the pom declare", because a shaded jar
-# *redistributes* every dependency and inherits its obligations. Five invariants:
+# A Community release is a tag, the library modules deployed to SRDC Nexus (for the enterprise
+# edition to build on), the standalone fat jar, and the Docker image built from it. The fat jar is
+# the interesting part: a shaded jar *redistributes* every dependency and inherits its obligations,
+# so the question is "what is inside the jar" rather than "what does the pom declare". Four
+# invariants:
 #
-#   1. Nothing resolves to a -SNAPSHOT, so the jars are rebuildable from the tag.
-#   2. Both jars carry aggregated third-party NOTICEs and Ignifyr's own LICENSE (Apache-2.0 4(d)).
+#   1. Nothing resolves to a -SNAPSHOT, so the jar and the deployed modules are rebuildable from the tag.
+#   2. The jar carries aggregated third-party NOTICEs and Ignifyr's own LICENSE (Apache-2.0 4(d)).
 #   3. No copyleft artifact reaches the Apache-2.0 community distribution. Repofyr -- the onFHIR
 #      server continuation -- is GPL-3.0 and sits one dependency edge from code we already use.
-#   4. ignifyr-terminology-tools is in neither distribution: it embeds hard-coded dev Postgres
-#      credentials, which is exactly why it ships nowhere.
-#   5. The working tree is clean and the tag is free, so the tag names what was verified.
+#   4. The working tree is clean and the tag is free, so the tag names what was verified.
+#
+# The enterprise server jar is checked by its own copy of this gate in the enterprise repository.
 #
 # Two modes. Bare, it is a per-commit guard: version checks WARN, because a development ${revision}
 # is legitimately a snapshot. With --release they are hard failures.
@@ -21,7 +22,7 @@
 #   test-flow/check-release-ready.sh              # dev guard (mainly invariants 2-4)
 #   test-flow/check-release-ready.sh --release    # release gate; everything must pass
 #
-# Builds and installs the two distributions and their upstream modules (tests skipped) before
+# Builds and installs the distribution and its upstream modules (tests skipped) before
 # checking, so the dependency listings resolve on a clean checkout. No Docker.
 set -uo pipefail
 
@@ -30,7 +31,6 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 CLI_JAR="$REPO_ROOT/ignifyr-cli/target/ignifyr-engine-standalone.jar"
-SRV_JAR="$REPO_ROOT/ignifyr-server/target/ignifyr-server-standalone.jar"
 
 RELEASE_MODE=0
 [ "${1:-}" = "--release" ] && RELEASE_MODE=1
@@ -62,12 +62,12 @@ jar_read() { # <jar> <entry> -> raw bytes on stdout, empty if absent
   else unzip -p "$1" "$2" 2>/dev/null; fi
 }
 
-log "(Re)building the community + server fat jars"
+log "(Re)building the community fat jar"
 # `install`, not `package`: the dependency:list calls below resolve ignifyr-cli's sibling
 # modules from the local repository, and CI only ever runs `verify`/`package`, which do not
 # put them there. Without this the listings come back empty on a clean runner.
-mvn -q -DskipTests -pl ignifyr-cli,ignifyr-server -am install || { echo "build failed" >&2; exit 1; }
-[ -f "$CLI_JAR" ] && [ -f "$SRV_JAR" ] || { echo "jars missing after build" >&2; exit 1; }
+mvn -q -DskipTests -pl ignifyr-cli -am install || { echo "build failed" >&2; exit 1; }
+[ -f "$CLI_JAR" ] || { echo "jar missing after build" >&2; exit 1; }
 
 # ---- 1. no -SNAPSHOT anywhere ------------------------------------------------
 log "1. Nothing resolves to a -SNAPSHOT"
@@ -79,7 +79,7 @@ esac
 
 DEPS="$(mktemp)"; CLI_DEPS="$(mktemp)"
 trap 'rm -f "$DEPS" "$CLI_DEPS"' EXIT
-mvn -q dependency:list -pl ignifyr-cli,ignifyr-server -DincludeScope=runtime \
+mvn -q dependency:list -pl ignifyr-cli -DincludeScope=runtime \
     -DoutputFile="$DEPS" -DappendOutput=true >/dev/null 2>&1
 # An empty listing would make every dependency check below pass vacuously.
 if ! grep -qE ':[^:]+:[^:]+:' "$DEPS" 2>/dev/null; then
@@ -87,7 +87,7 @@ if ! grep -qE ':[^:]+:[^:]+:' "$DEPS" 2>/dev/null; then
 fi
 SNAPS="$(sed 's/^ *//' "$DEPS" 2>/dev/null | grep -E ':[^:]*-SNAPSHOT' | sort -u || true)"
 if [ -z "$SNAPS" ]; then
-  ok "no -SNAPSHOT on either distribution runtime classpath"
+  ok "no -SNAPSHOT on the distribution runtime classpath"
 else
   # Ignifyr's own modules carry ${revision}; they stop being snapshots once the check above passes.
   OWN="$(echo "$SNAPS" | grep -c '^io\.ignifyr:' || true)"
@@ -101,12 +101,12 @@ else
 fi
 
 # ---- 2. attribution inside the shaded jars -----------------------------------
-log "2. Both jars carry aggregated NOTICEs and Ignifyr's own LICENSE"
+log "2. The jar carries aggregated NOTICEs and Ignifyr's own LICENSE"
 REPO_LICENSE_BYTES="$(wc -c < LICENSE | tr -d ' ')"
 # ~75 bundled jars ship a NOTICE; one un-merged copy is a few hundred bytes, the merged file tens of
 # kB. The floor catches an attribution transformer silently dropping out of the shade config.
 NOTICE_MIN_BYTES=10000
-for pair in "community:$CLI_JAR" "server:$SRV_JAR"; do
+for pair in "community:$CLI_JAR"; do
   name="${pair%%:*}"; jar="${pair#*:}"
   n="$(jar_read "$jar" META-INF/NOTICE | wc -c | tr -d ' ')"
   if [ "${n:-0}" -ge "$NOTICE_MIN_BYTES" ]; then
@@ -203,19 +203,8 @@ else
   warn "python not found; skipping the declared-license scan (coordinate denylist still ran)"
 fi
 
-# ---- 4. the credential-carrying module ships nowhere -------------------------
-log "4. ignifyr-terminology-tools is in neither distribution"
-for pair in "community:$CLI_JAR" "server:$SRV_JAR"; do
-  name="${pair%%:*}"; jar="${pair#*:}"
-  if jar_list "$jar" | grep -q '^io/ignifyr/terminology/'; then
-    bad "$name jar bundles ignifyr-terminology-tools, which embeds hard-coded dev Postgres credentials"
-  else
-    ok "$name jar excludes ignifyr-terminology-tools"
-  fi
-done
-
-# ---- 5. release hygiene ------------------------------------------------------
-log "5. Release hygiene"
+# ---- 4. release hygiene ------------------------------------------------------
+log "4. Release hygiene"
 if [ -z "$(git status --porcelain 2>/dev/null)" ]; then
   ok "working tree is clean"
 else
