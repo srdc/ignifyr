@@ -13,7 +13,8 @@ module — with Main-Class `io.ignifyr.engine.Boot`.
    cannot depend on them without a reactor cycle; the jar that bundles both must be built downstream of
    all of them.
 2. **Its dependency list *is* the Community edition.** Moving a feature between editions reduces to
-   moving one line between this pom and `ignifyr-server/pom.xml`. Today it declares:
+   moving the module folder between this repository and the private enterprise one, plus one line
+   between this pom and the enterprise `ignifyr-server/pom.xml`. Today it declares:
    `ignifyr-engine`, `ignifyr-connector-sql`, `ignifyr-connector-file`, `ignifyr-sink-fhir`,
    `ignifyr-sink-file` (`ignifyr-common` arrives transitively via the engine).
 3. **It is where the edition boundary is *proved*.** It opts into the root `ban-enterprise-deps`

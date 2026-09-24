@@ -63,11 +63,14 @@ the engine regardless of which edition ships the corresponding plugin; if a job 
 isn't installed, it fails at run time with an actionable "install `…`" message rather than a parse
 error.
 
-The reactor splits into two editions. **Community** (Apache-2.0, published to Maven Central, shaded into
-the `ignifyr-cli` standalone jar) is the batch engine. **Enterprise** (private, shaded into the
-`ignifyr-server` jar) adds the REST server, streaming and scheduling, and the advanced
-connectors/formats. Each distribution's dependency list *is* the definition of its edition, so an
-edition change is one line moved between two POMs. A `maven-enforcer` gate (`ban-enterprise-deps`,
+Ignifyr comes in two editions, in two repositories. **Community** — this repository, Apache-2.0 —
+is the batch engine: its library modules are published to SRDC Nexus
+(`https://nexus.srdc.com.tr/repository/maven-releases/`) and shaded into the `ignifyr-cli` standalone
+jar. **Enterprise** — a private repository — builds on those published community artifacts and adds
+the REST server, streaming and scheduling, and the advanced connectors/formats, shaded into the
+`ignifyr-server` jar. Each distribution's dependency list *is* the definition of its edition, and
+because every plugin is ServiceLoader-discovered, moving a module between editions is a folder move
+plus one line in each distribution POM. A `maven-enforcer` gate (`ban-enterprise-deps`,
 opted into by the community modules) makes the boundary mechanical: `spark-sql-kafka-0-10`, `cron4j`,
 `delta-spark`, the DB2 JCC driver, and the Logstash encoder / Fluentd logger can never reach a
 community module or the community fat jar.
@@ -94,8 +97,6 @@ else plugs into). Where a module exists mainly for structural regularity, the ta
 |---|---|---|---|
 | `ignifyr-connector-sql` | Community | Reads RDBMS tables/queries through Spark JDBC, and infers schemas from JDBC metadata for the server's schema-import flow. | Dependency isolation: JDBC drivers live here, not in the engine, so the driver set is a per-deployment choice. It ships PostgreSQL only — the enforcer bans the DB2 JCC driver from community modules, so proprietary drivers are added on the deployment classpath instead of bundled. |
 | `ignifyr-connector-file` | Community | Reads the file system (local or `hdfs://`), handling path resolution, zip archives, streaming directories, and the `distinct` option. Owns the `FileSourceFormat` sub-SPI, shipping csv/tsv/parquet. | Seam anchoring. It carries no third-party dependency of its own — it exists so the engine ships no concrete reader, and so *file formats* are pluggable: because this module owns the format registry, adding JSON reading is a one-folder move with no change here or in the engine. |
-| `ignifyr-connector-kafka` | Enterprise | Reads Kafka topics as streaming or batch input, and translates Kafka client errors (e.g. unknown topic) into actionable job failures. | Dependency isolation, unambiguously: it is the sole carrier of `spark-sql-kafka-0-10`, the first entry on the community ban list, so Kafka physically cannot reach the community jar. It is also the repo's only `SourceFailureDescriptor`, which is why that hook exists — the "unknown topic" translation used to be a hard Kafka import inside the engine. |
-| `ignifyr-connector-fhir-server` | Enterprise | Reads resources from a live FHIR API and exposes them as a Spark source, so an existing FHIR server can be the *input* of a mapping job. | Dependency isolation plus edition placement: it is the sole carrier of the `spark-on-fhir` Spark data source, and FHIR-as-a-source is Enterprise while the FHIR *sink* stays Community — so the two halves must be able to move independently. |
 
 #### Sinks — `ignifyr-sink-*` writes data **out**
 
@@ -103,41 +104,42 @@ else plugs into). Where a module exists mainly for structural regularity, the ta
 |---|---|---|---|
 | `ignifyr-sink-fhir` | Community | Writes mapped resources into a FHIR repository as transaction/batch bundles, with per-resource error attribution. Also supplies the FHIR-server-backed terminology and identity services. | Structural, and honest about it: `onfhir-client` stays an engine dependency for the settings model, so nothing is kept out of any jar. What the split buys is that the engine has **no privileged built-in sink** — `SinkProvider` is the single dispatch path — which is precisely what makes a new output target (OMOP) a pure module add. It also lets a file-only deployment omit the FHIR writer. |
 | `ignifyr-sink-file` | Community | Writes to the file system, partitioned by resource type, over local or HDFS paths. Owns the `FileSinkFormat` sub-SPI (ndjson/csv/parquet) and the shared write machinery. | Seam anchoring: it is the compile anchor the enterprise Delta writer depends on and reuses, so `delta-spark` stays out of the community jar while both sinks share identical partitioning code. It was carved out of `ignifyr-connector-file` so that `connector-*` means sources only. |
-| `ignifyr-sink-omop` | Enterprise | Reserved skeleton for the upcoming **map-to-OMOP** feature — versioned OMOP CDM schemas, FK-ordered table writes, and OMOP-vocabulary terminology. Registers nothing yet. | Edition placement decided up front. It sits outside `ignifyr-cli` and deliberately does *not* opt into the community enforcer gate, so when the feature lands it can pull OMOP and relational libraries freely — no boundary edit, no later folder move. Its engine-side settings models will still live in the Community engine, so an OMOP job JSON parses in both editions. |
 
-#### File formats — plug into a connector's or sink's sub-SPI, not into the engine
-
-| Module | Edition | What it does | Why it is a module |
-|---|---|---|---|
-| `ignifyr-format-json` | Enterprise | Adds JSON and NDJSON as readable *source* formats, registered into the file connector's `FileSourceFormat` registry. | Pure edition gating — and there is no library to isolate, since Spark reads JSON natively. That is exactly the point: the enforcer cannot express "the community edition must not read JSON", so the **module boundary itself** is the enforcement. Promoting JSON reading to Community is one line in `ignifyr-cli/pom.xml`. (Community still *writes* NDJSON — that is the sink side.) |
-| `ignifyr-format-delta` | Enterprise | Adds Delta Lake as a *sink* format for the file sink, and contributes the Spark session-extension and catalog settings Delta needs. | Genuine dependency isolation: `delta-spark` is on the enforcer ban list, so this is its only legal home. It is also why `sparkConfContributions` exists — Delta's Spark wiring used to be hardcoded in the engine's Spark defaults and now travels with the jar that needs it. |
-
-#### Runtime capabilities — at most one of each may be installed
-
-| Module | Edition | What it does | Why it is a module |
-|---|---|---|---|
-| `ignifyr-runtime-streaming` | Enterprise | Runs mapping jobs as Spark structured-streaming queries: starts the queries, writes each micro-batch, and archives streamed input. | Edition gating, not dependency isolation — `spark-sql` already carries the streaming API. Streaming execution is a paid-tier *capability*: the Community engine still parses a streaming job and builds its streaming datasets, but has no provider to start the queries and fails with `MissingCapabilityException`. The clearest demonstration of the one-folder-move rule. |
-| `ignifyr-runtime-scheduling` | Enterprise | Runs cron-scheduled batch jobs and owns the scheduled-execution state and last-sync-time files. | Dependency isolation *and* a real capability seam: it is the only module declaring `cron4j`, which the enforcer bans from Community. It holds logic physically moved out of the engine, and installing or removing the folder toggles scheduled execution while a job JSON with `schedulingSettings` still parses either way. |
-
-#### Distributions — the two shaded jars
+#### Distribution — the shaded jar
 
 | Module | Edition | What it does | Why it is a module |
 |---|---|---|---|
 | `ignifyr-cli` | Community | Shades the engine plus the community plugins into `ignifyr-engine-standalone.jar` (Main-Class `io.ignifyr.engine.Boot`). No source code of its own. | The assembly cannot live in the engine: the plugins depend on the engine, so the jar that bundles both must be built downstream of all of them. It is also the machine-checkable definition of the Community edition — and because it opts into the enforcer gate transitively, building it *proves* nothing in the community jar drags in a banned library. |
-| `ignifyr-server` | Enterprise | The Akka-HTTP REST API for managing projects, schemas, mappings, and job executions (Endpoint → Service → Repository), and the `ignifyr-server-standalone.jar` assembly. | Dependency containment: it is the only module carrying the Akka-HTTP stack and the onFHIR server/definitions artifacts, so the community CLI ships no HTTP server at all. It is simultaneously the enterprise distribution, so its dependency list defines the Enterprise edition. |
-| `ignifyr-server-common` | Enterprise | Shared web-server configuration, CORS and error-handling interceptors, the REST error taxonomy, and the `IgnifyrServerExtension` SPI. | Cycle avoidance. A server-side plugin can never depend on `ignifyr-server` — that is the distribution that shades it — yet both halves must compile against the same seam. It declares **no Ignifyr dependency at all**, so a server plugin can implement the SPI without pulling in the engine or Spark. |
 
 #### Features & tooling
 
 | Module | Edition | What it does | Why it is a module |
 |---|---|---|---|
-| `ignifyr-redcap` | Enterprise | Turns a REDCap data dictionary into Ignifyr schemas — as the `extract-redcap-schemas` CLI command, as a server schema-import route, and as the `/redcap` proxy routes to the companion service. | Layering: it is the only plugin needing **both** `ignifyr-engine` and `ignifyr-server-common`. Living in the engine would force the engine to depend on server code, inverting the layering. It is also the only consumer of the server SPI — the module that justifies that seam existing. |
-| `ignifyr-observability` | Enterprise | Encodes structured audit log markers as Logstash JSON and ships logs to Fluentd for the EFK stack. | Pure dependency isolation: the Logstash encoder and Fluentd logger are both on the enforcer ban list. The producer/consumer split is deliberate — the Community engine still *emits* structured log markers; only their JSON encoding and forwarding are Enterprise. |
-| `ignifyr-terminology-tools` | Enterprise | Offline tool that generates Ignifyr concept-map CSVs from an OMOP vocabulary database. | It is a standalone `main` with its own lifecycle that must not be linked into either runtime jar, and it embeds hard-coded development database credentials — unshippable as a public artifact. Not a plugin; nothing depends on it. |
-| `ignifyr-rxnorm` | Standalone | RxNorm REST API client plus `rxn:` FHIRPath functions for medication mappings. | An artifact boundary, not a code dependency: nothing in the repo compiles against it, and it is attached purely by naming its factory class in configuration. Keeping it separate keeps a blocking network client (and `opencsv`) out of the engine. |
 | `ignifyr-testkit` | Community (test-only) | The shared test harness — `IgnifyrTestSpec`, `OnFhirTestContainer`, and the classpath fixtures (`/test-mappings`, `/test-schemas`, sample data) reused by suites across the reactor. | Three reasons: it must sit downstream of the engine to be usable by plugin test suites (so the engine must never depend on it); it declares the whole test toolchain at *compile* scope, so one test-scoped dependency hands a module scalatest, mockito, H2 and Testcontainers; and it is a Community artifact whose fixtures Enterprise suites consume — a direction that keeps working after the repo split, whereas the reverse could not. |
 
-The REST contract is [ignifyr-server/api.yaml](ignifyr-server/api.yaml) and the reference configuration is
+#### Enterprise Edition modules
+
+These live in the private Ignifyr Enterprise repository (groupId `com.pontegra.ignifyr`), built on the
+community artifacts above, and are shaded into the `ignifyr-server-standalone.jar`. They are listed so
+that the feature tables below can name the module a capability comes from.
+
+| Module | What it adds |
+|---|---|
+| `ignifyr-connector-kafka` | Reads Kafka topics as streaming or batch input, and translates Kafka client errors (e.g. unknown topic) into actionable job failures. |
+| `ignifyr-connector-fhir-server` | Reads resources from a live FHIR API and exposes them as a Spark source, so an existing FHIR server can be the *input* of a mapping job. |
+| `ignifyr-sink-omop` | Reserved skeleton for the upcoming **map-to-OMOP** feature — versioned OMOP CDM schemas, FK-ordered table writes, and OMOP-vocabulary terminology. Registers nothing yet. |
+| `ignifyr-format-json` | Adds JSON and NDJSON as readable *source* formats, registered into the file connector's `FileSourceFormat` registry. |
+| `ignifyr-format-delta` | Adds Delta Lake as a *sink* format for the file sink, and contributes the Spark session-extension and catalog settings Delta needs. |
+| `ignifyr-runtime-streaming` | Runs mapping jobs as Spark structured-streaming queries: starts the queries, writes each micro-batch, and archives streamed input. |
+| `ignifyr-runtime-scheduling` | Runs cron-scheduled batch jobs and owns the scheduled-execution state and last-sync-time files. |
+| `ignifyr-server` | The Akka-HTTP REST API for managing projects, schemas, mappings, and job executions (Endpoint → Service → Repository), and the `ignifyr-server-standalone.jar` assembly. |
+| `ignifyr-server-common` | Shared web-server configuration, CORS and error-handling interceptors, the REST error taxonomy, and the `IgnifyrServerExtension` SPI. |
+| `ignifyr-redcap` | Turns a REDCap data dictionary into Ignifyr schemas — as the `extract-redcap-schemas` CLI command, as a server schema-import route, and as the `/redcap` proxy routes to the companion service. |
+| `ignifyr-observability` | Encodes structured audit log markers as Logstash JSON and ships logs to Fluentd for the EFK stack. |
+| `ignifyr-terminology-tools` | Offline tool that generates Ignifyr concept-map CSVs from an OMOP vocabulary database. |
+| `ignifyr-rxnorm` | RxNorm REST API client plus `rxn:` FHIRPath functions for medication mappings. |
+
+The reference configuration is
 [ignifyr-engine/src/main/resources/application.conf](ignifyr-engine/src/main/resources/application.conf).
 Modules with non-obvious internals carry their own `CLAUDE.md`; run `list-plugins` on either jar to see
 what a given deployment actually has installed. How to build and test — including the short/long test
@@ -181,7 +183,8 @@ And it can write the mapped results to:
 
 ## Usage
 
-Ignifyr can be utilized via the standalone Engine (CLI/Batch) or the Web Server (REST API).
+Ignifyr can be utilized via the standalone Engine (CLI/Batch, Community) or the Web Server (REST API,
+Enterprise).
 
 ### 1. Ignifyr Engine (CLI & Batch)
 
@@ -214,8 +217,8 @@ After the app is up and running, these commands are ready to be executed.
 If there is no mapping job loaded initially, firstly, a mapping job needs to be loaded with the command `load <mapping-job-path>`.
 This command loads the mapping job located in the path. After that, the mapping job can be run with the command `run`.
 
-### 2. Ignifyr Server (REST API)
-The server provides a REST API to manage the lifecycle of mapping projects.
+### 2. Ignifyr Server (REST API) — Enterprise
+The server, part of the Enterprise Edition, provides a REST API to manage the lifecycle of mapping projects.
 * **Base URL:** http://<host>:8085/ignifyr (default)
 * **API Documentation:** [SwaggerHub API Docs](https://app.swaggerhub.com/apis-docs/toFHIR/toFHIR-Server/)
 

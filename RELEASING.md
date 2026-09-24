@@ -1,32 +1,37 @@
-# Releasing Ignifyr
+# Releasing Ignifyr Community
 
-**A release is a git tag, two fat jars, and the Docker images built from them.** Ignifyr publishes
-no Maven artifacts — nothing consumes it as a library, so there is no `<distributionManagement>` and
-`mvn deploy` has no target. That is deliberate, not an oversight: the half-wired publishing machinery
-that used to sit in a `release` profile was removed rather than left to rot, since it pointed at the
-retired OSSRH service. If Ignifyr ever does publish Maven artifacts, build that afresh against the
-Central Portal. The `sources` profile still produces source and javadoc jars for local use.
+**A release is a git tag, the library modules deployed to SRDC Nexus, the standalone fat jar, and the
+Docker image built from it.** The Nexus deployment exists for one consumer: the Enterprise Edition,
+which lives in its own private repository and builds on these artifacts (its parent pom *is* this
+repository's root pom). Maven Central is deliberately not a target. `ignifyr-cli` is not deployed —
+it is a distribution, not a library. Between releases, CI deploys `main`'s `-SNAPSHOT` to Nexus on
+every push (`.github/workflows/maven.yml`, `deploy-snapshot`), so the enterprise edition can track
+unreleased community work. The `sources` profile still produces source and javadoc jars.
 
-The consequence shapes this whole document: because the jars *shade* every dependency, they
-redistribute them, and Ignifyr inherits each one's obligations. The interesting questions are about
-what is **inside** the jars, not what the poms declare. That is what
+The fat jar shapes most of this document: because it *shades* every dependency, it redistributes
+them, and Ignifyr inherits each one's obligations. The interesting questions are about what is
+**inside** the jar, not what the poms declare. That is what
 [`test-flow/check-release-ready.sh`](test-flow/check-release-ready.sh) checks.
 
-| Deliverable | Built from | Edition |
-|---|---|---|
-| `ignifyr-cli/target/ignifyr-engine-standalone.jar` | `ignifyr-cli` | Community (Apache-2.0) |
-| `ignifyr-server/target/ignifyr-server-standalone.jar` | `ignifyr-server` | Enterprise |
-| `srdc/ignifyr-engine` | `docker/engine/build.sh` | Community |
-| `srdc/ignifyr-server` | `docker/server/build.sh` | Enterprise |
+| Deliverable | Built from |
+|---|---|
+| `io.ignifyr:*` library modules + the `ignifyr_2.13` parent pom on SRDC Nexus | `mvn deploy` |
+| `ignifyr-cli/target/ignifyr-engine-standalone.jar` | `ignifyr-cli` |
+| `srdc/ignifyr-engine` | `docker/engine/build.sh` |
+
+The enterprise server jar and image are released from the enterprise repository, after (and against)
+a community release.
 
 ## Versioning
 
 The version is `<revision>` in the root [pom.xml](pom.xml); every module inherits it through
-flatten-maven-plugin. Between releases it is `<next>-SNAPSHOT`. A release sets it to the bare
+flatten-maven-plugin, which bakes it into a literal in the installed and deployed poms
+(`resolveCiFriendliesOnly` — the deployed root pom must keep its build configuration, because the
+enterprise edition inherits it). Between releases it is `<next>-SNAPSHOT`. A release sets it to the bare
 version, tags `v<version>`, and then opens the next development version.
 
 Ignifyr's own `${revision}` must be the **only** `-SNAPSHOT` in the build. An upstream snapshot
-makes the jars unreproducible from the tag, which is the one property a tag is supposed to carry.
+makes the jar unreproducible from the tag, which is the one property a tag is supposed to carry.
 
 ## 1. Pre-flight
 
@@ -51,12 +56,7 @@ mvn -B test
 mvn -B verify -DskipITs=false
 ```
 
-The long tier needs Docker. If the streaming suites fail with `CONCURRENT_STREAM_LOG_UPDATE`, clear
-stale checkpoint state first:
-
-```bash
-rm -rf ignifyr-server/test-context-conf ignifyr-server/logs ignifyr-runtime-streaming/checkpoint ignifyr-runtime-streaming/logs
-```
+The long tier needs Docker.
 
 ## 2. Cut the version
 
@@ -68,28 +68,26 @@ Set `<revision>` in the root pom to the release version, commit it on its own, a
 bash test-flow/check-release-ready.sh --release
 ```
 
-In `--release` mode every check is a hard failure. It rebuilds and installs both fat jars and
-their upstream modules — the dependency listings resolve the sibling modules from the local
+In `--release` mode every check is a hard failure. It rebuilds and installs the fat jar and
+its upstream modules — the dependency listings resolve the sibling modules from the local
 repository — then asserts:
 
 1. **Nothing is a `-SNAPSHOT`** — neither `${revision}` nor any resolved dependency.
-2. **Attribution survives shading** — each jar's `META-INF/NOTICE` aggregates the ~75 bundled
+2. **Attribution survives shading** — the jar's `META-INF/NOTICE` aggregates the ~75 bundled
    NOTICEs rather than whichever single copy shade saw last, and `META-INF/LICENSE` is the
    repository's own. Section 4(d) of the Apache License requires carrying these forward.
 3. **No copyleft on the community distribution** — Repofyr, the onFHIR server continuation, is
    GPL-3.0 and sits one dependency edge from code Ignifyr already uses. Multi-licensed dependencies
    pass when they offer a permissive alternative; only copyleft-*only* artifacts fail.
-4. **`ignifyr-terminology-tools` is in neither jar** — it embeds hard-coded dev Postgres
-   credentials, which is why it ships nowhere.
-5. **Release hygiene** — clean working tree, tag not already taken.
+4. **Release hygiene** — clean working tree, tag not already taken.
 
 Run it without `--release` as a per-commit guard; the version checks drop to warnings then.
 
 ## 4. Tag and publish — maintainer only
 
 > **Stop here unless you are the maintainer cutting this release, and do it yourself.**
-> Everything above is local and reversible. Everything below is not: a pushed tag and a pushed
-> image are public. Automation and agents run sections 1–3 and stop; they do not push, tag, or
+> Everything above is local and reversible. Everything below is not: a pushed tag, a pushed
+> image and a deployed release artifact are public (Nexus refuses to redeploy a release version). Automation and agents run sections 1–3 and stop; they do not push, tag, or
 > publish, and they do not disable a failing gate to get to green.
 
 Tag, then build and tag the images with the version — not only `latest`, which is all the
@@ -103,15 +101,19 @@ git tag -a v<version> -m "Ignifyr <version>" && git push origin v<version>
 bash docker/engine/build.sh && docker tag srdc/ignifyr-engine:latest srdc/ignifyr-engine:<version>
 ```
 
+Deploy the library modules to SRDC Nexus (credentials from the `srdc-maven-releases` server entry in
+your `settings.xml`):
+
 ```bash
-bash docker/server/build.sh && docker tag srdc/ignifyr-server:latest srdc/ignifyr-server:<version>
+mvn -B -DskipTests deploy
 ```
 
-Attach both standalone jars to the GitHub release for the tag.
+Attach the standalone jar to the GitHub release for the tag.
 
 ## 5. Post-release
 
-Set `<revision>` to the next `-SNAPSHOT` and commit. Update [CLAUDE.md](CLAUDE.md) if the release
+Set `<revision>` to the next `-SNAPSHOT` and commit. Then, in the enterprise repository, point the
+parent version at the new community release before cutting the matching enterprise release. Update [CLAUDE.md](CLAUDE.md) if the release
 changed anything an agent relies on.
 
 ## Known limitations

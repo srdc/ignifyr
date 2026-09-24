@@ -4,15 +4,17 @@ Ignifyr (formerly **toFHIR**) — a FHIR-first ETL engine. Scala 2.13 · JDK 11 
 Maven multi-module.
 
 Full agent/contributor guidance lives in **[CLAUDE.md](CLAUDE.md)** (root) and per-module `CLAUDE.md`
-files (`ignifyr-engine/`, `ignifyr-server/`, `ignifyr-server-common/`, `ignifyr-common/`, `ignifyr-rxnorm/`).
+files (`ignifyr-engine/`, `ignifyr-common/`, `ignifyr-cli/`, `ignifyr-connector-file/`, `ignifyr-sink-fhir/`,
+`ignifyr-sink-file/`, `ignifyr-testkit/`). This is the Community Edition; the enterprise modules (server,
+streaming, scheduling, Kafka, REDCap, …) live in a separate private repository.
 Read those first. The essentials:
 
 1. **Naming.** The toFHIR → Ignifyr rename is complete: packages (`io.ignifyr.*`), modules
    (`ignifyr-*`), config keys, and Docker tags all use the new name. The legacy `tofhir` name remains
    only in references to not-yet-renamed sibling artifacts (`srdc/tofhir-web` image, `tofhir-redcap`
    service) — don't reintroduce it in new code.
-2. **Verify with Maven.** `mvn test` for unit tests (fast, no Docker); `mvn -B verify` for the full build
-   incl. integration tests — which **need Docker running** (MongoDB/Kafka/onFHIR via TestContainers).
+2. **Verify with Maven.** `mvn test` for unit tests (fast, no Docker); `mvn -B verify -DskipITs=false` for
+   the full build incl. integration tests — which **need Docker running** (MongoDB/onFHIR via TestContainers).
    Report test results before claiming a change works.
 3. **Commit format (SRDC semantic commits):** `<emoji> <type>(<scope>): <subject>` — `:sparkles:` feat,
    `:bug:` fix, `:memo:` docs, `:recycle:` refactor, `:construction_worker:` build, `:white_check_mark:`
@@ -20,4 +22,4 @@ Read those first. The essentials:
    `Fixes #N`.
 4. **Format before committing:** `mvn scalafmt:format`.
 
-PRs target `main`; CI runs `mvn -B verify`.
+PRs target `main`; CI runs the short tier on every push and the long tier on every PR.
