@@ -12,8 +12,9 @@ self-contained and use none of this; the cycle rule is what keeps it that way.) 
 **test** scope. It opts into the community `ban-enterprise-deps` enforcer gate.
 
 It is also load-bearing for the edition split: a **community** artifact whose fixtures **enterprise**
-suites consume (`ignifyr-format-delta`'s `DeltaSinkFormatTest`). After the repo split the enterprise repo
-can depend on the published community testkit; the reverse would be impossible.
+suites consume (`ignifyr-format-delta`'s `DeltaSinkFormatTest`, the server suites). The enterprise
+repository depends on the testkit published to SRDC Nexus; the reverse would be impossible. So a fixture
+change here is a change to the enterprise suites too — they pick it up at the next snapshot deploy.
 
 ## Layout
 - `src/main/scala/io/ignifyr/` — the public surface: `IgnifyrTestSpec` (trait + companion),

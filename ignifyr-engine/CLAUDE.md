@@ -116,9 +116,9 @@ resources. Usable as a library or as the standalone CLI/batch tool. Package root
 - The engine has **no long-tier suites of its own** — there is no `io.ignifyr.integrationtest` source
   folder here (the pom's `integration-test` execution simply finds nothing). The suites that exercise the
   engine end-to-end live in the modules that supply the I/O: `ignifyr-connector-file`
-  (`FhirMappingJobManagerTest`), `ignifyr-connector-sql` (`SqlSourceTest`), `ignifyr-runtime-scheduling`
-  (`SchedulingTest`) and `ignifyr-runtime-streaming` (the folder-watch + Kafka E2E suites) — all
-  Docker-requiring, all opt-in via `mvn -B verify -DskipITs=false`.
+  (`FhirMappingJobManagerTest`), `ignifyr-connector-sql` (`SqlSourceTest`), and — in the enterprise
+  repository — `ignifyr-runtime-scheduling` (`SchedulingTest`) and `ignifyr-runtime-streaming` (the
+  folder-watch + Kafka E2E suites) — all Docker-requiring, all opt-in via `mvn -B verify -DskipITs=false`.
 - One suite: `mvn test -pl ignifyr-engine -Dsuffixes='.*ListPluginsTest'`. `-DwildcardSuites`/`-Dsuites`
   are ignored — the pom sets `wildcardSuites` explicitly, which beats the command-line property.
 - ⚠️ FHIRPath function libraries are validated at the `install` phase — a `scala-maven-plugin`
