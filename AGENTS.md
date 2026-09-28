@@ -11,8 +11,8 @@ Read those first. The essentials:
 
 1. **Naming.** The toFHIR → Ignifyr rename is complete: packages (`io.ignifyr.*`), modules
    (`ignifyr-*`), config keys, and Docker tags all use the new name. The legacy `tofhir` name remains
-   only in references to not-yet-renamed sibling artifacts (`srdc/tofhir-web` image, `tofhir-redcap`
-   service) — don't reintroduce it in new code.
+   only in references to not-yet-renamed sibling artifacts (the `srdc/tofhir-web` image) — don't
+   reintroduce it in new code.
 2. **Verify with Maven.** `mvn test` for unit tests (fast, no Docker); `mvn -B verify -DskipITs=false` for
    the full build incl. integration tests — which **need Docker running** (MongoDB/onFHIR via TestContainers).
    Report test results before claiming a change works.
