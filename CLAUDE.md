@@ -19,10 +19,10 @@ Ignifyr was formerly **toFHIR**; the wholesale rename has landed. Packages
 (`io.ignifyr.*`), Maven coordinates (`io.ignifyr:ignifyr-*`), HOCON keys (`ignifyr.*`,
 `ignifyr-redcap`), Docker tags (`srdc/ignifyr-*`), and the `ignifyr-db` folder all use the
 new name. The legacy `tofhir` name survives **only** in references to sibling projects
-that haven't renamed yet — the `srdc/tofhir-web` Docker image, the
-[tofhir-redcap](https://github.com/srdc/tofhir-redcap) service (endpoint URL value and
-repo links), the SwaggerHub docs link — plus git history and the "formerly toFHIR"
-mentions. Don't reintroduce `tofhir` in new code; `mapToFhir`-style identifiers mean
+that haven't renamed yet — the `srdc/tofhir-web` Docker image and the SwaggerHub docs
+link — plus git history and the "formerly toFHIR" mentions (including the README's pointer
+to the retired [tofhir-redcap](https://github.com/srdc/tofhir-redcap) repo, now the
+enterprise `ignifyr-redcap-service`). Don't reintroduce `tofhir` in new code; `mapToFhir`-style identifiers mean
 "map *to FHIR*" and are correct as-is.
 
 ## Modules
