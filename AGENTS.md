@@ -10,9 +10,9 @@ streaming, scheduling, Kafka, REDCap, …) live in a separate private repository
 Read those first. The essentials:
 
 1. **Naming.** The toFHIR → Ignifyr rename is complete: packages (`io.ignifyr.*`), modules
-   (`ignifyr-*`), config keys, and Docker tags all use the new name. The legacy `tofhir` name remains
-   only in references to not-yet-renamed sibling artifacts (the `srdc/tofhir-web` image) — don't
-   reintroduce it in new code.
+   (`ignifyr-*`), config keys, and Docker tags all use the new name. Sibling projects are renamed too
+   (`srdc/ignifyr-web`, `ignifyr-redcap-service`); the legacy `tofhir` name remains only in the
+   README's SwaggerHub link and "formerly" pointers — don't reintroduce it in new code.
 2. **Verify with Maven.** `mvn test` for unit tests (fast, no Docker); `mvn -B verify -DskipITs=false` for
    the full build incl. integration tests — which **need Docker running** (MongoDB/onFHIR via TestContainers).
    Report test results before claiming a change works.
