@@ -70,9 +70,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/srdc/ignifyr.git</connection>
-        <developerConnection>scm:git:ssh://github.com:srdc/ignifyr.git</developerConnection>
-        <url>https://github.com/srdc/ignifyr/tree/main</url>
+        <connection>scm:git:https://github.com/srdc/ignifyr-community.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/srdc/ignifyr-community.git</developerConnection>
+        <url>https://github.com/srdc/ignifyr-community/tree/main</url>
     </scm>
 
     <modules>
