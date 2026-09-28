@@ -29,7 +29,7 @@ Everything that carried the `tofhir` name has been renamed to `ignifyr`. When up
 | API error `type` URIs | `https://tofhir.io/errors/<Error>` | `https://ignifyr.io/errors/<Error>` |
 | Server metadata field | `toFhirRedcapVersion` | `ignifyrRedcapVersion` |
 
-The REDCap companion service, formerly [tofhir-redcap](https://github.com/srdc/tofhir-redcap), is now `ignifyr-redcap-service`, part of the Ignifyr Enterprise Edition. Its default base path changed from `/tofhir-redcap` to `/ignifyr-redcap-service`, and the Enterprise server's `ignifyr-redcap.endpoint` points there by default. The GitHub repository is no longer developed. The `srdc/tofhir-web` UI image keeps its current name until it is renamed in its own repository.
+The REDCap companion service, formerly [tofhir-redcap](https://github.com/srdc/tofhir-redcap), is now `ignifyr-redcap-service`, part of the Ignifyr Enterprise Edition. Its default base path changed from `/tofhir-redcap` to `/ignifyr-redcap-service`, and the Enterprise server's `ignifyr-redcap.endpoint` points there by default. The GitHub repository is no longer developed. The web UI image is now `srdc/ignifyr-web` (formerly `srdc/tofhir-web`).
 
 ---
 
