@@ -44,7 +44,7 @@ It can be used as a library or a standalone tool for data integration. The stand
 ### Key Capabilities
 
 * **Versatile Connectivity:** Read from file systems, RDBMS, Apache Kafka, REDCap, or FHIR servers.
-* **Advanced Mapping:** Utilizes the [onfhir-template-engine](https://github.com/srdc/fhir-template-engine) to support 1-to-1, 1-to-many, many-to-1, and many-to-many mappings.
+* **Advanced Mapping:** Utilizes the [onfhir-template-engine](https://github.com/srdc/onfhir-libs/tree/main/onfhir-template-engine) to support 1-to-1, 1-to-many, many-to-1, and many-to-many mappings.
 * **Flexible Output:** Generate HL7 FHIR resources and persist them to a FHIR endpoint (e.g., [Repofyr](https://repofyr.io)), or write them to a file system as NDJSON, CSV, Parquet, or Delta Lake.
 
 ## Architecture & Editions
@@ -425,7 +425,7 @@ An example of a simple mapping definition file:
 The json snippet above illustrates the structure of an example mapping. On the top, the `url`, `name`, and `title` fields are the metadata of the mapping.
 The `source` field is used to define the source schema of the mapping. The `mapping` field is the list of mapping definitions.
 The real magic in mappings happens in the `expression` fields (e.g. {{`<expression>`}} ).
-Ignifyr uses the expression to generate the FHIR resources by using [onfhir-template-engine](https://github.com/srdc/fhir-template-engine).
+Ignifyr uses the expression to generate the FHIR resources by using [onfhir-template-engine](https://github.com/srdc/onfhir-libs/tree/main/onfhir-template-engine).
 By doing so, it can generate the FHIR resources based on the source data.
 
 For example, considering `{{gender}}` expression, it refers to "gender" column in the source data. 
@@ -433,7 +433,7 @@ When this mapping is executed, each record at "gender" column in the source repl
 
 The json keys in the `expression.value` represent the FHIR resource attributes. That is, we write the FHIR resource structure
 by providing the values through a template language where we can access the fields of the source data as defined by its schema.
-On the value sides, `onfhir-template-engine` is used to interpret the source data. You can get more information how template engine works on the GitHub page.
+On the value sides, `onfhir-template-engine` is used to interpret the source data. You can get more information how template engine works on its [GitHub page](https://github.com/srdc/onfhir-libs/tree/main/onfhir-template-engine).
 
 ### Mapping Context 
 
