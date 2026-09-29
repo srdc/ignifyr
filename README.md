@@ -193,9 +193,13 @@ When started as a standalone tool, the engine can run in two modes based on argu
 - `cli`: Starts the interactive Command Line Interface (Default).
 - `run`: Runs a configured mapping-job as a batch process and shuts down. `run` command accepts the following parameters:
   - `--job`: The path to the mapping-job to be executed. If provided, overrides the path provided to the JVM as the configuration parameter.
-  - `--mappings`: The path to the mappings folder. If provided, overrides the path provided to the JVM as the configuration parameter.
-  - `--schemas`: The path to the schemas folder. If provided, overrides the path provided to the JVM as the configuration parameter.
-  - `--db`: The path to the database folder that is used for scheduled jobs. If provided, overrides the path provided to the JVM as the configuration parameter.
+  - `--db` (alias `--db-path`): The path to the database folder that is used for scheduled jobs. If provided, overrides the path provided to the JVM as the configuration parameter.
+
+  The mappings and schemas folders are not command-line options; they are always read from the
+  [configuration](#configurations) (`ignifyr.mappings.repository.folder-path` and
+  `ignifyr.mappings.schemas.repository.folder-path`, defaulting to `mappings` and `schemas`, resolved
+  against `context-path`). To point a single run elsewhere, override them on the JVM, e.g.
+  `-Dignifyr.mappings.repository.folder-path=/data/my-mappings`.
 - `extract-redcap-schemas`: Extracts schemas from a REDCap data dictionary. Provided by the `ignifyr-redcap` module (Enterprise); without it, the command reports the module to install. `extract-redcap-schemas` command accepts the following parameters:
   - `--data-dictionary`: The path to the REDCap data dictionary
   - `--definition-root-url`: The root url of FHIR resources
