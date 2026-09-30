@@ -272,10 +272,14 @@ ignifyr {
     # Absolute path to the JSON file for the MappingJob definition to load at the beginning
     # initial-job-file-path = "mapping-jobs/project1-mappingjob.json"
 
-    # Number of partitions to repartition the source data before executing the mappings for the mapping jobs
+    # Number of Spark partitions the (joined) source data is repartitioned into before mapping. Sets the mapping
+    # parallelism and, for a FHIR repository sink, the number of concurrent writers. Unset = keep the source's own
+    # partitioning. See "Performance & Data-Volume Tuning".
     # numOfPartitions = 10
 
-    # Maximum number of records for batch mapping execution, if source data exceeds this it is divided into chunks
+    # Maximum number of records mapped and written in one go. A larger source is still read (and cached) in full,
+    # then split into roughly equal chunks that are mapped and written one after another. Unset = no chunking.
+    # See "Performance & Data-Volume Tuning".
     # maxChunkSize = 10000
   }
 
@@ -297,7 +301,8 @@ ignifyr {
 
   # Settings for FHIR repository writer
   fhir-server-writer {
-    # The # of FHIR resources in the group while executing (create/update) a FHIR batch operation.
+    # The # of FHIR resources in each FHIR batch bundle (create/update) sent to the repository.
+    # Applies per Spark partition. If this key is removed, the engine falls back to 10.
     batch-group-size = 50
   }
 
@@ -1102,6 +1107,46 @@ Each sink is a plugin module, and the file sink's output formats are pluggable i
 | `FileSystemSinkSettings` | `ndjson`, `csv`, `parquet` | `ignifyr-sink-file` | Community |
 | `FileSystemSinkSettings` | `delta` | `ignifyr-format-delta` | Enterprise |
 
+##### `FhirRepositorySinkSettings` fields
+
+| Field | Default | Description |
+|---|---|---|
+| `fhirRepoUrl` | — (required) | FHIR endpoint root URL. |
+| `securitySettings` | none | Credentials for a secured FHIR API. |
+| `returnMinimal` | `true` | Sends `Prefer: return=minimal` so the server does not echo the resources back, which is faster. |
+
+The number of resources per FHIR batch bundle is **not** a sink setting. It is the engine-wide
+`ignifyr.fhir-server-writer.batch-group-size` (see [Performance & Data-Volume Tuning](#performance--data-volume-tuning)).
+
+##### `FileSystemSinkSettings` fields
+
+| Field | Default | Description |
+|---|---|---|
+| `path` | — (required) | Output folder. Any Hadoop-supported path works (`hdfs://`, `s3a://`, local). Output is **appended**. |
+| `contentType` | — (required) | `ndjson`, `csv`, `parquet` (Community) or `delta` (Enterprise). |
+| `numOfPartitions` | `1` | Number of output **files** written per write. With `partitionByResourceType`, this is per resource-type folder. It does not limit mapping parallelism (see [Performance & Data-Volume Tuning](#performance--data-volume-tuning)). |
+| `options` | `{}` | Extra Spark `DataFrameWriter` options, e.g. `{"compression": "snappy"}` or `{"header": "true"}` for CSV. |
+| `partitionByResourceType` | `false` | Writes each FHIR resource type to its own sub-folder (`<path>/Patient`, `<path>/Condition`, …). Supported for `ndjson`, `csv`, `parquet` and `delta`. Results without a `resourceType` are skipped with a warning. For `csv`, only non-nested columns are kept. |
+| `partitioningColumns` | `{}` | Only applies when `partitionByResourceType` is `true`, and only for `parquet` and `delta`. For each resource type, a list of columns to Spark-partition that type's folder by (e.g. `<path>/Observation/code=.../`). |
+
+Example: Parquet output with one folder per resource type, four files per folder, and `Observation` further
+partitioned by `status`:
+
+```json
+{
+  "sinkSettings": {
+    "jsonClass": "FileSystemSinkSettings",
+    "path": "sink/project1",
+    "contentType": "parquet",
+    "numOfPartitions": 4,
+    "partitionByResourceType": true,
+    "partitioningColumns": {
+      "Observation": ["status"]
+    }
+  }
+}
+```
+
 A `contentType` whose handler is not installed fails on the first write with a message naming the module
 to install; the job itself still parses.
 
@@ -1437,3 +1482,82 @@ with open('batching_strategy.json', 'w') as f:
 
 print("Batching strategy saved to batching_strategy.json")
 ```
+
+## Performance & Data-Volume Tuning
+
+Six settings control how much data Ignifyr handles at once and how widely the work is spread. Their names
+are similar but each acts at a different stage of a batch execution. Pick the one that matches your problem.
+
+> **"Batch" means three different things in Ignifyr.** *Batch mode* is a one-shot run, as opposed to
+> streaming. A *batching strategy* ([above](#batching-strategy)) splits the source query into parameterised
+> slices. A *FHIR batch bundle* is one HTTP request carrying several resources to a FHIR repository. None of
+> the three is a *chunk* (`maxChunkSize`).
+
+### Where each setting acts
+
+```text
+ for each batch of batchingStrategy (or once, if none)            ── ① batchingStrategy
+   │
+   ├─ read + join sources  (only the rows of this batch)
+   ├─ repartition(numOfPartitions)                                 ── ② mapping-jobs.numOfPartitions
+   ├─ cache + count the whole batch
+   ├─ if count ≥ maxChunkSize: randomly split into ⌈count/size⌉ chunks  ── ③ mapping-jobs.maxChunkSize
+   │
+   └─ for each chunk, one after another
+        ├─ map to FHIR           (one Spark task per partition, in parallel)
+        └─ write to the sink
+             ├─ FHIR repository: per partition, bundles of batch-group-size  ── ④ fhir-server-writer.batch-group-size
+             └─ file system:     coalesce(numOfPartitions) files per write    ── ⑤ sinkSettings.numOfPartitions
+                                 [+ one folder per resource type]            ── ⑥ partitionByResourceType / partitioningColumns
+```
+
+### Reference
+
+| # | Setting | Where | Default | What it controls | Cost / caveat |
+|---|---|---|---|---|---|
+| ① | `batchingStrategy` | mapping task (job JSON) | none | Substitutes each parameter set into the source's `preprocessSql`. Batches are read, mapped and written **one after another**. | **The only setting that reduces how much data is read at once.** Needs a `preprocessSql` source with `$placeholders`. |
+| ② | `ignifyr.mapping-jobs.numOfPartitions` | engine HOCON (all jobs) | unset = source's own partitioning | Number of Spark partitions the joined source is repartitioned into. That is the **mapping parallelism** and, for a FHIR sink, the number of **concurrent writers** (one client per partition). | Full shuffle. The effective concurrency is `min(numOfPartitions, executor cores)`. Not applied to test executions. |
+| ③ | `ignifyr.mapping-jobs.maxChunkSize` | engine HOCON (all jobs) | unset = no chunking | Maximum records mapped and written in one go. At or above it, the (already read) data is split into `⌈count / maxChunkSize⌉` chunks that run **one after another**. | Does **not** reduce read memory: the whole source (or batch) is cached first, in memory with spill to disk. Chunk sizes are approximate (random split). Each chunk is a separate sink write. |
+| ④ | `ignifyr.fhir-server-writer.batch-group-size` | engine HOCON | `50` in the shipped config; `10` if the key is removed | Resources per FHIR batch bundle, grouped **within each partition**. | Larger bundles mean fewer round trips but bigger requests and coarser failure reporting. Some servers (e.g. Firely) reject a whole bundle when any entry fails. |
+| ⑤ | `numOfPartitions` in `FileSystemSinkSettings` | sink settings (per job) | `1` | Number of output **files** per write, per resource-type folder when ⑥ is on. | Does not limit mapping parallelism (see [below](#why-sink-numofpartitions--1-does-not-serialise-the-mapping)). |
+| ⑥ | `partitionByResourceType`, `partitioningColumns` | sink settings (per job) | `false`, `{}` | Output folder layout: one folder per resource type, optionally Spark-partitioned by columns (Parquet/Delta only). | See [Sink Settings](#sink-settings). |
+
+Settings ② and ③ are engine-wide. They apply to every job the engine or server runs, and are changed with
+`-Dignifyr.mapping-jobs.numOfPartitions=…` or in `ignifyr.conf`. Settings ①, ⑤ and ⑥ belong to one job.
+
+### Which one do I need?
+
+| Symptom | Reach for | Why |
+|---|---|---|
+| The source is too large to load; out-of-memory while reading | ① `batchingStrategy` | It is the only option that limits what is read. `maxChunkSize` still reads and caches everything first. |
+| Mapping is slow and the cluster/CPU is idle | ② raise `mapping-jobs.numOfPartitions` (≈ 2–4 × total cores) | More partitions mean more parallel mapping tasks. |
+| The FHIR server is overloaded, timing out or returning 5xx/409 | ② lower `mapping-jobs.numOfPartitions`, and/or ④ lower `batch-group-size` | Fewer concurrent writers and smaller bundles. |
+| FHIR writes are slow but the server is idle | ④ raise `batch-group-size`, then ② | Fewer, larger requests; then more concurrent writers. |
+| You want progress in smaller steps, or to limit each sink write | ③ `maxChunkSize` | Each chunk is mapped and written before the next one starts. |
+| Too many or too few output files | ⑤ sink `numOfPartitions` | It sets the files per write. |
+
+#### How the settings multiply
+
+- **Output files** for a file-system sink ≈ `batches × chunks × sink numOfPartitions`, per resource-type folder
+  when `partitionByResourceType` is on (more if `partitioningColumns` add sub-folders). Every write
+  appends new files to `path`.
+- **Concurrent FHIR requests** ≈ `min(mapping-jobs.numOfPartitions, executor cores)`. Each carries up to
+  `batch-group-size` resources.
+- **Records read and cached at once** ≈ one whole batch (①), whatever `maxChunkSize` is. The cache spills
+  to disk when memory runs short, so an oversized batch shows up as slowness and disk use before it fails.
+
+#### Why sink `numOfPartitions = 1` does not serialise the mapping
+
+`coalesce(1)` on its own would pull the whole mapping step into a single Spark task. That doesn't happen
+here, because the engine caches the mapped results before writing them, and the cache is built at the
+mapping's full parallelism. Only the finished results are then coalesced into files. For Parquet, CSV and
+`partitionByResourceType` output, an earlier parallel pass (schema inference, or the per-type count)
+builds the cache. For plain NDJSON output, Spark's Adaptive Query Execution (AQE, on by default in
+Spark 3.5) does it. `FileSinkMappingParallelismTest` in `ignifyr-sink-file` pins this behaviour.
+
+> [!WARNING]
+> If you set `spark.sql.adaptive.enabled = false` in the `spark { }` block, an **NDJSON** file sink with
+> `partitionByResourceType = false` and the default `numOfPartitions = 1` runs the **entire mapping in
+> one task**, whatever `mapping-jobs.numOfPartitions` is. If you must disable AQE, raise that sink's
+> `numOfPartitions` too, or enable `partitionByResourceType`. Other formats and FHIR repository sinks are
+> not affected.
