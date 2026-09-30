@@ -84,14 +84,21 @@ object CommandLineInterface {
    *
    * @param ignifyrEngine
    * @param mappingJobFilePath
+   * @param skipWrite Run the mappings without writing their results to the sink (batch jobs only)
    */
-  def runJob(ignifyrEngine: IgnifyrEngine, mappingJobFilePath: Option[String], ignifyrDbFolderPath: String): Unit = {
+  def runJob(
+      ignifyrEngine: IgnifyrEngine,
+      mappingJobFilePath: Option[String],
+      ignifyrDbFolderPath: String,
+      skipWrite: Boolean = false
+  ): Unit = {
     if (mappingJobFilePath.isEmpty) {
       println("There are no jobs to run. Exiting...")
       System.exit(1)
     }
     val mappingJob = FhirMappingJobFormatter.readMappingJobFromFile(mappingJobFilePath.get)
-    val mappingJobExecution = FhirMappingJobExecution(job = mappingJob, mappingTasks = mappingJob.mappings)
+    val mappingJobExecution =
+      FhirMappingJobExecution(job = mappingJob, mappingTasks = mappingJob.mappings, skipWrite = skipWrite)
     new MappingJobLauncher(ignifyrEngine).launch(mappingJob, mappingJobExecution, ignifyrDbFolderPath) match {
       case MappingJobLaunch.Batch(completion) =>
         Await.result(completion, Duration.Inf)
@@ -117,6 +124,9 @@ object CommandLineInterface {
       case Nil => map
       case ("--db" | "--db-path") :: value :: tail =>
         nextArg(map ++ Map("db-path" -> value), tail)
+      case "--skip-write" :: tail =>
+        // A valueless boolean flag; it must match before the generic pair below swallows the next token.
+        nextArg(map ++ Map("skip-write" -> true), tail)
       case flag :: value :: tail if flag.startsWith("--") =>
         // Generic `--flag value` pair; command providers translate these into positional args.
         nextArg(map ++ Map(flag.stripPrefix("--") -> value), tail)

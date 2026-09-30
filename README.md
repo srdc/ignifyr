@@ -194,6 +194,7 @@ When started as a standalone tool, the engine can run in two modes based on argu
 - `run`: Runs a configured mapping-job as a batch process and shuts down. `run` command accepts the following parameters:
   - `--job`: The path to the mapping-job to be executed. If provided, overrides the path provided to the JVM as the configuration parameter.
   - `--db` (alias `--db-path`): The path to the database folder that is used for scheduled jobs. If provided, overrides the path provided to the JVM as the configuration parameter.
+  - `--skip-write` (no value): Runs the mappings and logs their results, but writes nothing to the sink, does not validate the sink and does not archive the source files. Use it to test a job. Only batch jobs support it; a streaming or scheduled job is rejected.
 
   The mappings and schemas folders are not command-line options; they are always read from the
   [configuration](#configurations) (`ignifyr.mappings.repository.folder-path` and

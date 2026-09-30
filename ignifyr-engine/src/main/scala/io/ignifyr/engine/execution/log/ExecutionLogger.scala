@@ -187,6 +187,7 @@ object ExecutionLogger {
     markerMap.put("projectId", mappingJobExecution.projectId)
     markerMap.put("executionId", mappingJobExecution.id)
     markerMap.put("mappingTaskName", mappingTaskName)
+    markerMap.put("isWriteSkipped", mappingJobExecution.isWriteSkipped)
     // log the chunk progress for batch jobs
     if (!mappingJobExecution.isStreamingJob) {
       markerMap.put("chunkProgress", s"0 / $numOfChunks")
@@ -238,6 +239,7 @@ object ExecutionLogger {
     markerMap.put("projectId", mappingJobExecution.projectId)
     markerMap.put("executionId", mappingJobExecution.id)
     markerMap.put("mappingTaskName", mappingTaskName)
+    markerMap.put("isWriteSkipped", mappingJobExecution.isWriteSkipped)
     // log the batch progress for batch jobs
     if (!mappingJobExecution.isStreamingJob) {
       markerMap.put("chunkProgress", s"0 / 1") // chunk size is not determined yet

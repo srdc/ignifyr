@@ -64,4 +64,18 @@ class CommandLineInterfaceTest extends AnyFlatSpec with Matchers {
   it should "let a later flag override an earlier one with the same name" in {
     parse("run", "--job", "first.json", "--job", "second.json") should contain("job" -> "second.json")
   }
+
+  // --skip-write takes no value: read as a generic pair it would swallow the next token (here `--job`),
+  // and the job path would be lost.
+  it should "read --skip-write as a valueless flag anywhere on the line" in {
+    parse("run", "--skip-write", "--job", "jobs/patient.json") shouldBe
+      Map("command" -> "run", "skip-write" -> true, "job" -> "jobs/patient.json")
+    parse("run", "--job", "jobs/patient.json", "--skip-write") shouldBe
+      Map("command" -> "run", "skip-write" -> true, "job" -> "jobs/patient.json")
+    parse("--skip-write", "run") shouldBe Map("command" -> "run", "skip-write" -> true)
+  }
+
+  it should "not set skip-write unless it is given" in {
+    parse("run", "--job", "jobs/patient.json") should not contain key("skip-write")
+  }
 }

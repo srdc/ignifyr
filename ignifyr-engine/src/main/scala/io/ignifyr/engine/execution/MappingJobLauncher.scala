@@ -69,6 +69,9 @@ class MappingJobLauncher(ignifyrEngine: IgnifyrEngine)(implicit ec: ExecutionCon
    * @param ignifyrDbFolderPath  Ignifyr database folder (scheduling providers keep last-sync state there).
    * @param clearCheckpoints     For streaming jobs, reset archiving offsets and delete the Spark
    *                             checkpoint directories so the streams start from scratch.
+   * @throws IllegalArgumentException if the execution skips writing but the job is streaming or scheduled: skipping
+   *                                  the write is supported only for batch executions, since a stream would still
+   *                                  advance its checkpoints and a schedule its last-sync time.
    */
   def launch(
       mappingJob: FhirMappingJob,
@@ -76,6 +79,13 @@ class MappingJobLauncher(ignifyrEngine: IgnifyrEngine)(implicit ec: ExecutionCon
       ignifyrDbFolderPath: String = IgnifyrConfig.engineConfig.ignifyrDbFolderPath,
       clearCheckpoints: Boolean = false
   ): MappingJobLaunch = {
+    if (
+      mappingJobExecution.isWriteSkipped &&
+      (mappingJob.sourceSettings.exists(_._2.asStream) || mappingJob.schedulingSettings.nonEmpty)
+    )
+      throw new IllegalArgumentException(
+        s"Skipping the write is supported only for batch executions, but job '${mappingJob.id}' is streaming or scheduled."
+      )
     if (mappingJob.sourceSettings.exists(_._2.asStream)) {
       if (clearCheckpoints) clearCheckpointDirectories(mappingJobExecution)
       val queryRegistrations = jobManager

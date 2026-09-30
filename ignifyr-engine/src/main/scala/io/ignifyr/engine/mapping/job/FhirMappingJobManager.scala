@@ -90,7 +90,8 @@ class FhirMappingJobManager(
       timeRange: Option[(LocalDateTime, LocalDateTime)] = None
   ): Future[Unit] = {
     val sinkWriter = SinkWriterFactory.apply(sinkSettings)
-    sinkWriter.validate()
+    // The sink is not touched at all when the execution skips writing
+    if (!mappingJobExecution.isWriteSkipped) sinkWriter.validate()
     mappingJobExecution.mappingTasks.foldLeft(Future((): Unit)) { (f, task) => // Initial empty Future
       f.flatMap { _ => // Execute the Futures in the Sequence consecutively (not in parallel)
         // log the start of the FHIR mapping task execution
@@ -212,7 +213,8 @@ class FhirMappingJobManager(
       identityServiceSettings: Option[IdentityServiceSettings] = None
   ): Future[Unit] = {
     val sinkWriter = SinkWriterFactory.apply(sinkSettings)
-    sinkWriter.validate()
+    // The sink is not touched at all when the execution skips writing
+    if (!mappingJobExecution.isWriteSkipped) sinkWriter.validate()
 
     readSourceAndExecuteTask(
       mappingJobExecution.jobId,

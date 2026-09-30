@@ -25,11 +25,15 @@ class SinkHandlerTest extends AnyFlatSpec with Matchers {
   /** Captures the dataset it is handed instead of writing it anywhere. */
   private class CapturingWriter extends BaseSinkWriter(FileSystemSinkSettings("./out", SinkContentTypes.NDJSON)) {
     var written: Seq[FhirMappingResult] = Seq.empty
+    var writeCalls: Int = 0
     override def write(
         spark: SparkSession,
         df: Dataset[FhirMappingResult],
         problemsAccumulator: CollectionAccumulator[FhirMappingResult]
-    ): Unit = written = df.collect().toSeq
+    ): Unit = {
+      writeCalls += 1
+      written = df.collect().toSeq
+    }
     override def validate(): Unit = ()
   }
 
@@ -104,6 +108,24 @@ class SinkHandlerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "call the writer even when there is nothing to write" in {
-    write() shouldBe empty
+    import sparkSession.implicits._
+    val writer = new CapturingWriter
+    SinkHandler.writeMappingResult(sparkSession, execution, "task-1", Seq.empty[FhirMappingResult].toDS(), writer)
+    writer.writeCalls shouldBe 1
+  }
+
+  // An execution that skips writing still maps and logs, but its mapped resources never reach the writer.
+  it should "not call the writer when the execution skips writing" in {
+    import sparkSession.implicits._
+    val writer = new CapturingWriter
+    SinkHandler.writeMappingResult(
+      sparkSession,
+      execution.copy(isWriteSkipped = true),
+      "task-1",
+      Seq(result("row-1", mappedResource = Some("""{"resourceType":"Patient"}"""))).toDS(),
+      writer
+    )
+    writer.writeCalls shouldBe 0
+    writer.written shouldBe empty
   }
 }
