@@ -75,6 +75,34 @@ object ExtensionRegistry {
       extensions.flatMap(e => e.schemaInferrers.map(p => (e.id, p.settingsClass: Class[_], p)))
     )
 
+  /** All installed lookup observers, in extension order. Several may coexist. */
+  lazy val lookupObservers: Seq[MappingLookupObserver] =
+    extensions.flatMap(_.lookupObservers)
+
+  /**
+   * A recorder for the lookups of the given task execution, fanning out to every installed observer, or
+   * [[LookupRecorder.NoOp]] when none is installed. Driver side.
+   */
+  def lookupRecorderFor(spark: org.apache.spark.sql.SparkSession, scope: MappingLookupScope): LookupRecorder =
+    lookupObservers match {
+      case Seq() => LookupRecorder.NoOp
+      case Seq(single) => single.recorderFor(spark, scope)
+      case many => LookupRecorder.Composite(many.map(_.recorderFor(spark, scope)))
+    }
+
+  /** Notifies every installed lookup observer that a chunk / micro-batch of the task execution is done. Driver side. */
+  def notifyLookupChunkCompleted(
+      mappingJobExecution: io.ignifyr.engine.model.FhirMappingJobExecution,
+      mappingTaskName: String
+  ): Unit =
+    lookupObservers.foreach { observer =>
+      try observer.onChunkCompleted(mappingJobExecution, mappingTaskName)
+      catch {
+        // Monitoring must never fail the mapping itself
+        case t: Throwable => logger.warn(s"Lookup observer ${observer.getClass.getName} failed on chunk completion", t)
+      }
+    }
+
   /** The single installed streaming execution provider, if any. More than one is a config error. */
   lazy val streaming: Option[StreamingExecutionProvider] = singleCapability("streaming execution provider")(
     extensions.flatMap(e => e.streamingProvider.map(e.id -> _))

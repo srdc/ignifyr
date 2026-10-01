@@ -35,11 +35,14 @@ trait FhirMappingContext {
  *                              ("59260-0", "mmol/L")-> ("g/L",  "$this * 16.114")
  *                            )
  *
+ * @param name Name of the file the context is loaded from (e.g. lab-concept-map.csv). It identifies the context
+ *             independently of the alias a mapping gives it, e.g. in mapping coverage reports.
  *
  */
 case class ConceptMapContext(
     concepts: Map[String, Seq[Map[String, String]]],
-    conversionFunctions: Map[(String, String), (String, String)] = Map.empty
+    conversionFunctions: Map[(String, String), (String, String)] = Map.empty,
+    name: Option[String] = None
 ) extends FhirMappingContext {
   override def toContextObject: JObject = JObject()
 }
@@ -49,9 +52,12 @@ case class ConceptMapContext(
  *
  * @param conversionFunctions (code of the observation, source unit) -> FHIR Path expression to convert the value to given unit
  *                            e.g. Converting Hemoglogbin to g/dL;   (718-7, g/L) -> ($this * 0.1, g/dL)
+ * @param name                Name of the file the context is loaded from (see [[ConceptMapContext.name]])
  */
-case class UnitConversionContext(conversionFunctions: Map[(String, String), (String, String)])
-    extends FhirMappingContext {
+case class UnitConversionContext(
+    conversionFunctions: Map[(String, String), (String, String)],
+    name: Option[String] = None
+) extends FhirMappingContext {
   override def toContextObject: JObject = JObject()
 }
 

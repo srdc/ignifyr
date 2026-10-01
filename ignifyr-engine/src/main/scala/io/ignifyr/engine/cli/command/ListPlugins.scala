@@ -47,6 +47,7 @@ class ListPlugins extends Command {
       line("schema inferrers", ext.schemaInferrers)(_.settingsClass.getSimpleName),
       line("CLI commands", ext.cliCommands.flatMap(c => c.name +: c.aliases).sorted)(identity),
       line("source failure descriptors", ext.sourceFailureDescriptors)(_.getClass.getSimpleName),
+      line("lookup observers", ext.lookupObservers)(_.getClass.getSimpleName),
       ext.streamingProvider.map(p => s"streaming provider: ${p.getClass.getSimpleName}"),
       ext.schedulerProvider.map(p => s"scheduler provider: ${p.getClass.getSimpleName}"),
       line("spark conf keys", ext.sparkConfContributions.keys.toSeq.sorted)(identity)

@@ -64,6 +64,12 @@ trait IgnifyrExtension {
   def schedulerProvider: Option[SchedulerProvider] = None
 
   /**
+   * Observers of the terminology / concept-map / unit-conversion lookups mappings perform (e.g. to report
+   * mapping coverage). Any number may be installed; each receives every observed lookup.
+   */
+  def lookupObservers: Seq[MappingLookupObserver] = Nil
+
+  /**
    * Extra Spark configuration entries this module contributes to the shared SparkSession — e.g. an
    * enterprise format that needs a Spark session extension or catalog (`spark.sql.extensions`,
    * `spark.sql.catalog.spark_catalog`). Merged into the session config when it is first built.

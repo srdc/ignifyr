@@ -6,9 +6,10 @@ import io.onfhir.path.{FhirPathEvaluator, IFhirPathFunctionLibraryFactory}
 import io.onfhir.template.FhirTemplateExpressionHandler
 import io.onfhir.definitions.common.model.Json4sSupport.formats
 import io.ignifyr.engine.mapping.fhirPath.FhirMappingFunctionsFactory
-import io.ignifyr.engine.mapping.service.IntegratedServiceFactory
+import io.ignifyr.engine.mapping.service.{IntegratedServiceFactory, ObservingTerminologyService}
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.model.exception.FhirMappingException
+import io.ignifyr.engine.spi.LookupRecorder
 import org.json4s.JsonAST.{JArray, JNull, JObject, JValue}
 
 import io.ignifyr.engine.Execution.actorSystem.dispatcher
@@ -27,6 +28,8 @@ import scala.concurrent.Future
  * @param identityServiceSettings    Settings for identity service to use within mappings (e.g. resolveIdentifier)
  * @param functionLibraries          External function libraries containing functions to use in FHIRPath expressions
  * @param projectId                  Project identifier associated with the mapping job
+ * @param lookupRecorder             Recorder of the terminology / concept-map / unit-conversion lookups the mapping
+ *                                   performs (for coverage monitoring); records nothing by default
  *                                   (if true, mapped FHIR resources are grouped by input row in the FhirMappingResult)
  */
 class FhirMappingService(
@@ -39,11 +42,16 @@ class FhirMappingService(
     terminologyServiceSettings: Option[TerminologyServiceSettings],
     identityServiceSettings: Option[IdentityServiceSettings],
     functionLibraries: Map[String, IFhirPathFunctionLibraryFactory],
-    val projectId: Option[String]
+    val projectId: Option[String],
+    lookupRecorder: LookupRecorder = LookupRecorder.NoOp
 ) extends IFhirMappingService {
 
   lazy val terminologyService =
-    terminologyServiceSettings.map(setting => IntegratedServiceFactory.createTerminologyService(setting))
+    terminologyServiceSettings
+      .map(setting => IntegratedServiceFactory.createTerminologyService(setting))
+      .map(service =>
+        if (lookupRecorder eq LookupRecorder.NoOp) service else new ObservingTerminologyService(service, lookupRecorder)
+      )
   lazy val identityService =
     identityServiceSettings.map(setting => IntegratedServiceFactory.createIdentityService(setting))
 
@@ -57,7 +65,8 @@ class FhirMappingService(
         .map(c => c._1 -> c._2.toContextObject), // Provide the static contexts
       functionLibraries + // Default libraries
         ("mpp" -> new FhirMappingFunctionsFactory(
-          context.filterNot(_._2.isInstanceOf[ConfigurationContext])
+          context.filterNot(_._2.isInstanceOf[ConfigurationContext]),
+          lookupRecorder
         )), // Add our mapping function library,
       terminologyService,
       identityService,
