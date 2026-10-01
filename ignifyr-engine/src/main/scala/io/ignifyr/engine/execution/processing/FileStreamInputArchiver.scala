@@ -102,7 +102,12 @@ object FileStreamInputArchiver {
     // That means archiving works in best-effort mode.
     try {
       val archiveMode: ArchiveModes = execution.archiveMode
-      if (archiveMode != ArchiveModes.OFF) {
+      // An execution that skips writing must leave its input files in place: it wrote nothing, so they are not consumed
+      if (execution.isWriteSkipped && archiveMode != ArchiveModes.OFF)
+        logger.info(
+          s"Skipping archiving for job: ${execution.jobId}, execution: ${execution.id}, since its write is skipped"
+        )
+      else if (archiveMode != ArchiveModes.OFF) {
         // get data folder path from data source settings
         val dataFolderPath = FileUtils.getPath(execution.fileSystemSourceDataFolderPath.get).toString
 

@@ -21,6 +21,9 @@ import java.util.regex.Pattern
  * @param archiveMode                    Archive mode of execution
  * @param saveErroneousRecords           Whether to save erroneous records or not
  * @param isScheduledJob                 Whether the execution is scheduled or not
+ * @param isWriteSkipped                 Whether writing the mapped resources to the sink is skipped (a dry run: the
+ *                                       mappings run and their results are logged, but nothing reaches the sink and
+ *                                       the source files are not archived). Supported only for batch executions.
  */
 case class FhirMappingJobExecution(
     id: String,
@@ -32,7 +35,8 @@ case class FhirMappingJobExecution(
     fileSystemSourceDataFolderPath: Option[String],
     archiveMode: ArchiveModes,
     saveErroneousRecords: Boolean,
-    isScheduledJob: Boolean
+    isScheduledJob: Boolean,
+    isWriteSkipped: Boolean
 ) {
 
   /**
@@ -144,6 +148,7 @@ object FhirMappingJobExecution {
    * @param job                            FHIR mapping job that includes this execution.
    * @param mappingTasks                   List of mapping tasks to be executed (as a subset of the mapping tasks defined in the job)
    * @param jobGroupIdOrStreamingQuery     Keeps Spark job group id for batch jobs and StreamingQuery for streaming jobs
+   * @param skipWrite                      Whether to skip writing the mapped resources to the sink (see [[FhirMappingJobExecution.isWriteSkipped]])
    * @return
    */
   def apply(
@@ -151,7 +156,8 @@ object FhirMappingJobExecution {
       projectId: String = "",
       job: FhirMappingJob,
       mappingTasks: Seq[FhirMappingTask] = Seq.empty,
-      jobGroupIdOrStreamingQuery: Option[Either[String, collection.mutable.Map[String, StreamingQuery]]] = None
+      jobGroupIdOrStreamingQuery: Option[Either[String, collection.mutable.Map[String, StreamingQuery]]] = None,
+      skipWrite: Boolean = false
   ): FhirMappingJobExecution = {
 
     // Configure properties related to the source settings of the job
@@ -186,7 +192,8 @@ object FhirMappingJobExecution {
       fileSystemSourceDataFolderPath,
       archiveMode,
       saveErroneousRecords,
-      isScheduledJob
+      isScheduledJob,
+      skipWrite
     )
   }
 }

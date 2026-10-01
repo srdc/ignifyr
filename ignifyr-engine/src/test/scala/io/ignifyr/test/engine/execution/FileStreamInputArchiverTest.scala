@@ -181,6 +181,24 @@ class FileStreamInputArchiverTest extends AnyFlatSpec with Matchers {
     org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(sourceFolderPath).toFile)
   }
 
+  "FileStreamInputArchiver" should "not apply deletion for a batch job that skips writing" in {
+
+    // Create a test input file
+    val inputFile = initializeInputFiles(sourceFolderPath, inputFilePath)
+
+    // Check whether input file exists
+    inputFile.exists() shouldBe true
+
+    // Call archiving function for an execution that wrote nothing
+    FileStreamInputArchiver.applyArchivingOnBatchJob(testExecutionWithDelete.copy(isWriteSkipped = true))
+
+    // Check whether input file remains
+    inputFile.exists() shouldBe true
+
+    // Clean test directories
+    org.apache.commons.io.FileUtils.deleteDirectory(FileUtils.getPath(sourceFolderPath).toFile)
+  }
+
   "FileStreamInputArchiver" should "get input files" in {
 
     val mappingTaskName = "mocked_mappingTask_name"

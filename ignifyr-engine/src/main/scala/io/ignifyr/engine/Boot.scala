@@ -38,7 +38,12 @@ object Boot extends App {
           if (options.contains("db-path")) options("db-path").asInstanceOf[String]
           else IgnifyrConfig.engineConfig.ignifyrDbFolderPath
 
-        CommandLineInterface.runJob(ignifyrEngine, mappingJobFilePath, ignifyrDbFolderPath)
+        CommandLineInterface.runJob(
+          ignifyrEngine,
+          mappingJobFilePath,
+          ignifyrDbFolderPath,
+          skipWrite = options.contains("skip-write")
+        )
 
       // Diagnostic: list the installed extension modules and everything they contribute. Reads only
       // the ServiceLoader-backed registry, so it deliberately does NOT build the engine (no workspace

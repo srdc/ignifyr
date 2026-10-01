@@ -66,7 +66,8 @@ case class FhirMappingJobResult(
         s"\t# of Invalid Rows: \t$numOfInvalids\n" +
         s"\t# of Not Mapped: \t$numOfNotMapped\n" +
         s"\t# of Failed writes:\t$numOfFailedWrites\n" +
-        s"\t# of Written FHIR resources:\t$numOfFhirResources"
+        (if (mappingJobExecution.isWriteSkipped) s"\t# of FHIR resources (write skipped):\t$numOfFhirResources"
+         else s"\t# of Written FHIR resources:\t$numOfFhirResources")
     }
     message
   }
@@ -99,6 +100,7 @@ case class FhirMappingJobResult(
     markerMap.put("eventId", eventId)
     markerMap.put("isStreamingJob", mappingJobExecution.isStreamingJob)
     markerMap.put("isScheduledJob", mappingJobExecution.isScheduledJob)
+    markerMap.put("isWriteSkipped", mappingJobExecution.isWriteSkipped)
     // log the chunk progress for batch jobs
     if (!mappingJobExecution.isStreamingJob) {
       markerMap.put("chunkProgress", s"$completedNumOfChunks / $totalNumOfChunks")

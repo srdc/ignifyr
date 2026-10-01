@@ -39,8 +39,14 @@ object SinkHandler {
     val fhirWriteProblemsAccum: CollectionAccumulator[FhirMappingResult] =
       spark.sparkContext.collectionAccumulator[FhirMappingResult](accumName)
     fhirWriteProblemsAccum.reset()
-    // Write the FHIR resources
-    resourceWriter.write(spark, mappedResults, fhirWriteProblemsAccum)
+    // Write the FHIR resources, unless the execution skips writing (the accumulator then stays empty, so the mapped
+    // resources are logged as numOfFhirResources with no failed writes)
+    if (mappingJobExecution.isWriteSkipped)
+      logger.info(
+        s"Skipping the write of the mapped resources for mappingTask '$mappingTaskName' of execution '${mappingJobExecution.id}'."
+      )
+    else
+      resourceWriter.write(spark, mappedResults, fhirWriteProblemsAccum)
     logMappingJobResult(
       mappingJobExecution,
       mappingTaskName,
