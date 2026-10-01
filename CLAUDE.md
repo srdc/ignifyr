@@ -38,7 +38,7 @@ Every plugin module plugs in through the `IgnifyrExtension` ServiceLoader SPI
 (`io.ignifyr.engine.spi`) — one implementation and one `META-INF/services` entry per jar. Its full
 contribution surface is `sourceConnectors`, `sinkProviders`, `terminologyServiceProviders`,
 `identityServiceProviders`, `cliCommands`, `sourceFailureDescriptors`, `schemaInferrers`,
-`streamingProvider`, `schedulerProvider`, `sparkConfContributions`, `extraCapabilities`, plus
+`streamingProvider`, `schedulerProvider`, `lookupObservers`, `sparkConfContributions`, `extraCapabilities`, plus
 `initialize(config)` (scoped to `ignifyr.extensions.<id>`; it must **not** touch
 `IgnifyrConfig.sparkSession` — registry load runs while the session is being built). The engine's
 `ExtensionRegistry` indexes these by settings/binding **class**, fail-fast on duplicate keys
@@ -46,6 +46,14 @@ contribution surface is `sourceConnectors`, `sinkProviders`, `terminologyService
 connector, sink, or format directly. `ExtensionRegistry.init()` force-materializes every registry that
 can reject its input, **including `streaming` and `scheduler`**, so a second copy of a capability
 module fails at startup rather than at first job launch.
+
+`lookupObservers` (`MappingLookupObserver`, any number) is the coverage-monitoring hook: the engine
+reports every `mpp:getConcept` / `mpp:convertAndReturnQuantity` lookup and every terminology `translate` /
+`lookup` (via `ObservingTerminologyService`) as a `LookupEvent` to the executor-side `LookupRecorder` obtained
+in `FhirMappingJobManager.executeTask`, and calls `onChunkCompleted` from `SinkHandler.writeMappingResult`.
+It records and logs nothing itself — with no observer installed the recorder is `LookupRecorder.NoOp`, and
+previews/test runs (no execution id) are never observed. The Enterprise `ignifyr-observability` module is the
+implementation (aggregated `MAPPING_COVERAGE` events + a Kibana dashboard).
 
 `sparkConfContributions` is merged in three layers, lowest first: engine defaults → module
 contributions → the user's `spark { }` block. The user's block wins for a single-valued key, but for a

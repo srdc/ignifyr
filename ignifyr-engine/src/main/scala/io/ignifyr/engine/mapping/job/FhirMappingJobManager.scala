@@ -12,7 +12,13 @@ import io.ignifyr.engine.mapping.schema.IFhirSchemaLoader
 import io.ignifyr.engine.model._
 import io.ignifyr.engine.model.exception.{FhirMappingException, FhirMappingJobStoppedException}
 import io.ignifyr.engine.repository.mapping.IFhirMappingRepository
-import io.ignifyr.engine.spi.{ExtensionRegistry, MappingTaskPipeline, MissingCapabilityException}
+import io.ignifyr.engine.spi.{
+  ExtensionRegistry,
+  LookupRecorder,
+  MappingLookupScope,
+  MappingTaskPipeline,
+  MissingCapabilityException
+}
 import org.apache.spark.SparkThrowable
 import org.apache.spark.sql.functions.{collect_list, struct, udf}
 import org.apache.spark.sql.streaming.StreamingQuery
@@ -598,6 +604,12 @@ class FhirMappingJobManager(
       .map(loadedContextMap => {
         // Get configuration context
         val configurationContext = mainSourceSettings.toConfigurationContext
+        // Recorder of the lookups the mapping performs, only for executions (not for previews or test runs)
+        val lookupRecorder = executionId
+          .map(id =>
+            ExtensionRegistry.lookupRecorderFor(spark, MappingLookupScope(jobId, projectId, id, mappingTaskName))
+          )
+          .getOrElse(LookupRecorder.NoOp)
         // Construct the mapping service
         val fhirMappingService = new FhirMappingService(
           jobId,
@@ -609,7 +621,8 @@ class FhirMappingJobManager(
           terminologyServiceSettings,
           identityServiceSettings,
           functionLibraries,
-          projectId
+          projectId,
+          lookupRecorder
         )
         MappingTaskExecutor.executeMapping(spark, df, fhirMappingService, executionId)
       })

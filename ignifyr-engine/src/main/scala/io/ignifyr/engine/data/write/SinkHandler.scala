@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 import io.ignifyr.engine.execution.log.ExecutionLogger
 import io.ignifyr.engine.execution.processing.ErroneousRecordWriter
 import io.ignifyr.engine.model._
+import io.ignifyr.engine.spi.ExtensionRegistry
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.util.CollectionAccumulator
 
@@ -55,6 +56,8 @@ object SinkHandler {
       mappingErrors,
       invalidInputs
     )
+    // All actions on the mapped chunk are done; let the lookup observers publish what they recorded for it
+    ExtensionRegistry.notifyLookupChunkCompleted(mappingJobExecution, mappingTaskName)
     ErroneousRecordWriter.saveErroneousRecords(
       spark,
       mappingJobExecution,

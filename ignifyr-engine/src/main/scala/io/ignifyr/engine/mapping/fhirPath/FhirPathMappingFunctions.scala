@@ -11,6 +11,7 @@ import io.onfhir.path.annotation.{
 }
 import io.onfhir.path.grammar.FhirPathExprParser.ExpressionContext
 import io.ignifyr.engine.model.{ConceptMapContext, FhirMappingContext, UnitConversionContext}
+import io.ignifyr.engine.spi.{LookupEvent, LookupRecorder, LookupTypes}
 import io.ignifyr.engine.util.FhirMappingUtility
 import org.json4s.{JObject, JString}
 
@@ -20,11 +21,13 @@ import org.json4s.{JObject, JString}
  * @param context        FHIR Path context
  * @param current        Current result to apply the function on
  * @param mappingContext Specific mapping context
+ * @param lookupRecorder Recorder of the concept-map and unit-conversion lookups performed (for coverage monitoring)
  */
 class FhirPathMappingFunctions(
     context: FhirPathEnvironment,
     current: Seq[FhirPathResult],
-    mappingContext: Map[String, FhirMappingContext]
+    mappingContext: Map[String, FhirMappingContext],
+    lookupRecorder: LookupRecorder = LookupRecorder.NoOp
 ) extends AbstractFhirPathFunctionLibrary
     with Serializable {
 
@@ -384,16 +387,49 @@ class FhirPathMappingFunctions(
     evaluator.visit(keyExpr) match {
       case Nil => Seq.empty
       case Seq(FhirPathString(conceptCode)) =>
-        conceptMapContext.concepts
-          .get(conceptCode)
-          .map(mws => mws.map(res => FhirPathComplex(JObject(res.toList.map(i => i._1 -> JString(i._2))))))
-          .getOrElse(Seq.empty)
+        val matchedConcepts = conceptMapContext.concepts.getOrElse(conceptCode, Seq.empty)
+        recordConceptLookup(
+          conceptMapContext.name.getOrElse(mapName),
+          conceptCode,
+          matchedConcepts.flatMap(_.get("target_code")).find(_.nonEmpty),
+          matchedConcepts.nonEmpty
+        )
+        matchedConcepts.map(res => FhirPathComplex(JObject(res.toList.map(i => i._1 -> JString(i._2)))))
       case _ =>
         throw new FhirPathException(
           s"Invalid function call 'getConcept', given expression for keyExpr:${keyExpr.getText} for the concept code should return a string value!"
         )
     }
   }
+
+  /**
+   * Record a concept-map lookup (a concept map has no code systems, so only the codes are recorded)
+   *
+   * @param mapName    Name of the concept map context: the file it is loaded from, or its alias in the mapping
+   *                   if the file is unknown
+   * @param sourceCode The looked up code
+   * @param targetCode The matched value, if any
+   * @param success    Whether a match was found
+   * @param column     The column asked for; None when the whole concept is asked for
+   */
+  private def recordConceptLookup(
+      mapName: String,
+      sourceCode: String,
+      targetCode: Option[String],
+      success: Boolean,
+      column: Option[String] = None
+  ): Unit =
+    lookupRecorder.record(
+      LookupEvent(
+        lookupType = LookupTypes.CONCEPT,
+        operation = "getConcept",
+        conceptMap = Some(mapName),
+        sourceCode = Some(sourceCode),
+        targetCode = targetCode,
+        conceptColumn = column,
+        success = success
+      )
+    )
 
   /**
    * Load the concept map
@@ -490,19 +526,23 @@ class FhirPathMappingFunctions(
       )
     }
     // If conceptCode returns empty, also return empty, if there is no such key or target column is null also return empty
-    val result: Seq[FhirPathResult] =
-      conceptCodeResult.headOption
-        .map(_.asInstanceOf[FhirPathString].s)
-        .flatMap { conceptCode =>
-          conceptMapContext.concepts.get(conceptCode).map { conceptMapEntries =>
-            conceptMapEntries
-              .flatMap(_.get(targetField))
-              .filter(_.nonEmpty)
-              .map(mappedValue => FhirPathString(mappedValue))
-          }
-        }
-        .getOrElse(Seq.empty)
-    result
+    conceptCodeResult.headOption.map(_.asInstanceOf[FhirPathString].s) match {
+      case None => Seq.empty
+      case Some(conceptCode) =>
+        val mappedValues =
+          conceptMapContext.concepts
+            .getOrElse(conceptCode, Seq.empty)
+            .flatMap(_.get(targetField))
+            .filter(_.nonEmpty)
+        recordConceptLookup(
+          conceptMapContext.name.getOrElse(mapName),
+          conceptCode,
+          mappedValues.headOption,
+          mappedValues.nonEmpty,
+          Some(targetField)
+        )
+        mappedValues.map(mappedValue => FhirPathString(mappedValue))
+    }
   }
 
   /**
@@ -575,7 +615,7 @@ class FhirPathMappingFunctions(
       try {
         mappingContext(mapName) match {
           case u: UnitConversionContext => u
-          case c: ConceptMapContext => UnitConversionContext(c.conversionFunctions)
+          case c: ConceptMapContext => UnitConversionContext(c.conversionFunctions, c.name)
           case _ => throw new Exception()
         }
       } catch {
@@ -586,7 +626,7 @@ class FhirPathMappingFunctions(
       }
 
     val codeResult = new FhirPathExpressionEvaluator(context, current).visit(keyExpr)
-    if (codeResult.length > 1 || !codeResult.head.isInstanceOf[FhirPathString]) {
+    if (codeResult.length > 1 || !codeResult.forall(_.isInstanceOf[FhirPathString])) {
       throw new FhirPathException(
         s"Invalid function call 'convertAndReturnQuantity', given expression for keyExpr:${keyExpr.getText} for the source code should return a string value!"
       )
@@ -597,7 +637,7 @@ class FhirPathMappingFunctions(
       FhirPathEvaluator.parse("utl:parseFhirQuantityExpression($this)")
     )
     valueResult = valueAndComparator.headOption.toSeq
-    if (valueResult.length > 1 || !valueResult.head.isInstanceOf[FhirPathNumber]) {
+    if (valueResult.length > 1 || !valueResult.forall(_.isInstanceOf[FhirPathNumber])) {
       throw new FhirPathException(
         s"Invalid function call 'convertAndReturnQuantity', given expression for valueExpr:${valueExpr.getText} for the value should return a numeric value!"
       )
@@ -616,37 +656,48 @@ class FhirPathMappingFunctions(
       Nil
     else {
       val code = codeResult.head.asInstanceOf[FhirPathString].s
-      unitConversionContext.conversionFunctions
-        .get(code -> unit)
-        .map { case (targetUnit, conversionFunction) =>
-          val conversionFunctionExpressionContext = FhirPathEvaluator.parse(conversionFunction)
-          val functionResult =
-            new FhirPathExpressionEvaluator(context, valueResult).visit(conversionFunctionExpressionContext)
-          if (functionResult.length != 1 || !functionResult.head.isInstanceOf[FhirPathNumber]) {
-            throw new FhirPathException(
-              s"Invalid FHIR expression in the unit conversion context! The FHIR path expression:${conversionFunction} should evaluate to a single numeric value!"
-            )
-          }
-          FhirPathComplex(
-            JObject(
-              List(
-                "value" -> functionResult.head.toJson,
-                "system" -> JString("http://unitsofmeasure.org"),
-                "unit" -> JString(targetUnit),
-                "code" -> JString(targetUnit)
-              ) ++
-                comparator.map(c => "comparator" -> JString(c)).toList
-            )
+      val conversion = unitConversionContext.conversionFunctions.get(code -> unit)
+      lookupRecorder.record(
+        LookupEvent(
+          lookupType = LookupTypes.UNIT,
+          operation = "convertAndReturnQuantity",
+          conceptMap = Some(unitConversionContext.name.getOrElse(mapName)),
+          sourceCode = Some(code),
+          sourceUnit = Some(unit),
+          targetUnit = conversion.map(_._1),
+          success = conversion.isDefined
+        )
+      )
+      conversion.map { case (targetUnit, conversionFunction) =>
+        val conversionFunctionExpressionContext = FhirPathEvaluator.parse(conversionFunction)
+        val functionResult =
+          new FhirPathExpressionEvaluator(context, valueResult).visit(conversionFunctionExpressionContext)
+        if (functionResult.length != 1 || !functionResult.head.isInstanceOf[FhirPathNumber]) {
+          throw new FhirPathException(
+            s"Invalid FHIR expression in the unit conversion context! The FHIR path expression:${conversionFunction} should evaluate to a single numeric value!"
           )
         }
-        .toSeq
+        FhirPathComplex(
+          JObject(
+            List(
+              "value" -> functionResult.head.toJson,
+              "system" -> JString("http://unitsofmeasure.org"),
+              "unit" -> JString(targetUnit),
+              "code" -> JString(targetUnit)
+            ) ++
+              comparator.map(c => "comparator" -> JString(c)).toList
+          )
+        )
+      }.toSeq
     }
   }
 }
 
-class FhirMappingFunctionsFactory(mappingContext: Map[String, FhirMappingContext])
-    extends IFhirPathFunctionLibraryFactory
+class FhirMappingFunctionsFactory(
+    mappingContext: Map[String, FhirMappingContext],
+    lookupRecorder: LookupRecorder = LookupRecorder.NoOp
+) extends IFhirPathFunctionLibraryFactory
     with Serializable {
   override def getLibrary(context: FhirPathEnvironment, current: Seq[FhirPathResult]): AbstractFhirPathFunctionLibrary =
-    new FhirPathMappingFunctions(context, current, mappingContext)
+    new FhirPathMappingFunctions(context, current, mappingContext, lookupRecorder)
 }

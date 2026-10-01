@@ -128,7 +128,11 @@ class MappingContextLoader extends IMappingContextLoader {
           case _ => Map.empty
         }
 
-      ConceptMapContext(concepts = concepts, conversionFunctions = conversionFunctions)
+      ConceptMapContext(
+        concepts = concepts,
+        conversionFunctions = conversionFunctions,
+        name = Some(new File(filePath).getName)
+      )
     }
   }
 
